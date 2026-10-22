@@ -23,11 +23,15 @@ Provenance and licenses are recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 Stage 0 (bootstrap), Stage 1 (runtime baseline), Stage 2 (explicit context runtime + stable
 rendering), Stage 3 (ContextPilot dedup transform + reorder characterization), Stage 4
-(context-locality placement planning), and Stage 5 (durable session, task-level recovery, and
-deterministic context reconstruction) are complete and frozen. Per-request context
-transformation is separated from batch request ordering; ContextPilot reorder is experiment-only
-and classified as impractical for the online V1 CPU path. No cache-aware scheduling exists yet.
-Stage 6 has not been started.
+(context-locality placement planning), Stage 5 (durable session, task-level recovery, and
+deterministic context reconstruction), and Stage 6 (final evaluation and ablation) are complete.
+**AtlasOS V1 is frozen at Stage 6.** No Stage 7 has been started.
+
+V1 delivers a working integrated runtime and an honest evaluation: stable rendering removes
+layout dependence on completion order; ContextPilot dedup reduces prompt size at millisecond CPU
+cost but does not produce proportional warm cache-miss reduction; context-locality placement
+reduces logical handoff as chains grow; placement and dedup retain independent effects; durable
+recovery preserves unfinished-task context.
 
 - [Architecture](docs/architecture.md)
 - [Stage 0/1 specification](docs/stages/00-01-bootstrap-and-baseline.md)
@@ -40,8 +44,63 @@ Stage 6 has not been started.
 - [Stage 5 recovery notes](docs/stages/05-recovery-notes.md)
 - [Stage 5 resume verification](docs/stages/05-recovery-verification-notes.md)
 - [Stage 5 formal results](experiments/results/stage5-baseline.md)
+- [**Stage 6 final evaluation**](docs/stages/06-final-evaluation.md)
+- [**Stage 6 formal results**](experiments/results/stage6-final.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
+
+## Headline results
+
+Measured from the clean Stage 6 commit `a527796`; details and caveats in the
+[final results](experiments/results/stage6-final.md).
+
+| Area | Result |
+|---|---|
+| Stable layout | C2 layout hash invariant to completion-order inversion; C1 hash changes |
+| Dedup prompt scaling | 0% → 6.8% (small) → 31.2% (medium) → **44.0%** (large, ~50% duplicates) |
+| Dedup warm cache miss | not proportional: negative at small/medium, 2.5–11.1% at large |
+| Dedup CPU | ~1 ms (30 K chars), ~3 ms (110 K), ~7–8 ms (250 K) |
+| Placement handoff | S2 vs S1: **50.0% / 66.7% / 80.0%** fewer refs on P2/P3/P5 |
+| Placement × dedup | S2 keeps 6→2 handoff; T1 keeps 20.2% prompt reduction; not additive for warm miss |
+| Recovery | R1 `A=1,B=2,Review=1`; R2 `A=1,B=1,Review=1`; R0/R2 context and output equivalent |
+
+Provider cache is warm-prone and uncontrolled; no cold-start claim is made.
+
+## Final V1 architecture
+
+```text
+Workflow
+   ↓
+Task Placement Planner          deterministic pre-placement (S1/S2)
+   ↓
+AnyCode Execution Runtime       DAG, waves, lifecycle, checkpoints, resume
+   ↓
+Atlas Context Runtime           logical selection, ContextStore, ContextRefs
+   ↓
+Per-request Context Transform   identity / official ContextPilot exact dedup
+   ↓
+Stable Renderer                 stable prefix + deterministic block order
+   ↓
+Provider                        DeepSeek; prompt cache is best-effort
+   ↓
+Checkpoint                      AnyCode execution truth
+   ↓
+Context-aware Recovery          manifest identity + rebuilt ContextStore
+```
+
+Provenance:
+
+- **AnyCode 0.9.0** provides the agent runtime, DAG/wave execution, task lifecycle,
+  checkpointing, and `resume_from` mechanics. AtlasOS calls these and does not reimplement them.
+- **ContextPilot 0.5.0** provides the official exact-block dedup backend used by the optional
+  per-request transform. Its reorder primitive is characterized but not on the online path.
+- **AtlasOS** provides the integration architecture, task/context model, logical ContextStore and
+  references, stable prompt layout, deterministic placement policy, durable session manifest and
+  compatibility identity, rebuild-before-resume integration, recovery observations, and the
+  evaluation harness.
+
+Upstream checkpoint/resume and dedup algorithms are not AtlasOS-original infrastructure and are
+not presented as such.
 
 ## Running the baseline
 
@@ -65,6 +124,11 @@ ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage4_live.py
 
 # Stage 5 recovery R0/R1/R2 (deterministic durable-boundary interruption; clean tree required)
 uv run python examples/stage5_recovery.py
+
+# Stage 6 final evaluation (clean tree required)
+uv run python examples/stage6_offline.py
+ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage6_live.py
+uv run python examples/stage6_report.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -120,9 +184,9 @@ src/atlasos/
   placement/           deterministic pre-placement policies and planner
 tests/unit             deterministic offline tests
 tests/integration      runtime-level tests with fake or live providers
-examples/              baseline, live, Stage 2/3/4/5 experiment entry points
+examples/              baseline, live, Stage 2/3/4/5/6 experiment entry points
 experiments/configs/   experiment configurations (U0, C1, C2, S0-S2, T0/T1)
-experiments/results/   frozen stage summaries
+experiments/results/   frozen stage summaries, Stage 6 tables and SVG figures
 experiments/runs/      generated run records (gitignored)
 ```
 
@@ -131,10 +195,10 @@ experiments/runs/      generated run records (gitignored)
 - **AnyCode 0.9.0** provides the agent runtime, DAG/wave execution, task lifecycle,
   checkpointing, and `resume_from` mechanics. AtlasOS does not reimplement or patch these; it
   calls them.
-- **AtlasOS** owns the durable session manifest and schema closure, semantic and placement
-  identity verification, deterministic `ContextStore` reconstruction from completed checkpoint
-  tasks, the rebuild-before-execution resume integration, append-only recovery observations, and
-  the R0/R1/R2 recovery experiments.
+- **AtlasOS** owns the integration architecture, task/context model, logical `ContextStore` and
+  references, stable prompt layout, deterministic placement policy, durable session manifest and
+  semantic/placement identity verification, rebuild-before-execution resume integration,
+  append-only recovery observations, and the Stage 2–6 experiment harnesses.
 - **ContextPilot** is used only through the optional per-request dedup transform; its reorder
   path is characterized but not part of the online runtime.
 - **DeepSeek** is the live inference backend and the source of best-effort cache metrics.
@@ -144,11 +208,16 @@ such.
 
 ## Current limitations
 
-- Prompt-cache metrics are provider-reported and best-effort; correctness never depends on them.
+- Prompt-cache metrics are provider-reported and best-effort; the Stage 6 provider cache is
+  uncontrolled and warm-prone, so no cold-start claim is made.
+- ContextPilot dedup reduces prompt size but did not reduce warm cache-miss prefill in the Stage 6
+  workload; it can increase the uncached tail. Prompt length is not a cache-miss proxy.
+- E4 evaluates placement and context effects on the same topology but in separate measurement
+  paths; it does not execute a single seven-task live workflow with synthetic large outputs.
 - Placement is deterministic pre-placement, not physical KV residency or dynamic scheduling.
 - Recovery is task-level with at-least-once semantics for in-flight work; no exactly-once claim
   is made for tasks, provider calls, tools, or external side effects.
 - Stage 5 supports one resume generation; recursive/multi-generation resume is out of scope.
-- Provider KV/cache state is never persisted. Live DeepSeek recovery was not run for Stage 5.
+- Provider KV/cache state is never persisted. Live DeepSeek recovery was not run.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
 

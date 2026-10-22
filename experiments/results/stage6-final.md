@@ -78,8 +78,9 @@ Prompt reduction scales with both context size and duplicate ratio, reaching **4
 ~50 K prompt tokens and ~50% exact duplicates. **Warm-state cache-miss reduction does not scale
 the same way**: it is negative at small/medium scale (dedup changes the uncached tail) and only
 2.5% / 11.1% at large scale. Dedup reduces prompt tokens, not warm cache-miss prefill, in this
-workload. First warm repetitions are colder (the cache is warm-prone); all-repetition totals
-would mix that transient into the comparison, so they are not used for the miss claim.
+workload. The first repetition of each variant is colder (the cache is warm-prone);
+all-repetition totals would mix that transient into the comparison, so they are not used for the
+miss claim.
 
 ## Table C — E3 placement scaling
 
