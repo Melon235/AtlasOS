@@ -1,4 +1,4 @@
-# AtlasOS
+﻿# AtlasOS
 
 AtlasOS is an experimental AgentOS-style runtime for long-horizon multi-agent workloads.
 
@@ -15,14 +15,14 @@ V1 builds on:
 | [AnyCode](https://github.com/Quantlix/anycode) | Multi-agent runtime base | `anycode-py==0.9.0` |
 | [ContextPilot](https://github.com/EfficientContext/ContextPilot) | Context reorder/dedup backend | `contextpilot==0.5.0` |
 | DeepSeek API | Inference backend + prompt-cache metrics | OpenAI-compatible |
-| DeepSeek Harness | Development tool only, not a runtime dependency | — |
+| DeepSeek Harness | Development tool only, not a runtime dependency | 鈥?|
 
 Provenance and licenses are recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Status
 
 Stage 0 (bootstrap), Stage 1 (runtime baseline), Stage 2 (explicit context runtime + stable
-rendering), and Stage 3 (ContextPilot dedup transform + reorder characterization) are complete.
+rendering), Stage 3 (ContextPilot dedup transform + reorder characterization), and Stage 4 (context-locality placement planning) are complete.
 Per-request context transformation is separated from batch request ordering; ContextPilot reorder
 is experiment-only and classified as impractical for the online V1 CPU path. No cache-aware
 scheduling exists yet.
@@ -34,6 +34,7 @@ scheduling exists yet.
 - [Stage 2 context runtime notes](docs/stages/02-context-runtime-notes.md)
 - [Stage 3 ContextPilot notes](docs/stages/03-contextpilot-notes.md)
 - [Stage 3 API verification](docs/stages/03-contextpilot-verification-notes.md)
+- [Stage 4 placement notes](docs/stages/04-placement-notes.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -52,6 +53,10 @@ ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage2_ablation.py
 
 # live Stage 3: ContextPilot P0-P3 functional + cache-stress (needs the contextpilot extra)
 ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage3_contextpilot.py
+
+# Stage 4 placement planning (offline deterministic; live functional optional)
+uv run python examples/stage4_formal.py
+ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage4_live.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -114,3 +119,4 @@ experiments/runs/      generated run records (gitignored)
 - Prompt-cache metrics are provider-reported and best-effort; correctness never depends on them.
 - The cache-aware scheduler is a Stage 4 heuristic, not physical KV residency.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
+
