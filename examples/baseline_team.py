@@ -1,4 +1,4 @@
-"""Stage 0 spike: Planner -> (Research A, Research B) -> Review, on AnyCode, offline.
+"""Stage 1 offline baseline: the frozen workload on AnyCode with deterministic fake adapters.
 
 Run with: uv run python examples/baseline_team.py
 """
@@ -6,68 +6,61 @@ Run with: uv run python examples/baseline_team.py
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
-from anycode import AnyCode, OrchestratorConfig
+from anycode.providers.fake import FakeAdapter, FakeResponse
+from anycode.types import LLMAdapter
 
-from atlasos.integrations.anycode_runtime import (
-    build_agent,
-    build_task,
-    build_team,
-    register_fake_provider,
-)
+from atlasos.config import load_config
+from atlasos.metrics import InferenceObservation
+from atlasos.runtime import AtlasRuntime
+from atlasos.workflow import baseline_workflow
+
+REPLIES = {
+    "researcher-a": "Research thread A: fact A.",
+    "researcher-b": "Research thread B: fact B.",
+    "reviewer": "Recommendation: combine fact A and fact B.",
+}
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def fake_adapter_factory(
+    agent_name: str,
+    on_call: Callable[[InferenceObservation], None],
+) -> LLMAdapter:
+    del on_call  # deterministic fakes measure no provider usage
+    return FakeAdapter(responses=[FakeResponse(text=REPLIES[agent_name])])
 
 
 async def main() -> None:
-    register_fake_provider("atlasos-fake-research-a", "fact A")
-    register_fake_provider("atlasos-fake-research-b", "fact B")
-    register_fake_provider("atlasos-fake-reviewer", "merged review")
-
-    engine = AnyCode(OrchestratorConfig(max_concurrency=3))
-    team = build_team(
-        engine,
-        name="stage0-baseline",
-        agents=[
-            build_agent(
-                name="researcher-a",
-                provider="atlasos-fake-research-a",
-                system_prompt="You are a careful researcher.",
-            ),
-            build_agent(
-                name="researcher-b",
-                provider="atlasos-fake-research-b",
-                system_prompt="You are a careful researcher.",
-            ),
-            build_agent(
-                name="reviewer",
-                provider="atlasos-fake-reviewer",
-                system_prompt="You merge research into a decision.",
-            ),
-        ],
+    config = load_config(REPO_ROOT / "experiments" / "configs" / "baseline.yaml")
+    runtime = AtlasRuntime(
+        config,
+        runs_root=REPO_ROOT / "experiments" / "runs",
+        adapter_factory=fake_adapter_factory,
+        repo_root=REPO_ROOT,
     )
 
-    result = await engine.run_tasks(
-        team,
-        [
-            build_task(
-                title="Merge review",
-                description="Merge both research outputs into a recommendation.",
-                assignee="reviewer",
-                depends_on=["Research A", "Research B"],
-            ),
-            build_task(title="Research A", description="Collect fact A.", assignee="researcher-a"),
-            build_task(title="Research B", description="Collect fact B.", assignee="researcher-b"),
-        ],
+    result = await runtime.run(
+        baseline_workflow(),
+        experiment="stage1-offline",
+        input_text=(
+            "Two approaches are under consideration for a multi-agent runtime. "
+            "Approach 1 aggressively prunes context before every model call. "
+            "Approach 2 keeps a stable prefix and reorders context blocks for cache reuse."
+        ),
+        persist=False,
     )
 
-    print(f"success={result.success}")
-    for agent, agent_result in sorted(result.agent_results.items()):
-        print(f"  {agent}: {agent_result.output!r}")
-    usage = result.total_token_usage
-    print(
-        "tokens: "
-        f"in={usage.input_tokens} out={usage.output_tokens} "
-        f"cache_read={usage.cache_read_input_tokens}"
-    )
+    print(f"run: {result.run_id} status={result.status}")
+    for task in result.tasks:
+        print(f"  {task.task_id:<12} {task.status:<10} {task.output!r}")
+    metrics: dict[str, Any] = result.metrics.model_dump()
+    print("metrics:", metrics)
+    print(f"final output: {result.final_output!r}")
 
 
 if __name__ == "__main__":

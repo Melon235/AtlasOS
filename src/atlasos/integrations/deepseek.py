@@ -30,7 +30,8 @@ from anycode.types import (
     TokenUsage,
 )
 
-from atlasos.metrics.models import InferenceUsage
+from atlasos.metrics.fingerprint import full_prompt_hash, stable_prefix_hash
+from atlasos.metrics.models import InferenceObservation, InferenceUsage
 
 
 class UsageParseError(ValueError):
@@ -160,11 +161,11 @@ class DeepSeekAdapter:
         *,
         client: Any,
         model: str = DEFAULT_MODEL,
-        on_usage: Callable[[InferenceUsage], None] | None = None,
+        on_call: Callable[[InferenceObservation], None] | None = None,
     ) -> None:
         self._client = client
         self._model = model
-        self._on_usage = on_usage
+        self._on_call = on_call
 
     @property
     def name(self) -> str:
@@ -175,7 +176,7 @@ class DeepSeekAdapter:
         cls,
         env: Mapping[str, str] | None = None,
         *,
-        on_usage: Callable[[InferenceUsage], None] | None = None,
+        on_call: Callable[[InferenceObservation], None] | None = None,
     ) -> DeepSeekAdapter:
         if env is None:
             _load_dotenv()
@@ -195,7 +196,7 @@ class DeepSeekAdapter:
         return cls(
             client=client,
             model=values.get("DEEPSEEK_MODEL", DEFAULT_MODEL),
-            on_usage=on_usage,
+            on_call=on_call,
         )
 
     async def chat(
@@ -227,8 +228,16 @@ class DeepSeekAdapter:
 
         content, stop_reason, fallback = parse_chat_response(completion)
         usage = self._normalize_usage(getattr(completion, "usage", None), latency_ms, fallback)
-        if self._on_usage is not None:
-            self._on_usage(usage)
+        if self._on_call is not None:
+            self._on_call(
+                InferenceObservation(
+                    usage=usage,
+                    stable_prefix_hash=stable_prefix_hash(options.system_prompt, options.tools),
+                    full_prompt_hash=full_prompt_hash(
+                        options.system_prompt, messages, options.tools
+                    ),
+                )
+            )
 
         return LLMResponse(
             id=completion.id,

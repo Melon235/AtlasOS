@@ -25,7 +25,7 @@ def _live_enabled() -> bool:
 @pytest.mark.skipif(_live_enabled() is False, reason="live tests are opt-in")
 async def test_live_deepseek_call_reports_provider_usage() -> None:
     captured: list = []
-    adapter = DeepSeekAdapter.from_env(on_usage=captured.append)
+    adapter = DeepSeekAdapter.from_env(on_call=captured.append)
 
     response = await adapter.chat(
         [LLMMessage(role="user", content=[TextBlock(text="Reply with the single word: ok")])],
@@ -33,8 +33,11 @@ async def test_live_deepseek_call_reports_provider_usage() -> None:
     )
 
     assert response.content
-    assert captured, "adapter must emit one normalized usage record per call"
-    usage = captured[0]
+    assert captured, "adapter must emit one normalized observation per call"
+    observation = captured[0]
+    usage = observation.usage
     assert usage.prompt_tokens > 0
     assert usage.completion_tokens > 0
     assert usage.cache_hit_tokens is None or usage.cache_hit_tokens >= 0
+    assert len(observation.stable_prefix_hash) == 64
+    assert len(observation.full_prompt_hash) == 64

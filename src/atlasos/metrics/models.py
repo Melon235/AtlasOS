@@ -35,12 +35,28 @@ class InferenceUsage(BaseModel):
         return hit / total
 
 
-class InferenceRecord(BaseModel):
-    """One inference call with the experiment identity needed to attribute it."""
+class InferenceObservation(BaseModel):
+    """One provider call as measured by the adapter, before semantic attribution.
+
+    The adapter owns token/cache/latency measurement and prompt fingerprints; the runtime owns
+    run/task/agent attribution. Keeping them apart means a provider change never touches
+    attribution code and vice versa.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    session_id: str
+    usage: InferenceUsage
+    stable_prefix_hash: str
+    full_prompt_hash: str
+
+
+class InferenceRecord(BaseModel):
+    """One inference call with the experiment and task identity needed to attribute it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    run_id: str
+    session_id: str | None = None
     task_id: str | None = None
     agent_id: str | None = None
 
@@ -59,20 +75,28 @@ class InferenceRecord(BaseModel):
     context_policy: str
     contextpilot_enabled: bool
 
+    # Diagnostic metadata only; never rendered into a prompt.
+    stable_prefix_hash: str | None = None
+    full_prompt_hash: str | None = None
+
     @classmethod
     def from_usage(
         cls,
         usage: InferenceUsage,
         *,
-        session_id: str,
+        run_id: str,
         model: str,
+        session_id: str | None = None,
         task_id: str | None = None,
         agent_id: str | None = None,
         scheduler_policy: str = "upstream_default",
         context_policy: str = "upstream_default",
         contextpilot_enabled: bool = False,
+        stable_prefix_hash: str | None = None,
+        full_prompt_hash: str | None = None,
     ) -> InferenceRecord:
         return cls(
+            run_id=run_id,
             session_id=session_id,
             task_id=task_id,
             agent_id=agent_id,
@@ -86,4 +110,6 @@ class InferenceRecord(BaseModel):
             scheduler_policy=scheduler_policy,
             context_policy=context_policy,
             contextpilot_enabled=contextpilot_enabled,
+            stable_prefix_hash=stable_prefix_hash,
+            full_prompt_hash=full_prompt_hash,
         )

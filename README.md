@@ -21,13 +21,31 @@ Provenance and licenses are recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Status
 
-Stage 0 (repository bootstrap and upstream verification) is in progress. No AtlasOS context
-optimization or cache-aware scheduling exists yet, by design.
+Stage 0 (bootstrap/upstream verification) and Stage 1 (runtime baseline) are complete. The
+baseline is frozen: no AtlasOS context optimization, context selection, or cache-aware
+scheduling exists yet, by design.
 
 - [Architecture](docs/architecture.md)
 - [Stage 0/1 specification](docs/stages/00-01-bootstrap-and-baseline.md)
+- [Stage 0 verification notes](docs/stages/00-verification-notes.md)
+- [Stage 1 baseline notes](docs/stages/01-baseline-notes.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
+
+## Running the baseline
+
+```bash
+uv run python examples/baseline_team.py   # deterministic fakes, no network
+```
+
+```bash
+# live: needs DEEPSEEK_API_KEY in .env; runs the frozen workload twice
+ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/live_baseline.py
+```
+
+Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
+per-call inference records, prompt fingerprints, and aggregate metrics. Raw provider prompts
+are not persisted.
 
 ## Development
 
@@ -65,15 +83,19 @@ uv run pytest -m live
 
 ```text
 src/atlasos/
-  config.py            experiment configuration
-  integrations/        AnyCode runtime facade, DeepSeek adapter, ContextPilot adapter
-  metrics/             normalized usage records and run aggregation
-  context/             (Stage 2) context blocks, store, selectors, renderer
-  scheduler/           (Stage 4) task-to-agent scheduling policies
+  config.py            experiment configuration and ablation switches
+  workflow.py          Atlas task ids + compiler onto AnyCode title-based specs
+  runtime.py           AtlasRuntime thin facade, result normalization, attribution
+  experiments.py       JSONL persistence and reproducibility metadata
+  integrations/        AnyCode wiring + DeepSeek adapter
+  metrics/             normalized usage, prompt fingerprints, run aggregation
+  context/           (Stage 2) context blocks, store, selectors, renderer
+  scheduler/         (Stage 4) task-to-agent scheduling policies
 tests/unit             deterministic offline tests
 tests/integration      runtime-level tests with fake or live providers
-examples/              runnable baselines
-experiments/configs/   experiment matrices
+examples/              offline baseline and live DeepSeek baseline
+experiments/configs/   experiment configurations
+experiments/runs/      generated run records (gitignored)
 ```
 
 ## Current limitations

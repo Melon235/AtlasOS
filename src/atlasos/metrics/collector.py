@@ -47,6 +47,30 @@ def estimate_cost(usage: InferenceUsage, pricing: Pricing | None) -> float | Non
     return per_million / 1_000_000
 
 
+def estimate_cost_for_run(metrics: RunMetrics, pricing: Pricing | None) -> float | None:
+    """Estimate run cost from aggregate token totals.
+
+    Never guesses: returns ``None`` when pricing is absent/incomplete or any call lacked the
+    provider-reported cache split.
+    """
+
+    if pricing is None or not pricing.is_complete:
+        return None
+    hit = metrics.total_cache_hit_tokens
+    miss = metrics.total_cache_miss_tokens
+    if hit is None or miss is None:
+        return None
+    assert pricing.cache_hit_input_per_million is not None
+    assert pricing.cache_miss_input_per_million is not None
+    assert pricing.output_per_million is not None
+    per_million = (
+        hit * pricing.cache_hit_input_per_million
+        + miss * pricing.cache_miss_input_per_million
+        + metrics.total_completion_tokens * pricing.output_per_million
+    )
+    return per_million / 1_000_000
+
+
 class MetricsCollector:
     """Collects normalized records and aggregates them per run."""
 

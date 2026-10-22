@@ -27,7 +27,12 @@ def _record(
         cache_miss_tokens=miss,
         latency_ms=latency_ms,
     )
-    return InferenceRecord.from_usage(usage, session_id="session-1", model="deepseek-chat")
+    return InferenceRecord.from_usage(
+        usage,
+        run_id="run-1",
+        session_id="session-1",
+        model="deepseek-chat",
+    )
 
 
 def test_weighted_ratio_is_token_weighted_not_mean_of_ratios() -> None:
