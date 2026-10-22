@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict
 
 from atlasos.workflow import AtlasWorkflow
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class ManifestMismatch(RuntimeError):
@@ -34,8 +34,13 @@ class AtlasSessionManifest(BaseModel):
     git_commit: str | None
     git_dirty: bool
 
+    # Durable session identity: the workflow text, its semantic configuration, and the
+    # deterministic placed assignment. Operational settings (paths, logging, fault injection,
+    # timestamps, secrets) are deliberately absent.
     workflow_hash: str
-    config_hash: str
+    workflow_input: str = ""
+    semantic_config_hash: str
+    placed_assignment_hash: str
 
     anycode_version: str | None = None
     contextpilot_version: str | None = None
@@ -72,7 +77,10 @@ def workflow_hash(workflow: AtlasWorkflow) -> str:
         for task in sorted(workflow.tasks, key=lambda task: task.task_id)
     ]
     agents = sorted(agent.name for agent in workflow.agents)
-    canonical = json.dumps({"tasks": payload, "agents": agents}, sort_keys=True)
+    canonical = json.dumps(
+        {"tasks": payload, "agents": agents, "input": workflow.input},
+        sort_keys=True,
+    )
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
@@ -96,15 +104,19 @@ def verify_compatible(
     manifest: AtlasSessionManifest,
     *,
     workflow: AtlasWorkflow,
-    config_hash: str,
+    semantic_config_hash: str,
+    placed_assignment_hash: str,
     placement_policy: str,
     context_policy: str,
     renderer_policy: str,
     context_transform: str,
 ) -> None:
+    """Validate everything a resume must preserve before upstream state is touched."""
+
     checks = {
         "workflow_hash": (manifest.workflow_hash, workflow_hash(workflow)),
-        "config_hash": (manifest.config_hash, config_hash),
+        "semantic_config_hash": (manifest.semantic_config_hash, semantic_config_hash),
+        "placed_assignment_hash": (manifest.placed_assignment_hash, placed_assignment_hash),
         "placement_policy": (manifest.placement_policy, placement_policy),
         "context_policy": (manifest.context_policy, context_policy),
         "renderer_policy": (manifest.renderer_policy, renderer_policy),

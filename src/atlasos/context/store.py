@@ -57,3 +57,15 @@ class InMemoryContextStore:
                 if block.task_id == task_id:
                     matches.append(block)
         return matches
+
+    def contains(self, block_id: str) -> bool:
+        return block_id in self._blocks
+
+    def all_blocks(self) -> list[ContextBlock]:
+        """Every stored block version, deterministically ordered."""
+
+        return [
+            self._blocks[block_id][version]
+            for block_id in sorted(self._blocks)
+            for version in sorted(self._blocks[block_id])
+        ]

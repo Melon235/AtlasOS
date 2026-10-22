@@ -60,6 +60,10 @@ class InferenceRecord(BaseModel):
     task_id: str | None = None
     agent_id: str | None = None
 
+    # 0 = original execution, 1 = first resume. Kept on every appended record so pre-crash
+    # observations remain attributable after a session is recovered.
+    resume_generation: int = Field(default=0, ge=0)
+
     model: str
 
     prompt_tokens: int = Field(ge=0)

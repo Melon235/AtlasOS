@@ -8,6 +8,7 @@ upstream task state, and experiment persistence.
 
 from __future__ import annotations
 
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
@@ -22,6 +23,7 @@ from anycode import (
     OrchestratorConfig,
     Task,
     TeamConfig,
+    TeamRunResult,
 )
 from anycode.plugins.registry import register_provider_factory
 from anycode.tasks.queue import TaskQueue
@@ -46,12 +48,24 @@ from atlasos.context.transform import (
     ContextTransform,
     IdentityContextTransform,
 )
+from atlasos.durability import (
+    AtlasSessionManifest,
+    completed_task_ids,
+    read_manifest,
+    rebuild_context_store,
+    task_ids_with_status,
+    verify_compatible,
+    workflow_hash,
+    write_manifest,
+)
 from atlasos.experiments import (
     ExperimentStore,
     configuration_hash,
     git_commit,
     git_dirty,
     package_version,
+    placed_assignment_hash,
+    semantic_config_hash,
 )
 from atlasos.integrations.anycode_engine import AtlasContextEngine
 from atlasos.integrations.deepseek import DeepSeekAdapter
@@ -65,6 +79,7 @@ from atlasos.metrics import (
 from atlasos.placement import (
     CapabilityOnlyPolicy,
     ContextLocalityPolicy,
+    PlacementSummary,
     PlacementWeights,
     StaticPlacementPolicy,
     plan_workflow,
@@ -73,6 +88,7 @@ from atlasos.workflow import (
     AtlasAgentSpec,
     AtlasTaskSpec,
     AtlasWorkflow,
+    CompiledWorkflow,
     TaskStatusName,
     compile_workflow,
     task_description,
@@ -121,6 +137,29 @@ class AtlasTaskResult(BaseModel):
     duration_ms: float | None = None
 
 
+class RecoveryMetrics(BaseModel):
+    """Observations about one resumed session.
+
+    Counts are task-level and are computed from checkpoint state plus the inference records
+    emitted by the resumed generation. They are observations, never checkpoint truth.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    resumed: bool = False
+    resume_count: int = Field(default=0, ge=0)
+    recovery_latency_ms: float | None = Field(default=None, ge=0)
+
+    completed_tasks_before_resume: int = Field(default=0, ge=0)
+    completed_tasks_reexecuted: int = Field(default=0, ge=0)
+
+    inflight_tasks_before_resume: int = Field(default=0, ge=0)
+    inflight_tasks_reexecuted: int = Field(default=0, ge=0)
+
+    unfinished_tasks_executed_after_resume: int = Field(default=0, ge=0)
+    context_blocks_rebuilt: int = Field(default=0, ge=0)
+
+
 class AtlasRunResult(BaseModel):
     """Stable, experiment-facing representation of one run."""
 
@@ -167,6 +206,9 @@ class AtlasRunResult(BaseModel):
     dependency_agent_switches: int = 0
     assignment_distribution: dict[str, int] = Field(default_factory=dict)
 
+    # Stage 5 recovery observation (None for uninterrupted runs).
+    recovery: RecoveryMetrics | None = None
+
 
 def _default_adapter_factory(
     agent_name: str,
@@ -186,6 +228,7 @@ class AtlasRuntime:
         runs_root: str | Path = DEFAULT_RUNS_ROOT,
         adapter_factory: AdapterFactory | None = None,
         engine_factory: EngineFactory | None = None,
+        event_hook: Callable[[OrchestratorEvent], None] | None = None,
         repo_root: str | Path | None = None,
     ) -> None:
         _validate_runtime_config(config)
@@ -193,11 +236,16 @@ class AtlasRuntime:
         self._runs_root = Path(runs_root)
         self._adapter_factory = adapter_factory or _default_adapter_factory
         self._engine_factory: EngineFactory = engine_factory or (lambda options: AnyCode(options))
+        # Test/experiment-only observation hook for deterministic durable-boundary interruption.
+        self._event_hook = event_hook
         self._repo_root = (
             Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[2]
         )
         self._running = False
         self._run_id = ""
+        self._run_dir: Path | None = None
+        self._inference_path: Path | None = None
+        self._recovered_task_ids: frozenset[str] = frozenset()
         self._title_to_id: dict[str, str] = {}
         self._id_by_title: dict[str, str] = {}
         self._active_task: dict[str, str] = {}
@@ -241,6 +289,40 @@ class AtlasRuntime:
         finally:
             self._running = False
 
+    async def resume(
+        self,
+        run_id: str,
+        workflow: AtlasWorkflow,
+        *,
+        experiment: str = "baseline",
+        persist: bool = True,
+    ) -> AtlasRunResult:
+        """Resume one interrupted session from its latest durable checkpoint.
+
+        This is the only recovery entry point. Atlas rebuilds its derived ContextStore from
+        completed checkpoint tasks *before* AnyCode is asked to resume unfinished work.
+        """
+
+        if self._running:
+            raise RuntimeError("AtlasRuntime.resume is not re-entrant")
+        self._running = True
+        try:
+            return await self._resume(
+                run_id,
+                workflow,
+                experiment=experiment,
+                persist=persist,
+            )
+        finally:
+            self._running = False
+
+    def context_blocks(self) -> list[ContextBlock]:
+        """Observation only: logical blocks currently held by the derived store."""
+
+        if self._store is None:
+            return []
+        return self._store.all_blocks()
+
     async def _run(
         self,
         workflow: AtlasWorkflow,
@@ -254,41 +336,174 @@ class AtlasRuntime:
         run_dir = self._runs_root / run_id
         checkpoint_dir = run_dir / "checkpoints"
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
-
-        collector = MetricsCollector()
-        providers = self._register_providers(workflow, run_id, collector)
+        self._begin_session(run_id, run_dir)
 
         effective = replace(workflow, input=input_text) if input_text is not None else workflow
+        effective, placement_decisions, placement_summary = self._place(effective)
 
-        placement_config = self._config.placement
-        placement_decisions: list[dict[str, Any]] = []
-        placement_summary = None
-        if placement_config.policy != "bypass":
-            policies = {
-                "static_baseline": StaticPlacementPolicy,
-                "capability_only": CapabilityOnlyPolicy,
-                "context_locality": ContextLocalityPolicy,
-            }
-            policy = policies[placement_config.policy]()
-            plan = plan_workflow(
-                effective,
-                policy=policy,
-                weights=PlacementWeights(
-                    locality=placement_config.weights.locality,
-                    load=placement_config.weights.load,
-                ),
-            )
-            effective = plan.workflow
-            placement_decisions = [asdict(decision) for decision in plan.decisions]
-            placement_summary = plan.summary
-
+        collector = MetricsCollector()
+        providers = self._register_providers(effective, run_id, collector, generation=0)
         compiled = compile_workflow(
             effective,
             providers=providers,
             model=self._config.provider.model,
         )
+        self._install_workflow(effective, compiled)
 
+        manifest = self._build_manifest(
+            run_id=run_id,
+            workflow=effective,
+            created_at=started_at,
+            checkpoint_dir=checkpoint_dir,
+        )
+        manifest_path = run_dir / "atlas_manifest.json"
+        write_manifest(manifest_path, manifest)
+
+        engine = self._create_engine(checkpoint_dir)
+        team_result = await self._execute(engine, compiled, resume_from=None)
+
+        return self._finalize(
+            run_id=run_id,
+            workflow=effective,
+            experiment=experiment,
+            started_at=started_at,
+            collector=collector,
+            team_result=team_result,
+            checkpoint_dir=checkpoint_dir,
+            run_dir=run_dir,
+            manifest=manifest,
+            manifest_path=manifest_path,
+            placement_decisions=placement_decisions,
+            placement_summary=placement_summary,
+            recovery=None,
+            persist=persist,
+        )
+
+    async def _resume(
+        self,
+        run_id: str,
+        workflow: AtlasWorkflow,
+        *,
+        experiment: str,
+        persist: bool,
+    ) -> AtlasRunResult:
+        resume_started = time.perf_counter()
+        started_at = datetime.now(UTC)
+        run_dir = self._runs_root / run_id
+        manifest_path = run_dir / "atlas_manifest.json"
+        manifest = read_manifest(manifest_path)
+        checkpoint_dir = Path(manifest.checkpoint_location)
+
+        # Reconstruct the effective workflow exactly as the original run did. The manifest owns
+        # the run input; structural changes are rejected by the workflow hash below.
+        effective = replace(workflow, input=manifest.workflow_input)
+        effective, placement_decisions, placement_summary = self._place(effective)
+
+        verify_compatible(
+            manifest,
+            workflow=effective,
+            semantic_config_hash=semantic_config_hash(self._config),
+            placed_assignment_hash=placed_assignment_hash(effective),
+            placement_policy=self._config.placement.policy,
+            context_policy=self._config.context.policy,
+            renderer_policy=self._config.context.renderer,
+            context_transform=self._config.context.transform.name,
+        )
+
+        checkpoint = self._load_checkpoint(checkpoint_dir)
+        completed_before = completed_task_ids(checkpoint, effective)
+        inflight_before = task_ids_with_status(checkpoint, effective, "in_progress")
+        rebuilt = rebuild_context_store(checkpoint, effective)
+        rebuilt_block_count = len(rebuilt.all_blocks())
+
+        self._begin_session(run_id, run_dir)
+        self._recovered_task_ids = completed_before
+
+        collector = MetricsCollector()
+        providers = self._register_providers(effective, run_id, collector, generation=1)
+        compiled = compile_workflow(
+            effective,
+            providers=providers,
+            model=self._config.provider.model,
+        )
+        self._install_workflow(effective, compiled)
+        if self._store is not None:
+            # The critical ordering: durable outputs exist in Atlas's store before AnyCode
+            # resumes the first unfinished task.
+            self._store = rebuilt
+
+        engine = self._create_engine(checkpoint_dir)
+        team_result = await self._execute(engine, compiled, resume_from="latest")
+
+        executed = {record.task_id for record in collector.records if record.task_id is not None}
+        recovery = RecoveryMetrics(
+            resumed=True,
+            resume_count=1,
+            recovery_latency_ms=(time.perf_counter() - resume_started) * 1000.0,
+            completed_tasks_before_resume=len(completed_before),
+            completed_tasks_reexecuted=len(completed_before & executed),
+            inflight_tasks_before_resume=len(inflight_before),
+            inflight_tasks_reexecuted=len(inflight_before & executed),
+            unfinished_tasks_executed_after_resume=len(executed - completed_before),
+            context_blocks_rebuilt=rebuilt_block_count,
+        )
+
+        return self._finalize(
+            run_id=run_id,
+            workflow=effective,
+            experiment=experiment,
+            started_at=started_at,
+            collector=collector,
+            team_result=team_result,
+            checkpoint_dir=checkpoint_dir,
+            run_dir=run_dir,
+            manifest=manifest,
+            manifest_path=manifest_path,
+            placement_decisions=placement_decisions,
+            placement_summary=placement_summary,
+            recovery=recovery,
+            persist=persist,
+        )
+
+    def _begin_session(self, run_id: str, run_dir: Path) -> None:
         self._run_id = run_id
+        self._run_dir = run_dir
+        self._inference_path = run_dir / "inference.jsonl"
+        self._recovered_task_ids = frozenset()
+
+    def _place(
+        self,
+        workflow: AtlasWorkflow,
+    ) -> tuple[AtlasWorkflow, list[dict[str, Any]], PlacementSummary | None]:
+        placement_config = self._config.placement
+        if placement_config.policy == "bypass":
+            return workflow, [], None
+
+        policies = {
+            "static_baseline": StaticPlacementPolicy,
+            "capability_only": CapabilityOnlyPolicy,
+            "context_locality": ContextLocalityPolicy,
+        }
+        policy = policies[placement_config.policy]()
+        plan = plan_workflow(
+            workflow,
+            policy=policy,
+            weights=PlacementWeights(
+                locality=placement_config.weights.locality,
+                load=placement_config.weights.load,
+            ),
+        )
+        return (
+            plan.workflow,
+            [asdict(decision) for decision in plan.decisions],
+            plan.summary,
+        )
+
+    def _install_workflow(
+        self,
+        effective: AtlasWorkflow,
+        compiled: CompiledWorkflow,
+    ) -> None:
         self._title_to_id = dict(compiled.id_by_title)
         self._id_by_title = dict(compiled.id_by_title)
         self._active_task.clear()
@@ -299,8 +514,41 @@ class AtlasRuntime:
             for task in effective.tasks
         }
         self._agents_by_name = {agent.name: agent for agent in effective.agents}
-        self._configure_context_mode(run_id)
+        self._configure_context_mode(self._run_id)
 
+    def _build_manifest(
+        self,
+        *,
+        run_id: str,
+        workflow: AtlasWorkflow,
+        created_at: datetime,
+        checkpoint_dir: Path,
+    ) -> AtlasSessionManifest:
+        placement_config = self._config.placement
+        return AtlasSessionManifest(
+            run_id=run_id,
+            created_at=created_at,
+            git_commit=git_commit(self._repo_root),
+            git_dirty=git_dirty(self._repo_root),
+            workflow_hash=workflow_hash(workflow),
+            workflow_input=workflow.input,
+            semantic_config_hash=semantic_config_hash(self._config),
+            placed_assignment_hash=placed_assignment_hash(workflow),
+            anycode_version=package_version("anycode-py"),
+            contextpilot_version=package_version("contextpilot"),
+            model=self._config.provider.model,
+            placement_policy=placement_config.policy,
+            placement_weights={
+                "locality": placement_config.weights.locality,
+                "load": placement_config.weights.load,
+            },
+            context_policy=self._config.context.policy,
+            renderer_policy=self._config.context.renderer,
+            context_transform=self._config.context.transform.name,
+            checkpoint_location=str(checkpoint_dir),
+        )
+
+    def _create_engine(self, checkpoint_dir: Path) -> AnyCode:
         options = OrchestratorConfig(
             checkpoint=CheckpointConfig(
                 enabled=True,
@@ -309,23 +557,50 @@ class AtlasRuntime:
             ),
             on_progress=self._on_progress,
         )
-        engine: AnyCode
         if self._renderer is None:
-            engine = self._engine_factory(options)
-        else:
-            engine = AtlasContextEngine(options, prompt_builder=self._build_atlas_prompt)
+            return self._engine_factory(options)
+        return AtlasContextEngine(options, prompt_builder=self._build_atlas_prompt)
 
+    @staticmethod
+    async def _execute(
+        engine: AnyCode,
+        compiled: CompiledWorkflow,
+        *,
+        resume_from: str | None,
+    ) -> TeamRunResult:
         try:
             team = engine.create_team(
-                effective.name,
-                TeamConfig(name=effective.name, agents=list(compiled.agent_configs)),
+                compiled.workflow.name,
+                TeamConfig(name=compiled.workflow.name, agents=list(compiled.agent_configs)),
             )
-            team_result = await engine.run_tasks(team, list(compiled.task_specs))
+            return await engine.run_tasks(
+                team,
+                list(compiled.task_specs),
+                resume_from=resume_from,
+            )
         finally:
             await engine.close()
 
+    def _finalize(
+        self,
+        *,
+        run_id: str,
+        workflow: AtlasWorkflow,
+        experiment: str,
+        started_at: datetime,
+        collector: MetricsCollector,
+        team_result: TeamRunResult,
+        checkpoint_dir: Path,
+        run_dir: Path,
+        manifest: AtlasSessionManifest,
+        manifest_path: Path,
+        placement_decisions: list[dict[str, Any]],
+        placement_summary: PlacementSummary | None,
+        recovery: RecoveryMetrics | None,
+        persist: bool,
+    ) -> AtlasRunResult:
         checkpoint = self._load_checkpoint(checkpoint_dir)
-        tasks = self._normalize_tasks(effective, checkpoint)
+        tasks = self._normalize_tasks(workflow, checkpoint)
         succeeded = team_result.success and all(task.status == "completed" for task in tasks)
 
         metrics = collector.aggregate(task_success=succeeded)
@@ -339,17 +614,18 @@ class AtlasRuntime:
             }
         )
 
-        final_task = effective.final_task()
+        final_task = workflow.final_task()
         final_output = next(
             (task.output or "" for task in tasks if task.task_id == final_task.task_id),
             "",
         )
 
         transform_config = self._config.context.transform
+        placement_config = self._config.placement
         result = AtlasRunResult(
             run_id=run_id,
             timestamp=started_at,
-            workflow=effective.name,
+            workflow=workflow.name,
             experiment=experiment,
             status="succeeded" if succeeded else "failed",
             final_output=final_output,
@@ -390,7 +666,17 @@ class AtlasRuntime:
             assignment_distribution=(
                 dict(placement_summary.assignment_distribution) if placement_summary else {}
             ),
+            recovery=recovery,
         )
+
+        # The manifest records session completion; result.json is the final observation. A
+        # session with a manifest and checkpoint but no result.json is incomplete/recoverable.
+        write_manifest(
+            manifest_path,
+            manifest.model_copy(update={"status": "succeeded" if succeeded else "failed"}),
+        )
+        result_path = run_dir / "result.json"
+        result_path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
         if persist:
             ExperimentStore(self._runs_root / "runs.jsonl").append(result)
         return result
@@ -436,11 +722,42 @@ class AtlasRuntime:
         # Projection order is completion order; the renderer decides whether it matters.
         completed.sort(key=lambda candidate: (candidate.updated_at, candidate.title))
 
+        dependencies = set(spec.depends_on)
         refs: list[ContextRef] = []
         direct_completion_order: list[str] = []
-        dependencies = set(spec.depends_on)
+
+        # Recovery invariant: durable dependency outputs must already be in the rebuilt store.
+        # This check runs before any live projection, so a resume that begins without rebuilding
+        # fails here instead of silently re-deriving recovered context from the restored queue.
+        if self._recovered_task_ids:
+            missing = [
+                task_id
+                for task_id in sorted(dependencies & self._recovered_task_ids)
+                if not self._store.contains(f"task-output:{task_id}")
+            ]
+            if missing:
+                raise RuntimeError(
+                    "resume context invariant violated: durable dependency output for "
+                    f"{missing} was not rebuilt into the ContextStore before task "
+                    f"{spec.task_id!r} was executed"
+                )
+            for task_id in sorted(self._recovered_task_ids):
+                recovered_block = self._store.get(f"task-output:{task_id}")
+                refs.append(
+                    ContextRef(
+                        block_id=recovered_block.block_id,
+                        version=recovered_block.version,
+                    )
+                )
+                if task_id in dependencies:
+                    direct_completion_order.append(task_id)
+
         for done in completed:
             done_id = self._id_by_title[done.title]
+            if done_id in self._recovered_task_ids:
+                # Recovered context comes from the checkpoint rebuild, never from re-projecting
+                # the restored queue, so resuming cannot create a duplicate logical block.
+                continue
             block = ContextBlock(
                 block_id=f"task-output:{done_id}",
                 kind=ContextKind.DEPENDENCY_OUTPUT,
@@ -513,13 +830,17 @@ class AtlasRuntime:
         workflow: AtlasWorkflow,
         run_id: str,
         collector: MetricsCollector,
+        *,
+        generation: int,
     ) -> dict[str, str]:
         """Register one AnyCode provider per agent, carrying usage attribution."""
 
         providers: dict[str, str] = {}
         for agent in workflow.agents:
-            provider_name = f"atlasos-{run_id}-{agent.name}"
-            handler = self._call_handler(collector, run_id, agent.name)
+            # The generation suffix keeps a resumed session's provider registration distinct from
+            # the original (registry names are immutable for the process lifetime).
+            provider_name = f"atlasos-{run_id}-g{generation}-{agent.name}"
+            handler = self._call_handler(collector, run_id, agent.name, generation)
 
             async def factory(
                 _agent_name: str = agent.name,
@@ -537,6 +858,7 @@ class AtlasRuntime:
         collector: MetricsCollector,
         run_id: str,
         agent_name: str,
+        generation: int,
     ) -> Callable[[InferenceObservation], None]:
         model = self._config.provider.model
         context_policy = self._config.context.policy
@@ -546,46 +868,49 @@ class AtlasRuntime:
             usage = observation.usage
             task_id = self._active_task.get(agent_name)
             info = self._render_info.get(task_id) if task_id is not None else None
-            collector.add(
-                InferenceRecord(
-                    run_id=run_id,
-                    session_id=run_id,
-                    task_id=task_id,
-                    agent_id=agent_name,
-                    model=model,
-                    prompt_tokens=usage.prompt_tokens,
-                    completion_tokens=usage.completion_tokens,
-                    cache_hit_tokens=usage.cache_hit_tokens,
-                    cache_miss_tokens=usage.cache_miss_tokens,
-                    cache_hit_ratio=usage.cache_hit_ratio,
-                    latency_ms=usage.latency_ms,
-                    scheduler_policy=SCHEDULER_POLICY,
-                    context_policy=context_policy,
-                    renderer_policy=renderer_policy,
-                    contextpilot_enabled=False,
-                    stable_prefix_hash=observation.stable_prefix_hash,
-                    full_prompt_hash=observation.full_prompt_hash,
-                    context_layout_hash=info.context_layout_hash if info else None,
-                    rendered_dependency_order=(
-                        list(info.rendered_dependency_order) if info else None
-                    ),
-                    dependency_completion_order=(
-                        list(info.dependency_completion_order) if info else None
-                    ),
-                    stable_prefix_tokens=info.stable_prefix_tokens if info else None,
-                    context_block_tokens=info.context_block_tokens if info else None,
-                    dynamic_tail_tokens=info.dynamic_tail_tokens if info else None,
-                    transform_name=info.transform_name if info else "identity",
-                    deduplicated=info.deduplicated if info else False,
-                    transform_latency_ms=info.transform_latency_ms if info else None,
-                    original_block_count=info.original_block_count if info else None,
-                    optimized_block_count=info.optimized_block_count if info else None,
-                    original_context_chars=info.original_context_chars if info else None,
-                    optimized_context_chars=info.optimized_context_chars if info else None,
-                    pre_transform_layout_hash=(info.pre_transform_layout_hash if info else None),
-                    post_transform_layout_hash=(info.post_transform_layout_hash if info else None),
-                )
+            record = InferenceRecord(
+                run_id=run_id,
+                session_id=run_id,
+                task_id=task_id,
+                agent_id=agent_name,
+                resume_generation=generation,
+                model=model,
+                prompt_tokens=usage.prompt_tokens,
+                completion_tokens=usage.completion_tokens,
+                cache_hit_tokens=usage.cache_hit_tokens,
+                cache_miss_tokens=usage.cache_miss_tokens,
+                cache_hit_ratio=usage.cache_hit_ratio,
+                latency_ms=usage.latency_ms,
+                scheduler_policy=SCHEDULER_POLICY,
+                context_policy=context_policy,
+                renderer_policy=renderer_policy,
+                contextpilot_enabled=False,
+                stable_prefix_hash=observation.stable_prefix_hash,
+                full_prompt_hash=observation.full_prompt_hash,
+                context_layout_hash=info.context_layout_hash if info else None,
+                rendered_dependency_order=(list(info.rendered_dependency_order) if info else None),
+                dependency_completion_order=(
+                    list(info.dependency_completion_order) if info else None
+                ),
+                stable_prefix_tokens=info.stable_prefix_tokens if info else None,
+                context_block_tokens=info.context_block_tokens if info else None,
+                dynamic_tail_tokens=info.dynamic_tail_tokens if info else None,
+                transform_name=info.transform_name if info else "identity",
+                deduplicated=info.deduplicated if info else False,
+                transform_latency_ms=info.transform_latency_ms if info else None,
+                original_block_count=info.original_block_count if info else None,
+                optimized_block_count=info.optimized_block_count if info else None,
+                original_context_chars=info.original_context_chars if info else None,
+                optimized_context_chars=info.optimized_context_chars if info else None,
+                pre_transform_layout_hash=(info.pre_transform_layout_hash if info else None),
+                post_transform_layout_hash=(info.post_transform_layout_hash if info else None),
             )
+            collector.add(record)
+            if self._inference_path is not None:
+                # Append-only: pre-crash observations survive a resume instead of being
+                # overwritten by the recovered generation.
+                with self._inference_path.open("a", encoding="utf-8", newline="\n") as handle:
+                    handle.write(record.model_dump_json() + "\n")
 
         return handle
 
@@ -601,6 +926,8 @@ class AtlasRuntime:
             agent = self._task_assignee.pop(event.task, None)
             if agent is not None:
                 self._active_task.pop(agent, None)
+        if self._event_hook is not None:
+            self._event_hook(event)
 
     def _normalize_tasks(
         self,
