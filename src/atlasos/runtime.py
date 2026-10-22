@@ -433,7 +433,7 @@ class AtlasRuntime:
             self._store = rebuilt
 
         engine = self._create_engine(checkpoint_dir)
-        team_result = await self._execute(engine, compiled, resume_from="latest")
+        team_result = await self._execute(engine, compiled, resume_from=checkpoint.id)
 
         executed = {record.task_id for record in collector.records if record.task_id is not None}
         recovery = RecoveryMetrics(
@@ -965,16 +965,20 @@ class AtlasRuntime:
 
     @staticmethod
     def _load_checkpoint(checkpoint_dir: Path) -> CheckpointData:
-        """Load the newest checkpoint file written for this run.
+        """Load the newest checkpoint written for this run.
 
-        Each Atlas run owns its checkpoint directory, so the newest file belongs to this run;
-        no private workflow-id derivation is needed.
+        Checkpoint ids embed a millisecond timestamp, so filenames are not a reliable ordering
+        key: two checkpoints written in the same millisecond can sort in the wrong order. The
+        durable ``created_at`` field is authoritative.
         """
 
-        files = sorted(checkpoint_dir.rglob("*.json"), key=lambda path: path.name)
+        files = list(checkpoint_dir.rglob("*.json"))
         if not files:
             raise RuntimeError(f"no upstream checkpoint written under {checkpoint_dir}")
-        return CheckpointData.model_validate_json(files[-1].read_text(encoding="utf-8"))
+        checkpoints = [
+            CheckpointData.model_validate_json(path.read_text(encoding="utf-8")) for path in files
+        ]
+        return max(checkpoints, key=lambda checkpoint: (checkpoint.created_at, checkpoint.id))
 
 
 def _validate_runtime_config(config: AtlasConfig) -> None:

@@ -43,12 +43,17 @@ Order inside `resume`:
 resolve run dir -> read manifest -> validate schema
 -> reconstruct workflow input from manifest
 -> deterministic placement -> verify workflow/semantic/placement hashes
--> load latest AnyCode checkpoint
+-> load latest AnyCode checkpoint (by created_at)
 -> rebuild ContextStore from completed checkpoint tasks
 -> configure generation-1 metrics
--> run_tasks(resume_from="latest")
+-> run_tasks(resume_from=<exact latest checkpoint id>)
 -> normalize -> append metrics -> write result.json
 ```
+
+The latest checkpoint is selected by its durable `created_at` field, and that exact checkpoint id
+is passed upstream. Checkpoint filenames use millisecond-granular UUIDv7 ids, so same-millisecond
+checkpoints can sort incorrectly by filename; upstream `resume_from="latest"` sorts filenames.
+The Stage 6 regression test covers this ordering bug.
 
 Compatibility rejects changed workflow/input, semantic configuration, placement policy or
 weights, task-to-agent mapping, and schema. Operational changes (paths, logging, pricing,

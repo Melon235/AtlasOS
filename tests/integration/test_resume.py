@@ -6,6 +6,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterable
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -377,3 +378,37 @@ async def test_resume_accepts_operational_config_changes(tmp_path: Path) -> None
     assert resumed.recovery is not None
     assert resumed.recovery.completed_tasks_before_resume == 3
     assert resumed.recovery.completed_tasks_reexecuted == 0
+
+
+def test_latest_checkpoint_uses_created_at_not_filename(tmp_path: Path) -> None:
+    # UUIDv7 names are only millisecond-ordered; two checkpoints in the same millisecond can
+    # sort in the wrong lexical order. The newest checkpoint must win by created_at.
+    checkpoint_dir = tmp_path / "checkpoints"
+    workflow_dir = checkpoint_dir / "workflow"
+    workflow_dir.mkdir(parents=True)
+    older = CheckpointData(
+        id="zzz-older",
+        workflow_id="wf",
+        version=2,
+        tasks=[],
+        agent_results={},
+        wave_index=-1,
+        total_token_usage=TokenUsage(),
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    newer = CheckpointData(
+        id="aaa-newer",
+        workflow_id="wf",
+        version=2,
+        tasks=[],
+        agent_results={},
+        wave_index=0,
+        total_token_usage=TokenUsage(),
+        created_at=datetime(2026, 1, 2, tzinfo=UTC),
+    )
+    (workflow_dir / "zzz-older.json").write_text(older.model_dump_json(), encoding="utf-8")
+    (workflow_dir / "aaa-newer.json").write_text(newer.model_dump_json(), encoding="utf-8")
+
+    loaded = AtlasRuntime._load_checkpoint(checkpoint_dir)
+    assert loaded.id == "aaa-newer"
+    assert loaded.wave_index == 0
