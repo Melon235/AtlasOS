@@ -51,8 +51,8 @@ recovery preserves unfinished-task context.
 
 ## Headline results
 
-Measured from the clean Stage 6 commit `a527796`; details and caveats in the
-[final results](experiments/results/stage6-final.md).
+Measured from clean Stage 6 commits `a527796` (E1–E4) and `35b5774` (E5); details and caveats in
+the [final results](experiments/results/stage6-final.md).
 
 | Area | Result |
 |---|---|
