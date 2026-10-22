@@ -145,9 +145,7 @@ def _run_dir(tmp_path: Path) -> Path:
 
 
 def _latest_checkpoint(run_dir: Path) -> CheckpointData:
-    files = sorted((run_dir / "checkpoints").rglob("*.json"))
-    assert files
-    return CheckpointData.model_validate_json(files[-1].read_text(encoding="utf-8"))
+    return AtlasRuntime._load_checkpoint(run_dir / "checkpoints")
 
 
 def _inference_rows(run_dir: Path) -> list[dict[str, Any]]:

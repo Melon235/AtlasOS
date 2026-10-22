@@ -1,10 +1,10 @@
 # Stage 6 Final Results — AtlasOS V1
 
 Frozen 2026-10-23. E1–E4 formal records were captured at clean code commit `a527796`; E5 was
-rerun at clean `c12a706`, which includes the `2233bfd` latest-checkpoint ordering fix. Every
-formal record has `git_dirty=false`; live runs use `provider=deepseek`, `model=deepseek-chat`.
-Raw records: `experiments/runs/stage6-*.jsonl` (gitignored). Generated tables:
-[stage6-tables.md](stage6-tables.md). Figures: [figures/](figures/).
+rerun at clean `35b5774`, which includes the `2233bfd` / `5cde6f9` checkpoint-ordering fixes.
+Every formal record has `git_dirty=false`; live runs use `provider=deepseek`,
+`model=deepseek-chat`. Raw records: `experiments/runs/stage6-*.jsonl` (gitignored). Generated
+tables: [stage6-tables.md](stage6-tables.md). Figures: [figures/](figures/).
 
 ## Setup
 

@@ -50,10 +50,11 @@ resolve run dir -> read manifest -> validate schema
 -> normalize -> append metrics -> write result.json
 ```
 
-The latest checkpoint is selected by its durable `created_at` field, and that exact checkpoint id
-is passed upstream. Checkpoint filenames use millisecond-granular UUIDv7 ids, so same-millisecond
-checkpoints can sort incorrectly by filename; upstream `resume_from="latest"` sorts filenames.
-The Stage 6 regression test covers this ordering bug.
+The most advanced checkpoint is selected by durable execution state (completed-task count, wave
+index, `created_at`, file mtime), and that exact checkpoint id is passed upstream. Checkpoint
+filenames use millisecond-granular UUIDv7 ids, so same-tick checkpoints can sort incorrectly by
+filename and even by `created_at`; upstream `resume_from="latest"` sorts filenames. The Stage 6
+regression tests cover both ordering cases.
 
 Compatibility rejects changed workflow/input, semantic configuration, placement policy or
 weights, task-to-agent mapping, and schema. Operational changes (paths, logging, pricing,

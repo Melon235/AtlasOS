@@ -76,7 +76,9 @@ Formal records: [stage5-baseline.md](../../experiments/results/stage5-baseline.m
 
 AnyCode's `resume_from="latest"` selects the lexicographically last checkpoint filename.
 Checkpoint ids are UUIDv7, whose ordering is only millisecond-granular: two checkpoints written
-in the same millisecond can sort in the wrong order. AtlasOS now selects the latest checkpoint by
-its durable `created_at` value and passes that exact checkpoint id to `run_tasks`. A regression
-test constructs older/newer checkpoints whose filenames invert the true order and asserts the
-newer one wins. Stage 5's R0/R1/R2 counts and equivalence checks are unchanged after the fix.
+in the same millisecond can sort in the wrong order, and `created_at` can also collide. AtlasOS
+selects the most advanced checkpoint by durable execution state (completed-task count, wave
+index, `created_at`, file mtime) and passes that exact checkpoint id to `run_tasks`. Regression
+tests construct checkpoints whose filenames and timestamps invert the true order and assert the
+advanced state wins. Stage 5's R0/R1/R2 counts and equivalence checks are unchanged after the
+fix.
