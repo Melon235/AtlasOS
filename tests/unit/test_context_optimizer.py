@@ -1,19 +1,22 @@
-"""Optimizer boundary tests: identity and the ContextPilot adapter."""
+"""Per-request transform and batch-policy semantics."""
 
 from __future__ import annotations
 
-import importlib.util
 import sys
-import types
-from typing import Any
 
 import pytest
 
 from atlasos.context import ContextBlock, ContextKind
-from atlasos.context.optimizers import (
-    ContextPilotOptimizer,
+from atlasos.context.transform import (
     ContextPilotUnavailable,
-    IdentityContextOptimizer,
+    IdentityContextTransform,
+    TransformedContext,
+)
+from atlasos.experimental.batch import (
+    BatchPolicyUnavailable,
+    ContextPilotReorderPolicy,
+    IdentityBatchRequestPolicy,
+    RenderedRequest,
 )
 
 
@@ -27,63 +30,16 @@ def _block(name: str, content: str | None = None) -> ContextBlock:
     )
 
 
-def test_identity_returns_the_same_blocks_in_order() -> None:
+def test_identity_transform_preserves_blocks() -> None:
     blocks = [_block("a"), _block("b")]
 
-    result = IdentityContextOptimizer().optimize(blocks=blocks, query="q")
+    result = IdentityContextTransform().transform(blocks=blocks, query="q")
 
-    assert result.optimizer_name == "identity"
+    assert isinstance(result, TransformedContext)
     assert result.blocks == tuple(blocks)
-    assert result.original_block_count == result.optimized_block_count == 2
-    assert result.reordered is False
+    assert result.transform_name == "identity"
     assert result.deduplicated is False
     assert result.original_context_chars == result.optimized_context_chars
-    assert result.optimizer_latency_ms >= 0
-
-
-class _FakeContextPilot:
-    """Minimal stand-in for the official reorder API shape."""
-
-    def __init__(self, **_: Any) -> None:
-        pass
-
-    def reorder(self, contexts: list[list[str]], conversation_id: str | None = None):
-        del conversation_id
-        reordered = [list(reversed(context)) for context in contexts]
-        return reordered, list(range(len(contexts)))
-
-
-def test_reorder_maps_official_output_back_to_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = types.SimpleNamespace(ContextPilot=_FakeContextPilot)
-    monkeypatch.setitem(sys.modules, "contextpilot", fake)
-    optimizer = ContextPilotOptimizer(reorder=True, deduplicate=False, conversation_id="test")
-
-    result = optimizer.optimize(blocks=[_block("a"), _block("b")], query="q")
-
-    assert [block.block_id for block in result.blocks] == [
-        "task-output:b",
-        "task-output:a",
-    ]
-    assert result.reordered is True
-    assert result.deduplicated is False
-    assert result.optimized_block_count == 2
-    assert result.metadata["reorder_enabled"] is True
-    assert result.metadata["deduplicate_enabled"] is False
-
-
-def test_missing_contextpilot_raises_instead_of_falling_back(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setitem(sys.modules, "contextpilot", None)
-    optimizer = ContextPilotOptimizer(reorder=True, deduplicate=False)
-
-    with pytest.raises(ContextPilotUnavailable, match="not installed"):
-        optimizer.optimize(blocks=[_block("a")], query="q")
-
-
-def test_contextpilot_requires_at_least_one_feature() -> None:
-    with pytest.raises(ValueError, match="reorder=True or deduplicate=True"):
-        ContextPilotOptimizer(reorder=False, deduplicate=False)
 
 
 def _duplicate_content() -> str:
@@ -93,35 +49,65 @@ def _duplicate_content() -> str:
     )
 
 
-@pytest.mark.skipif(
-    importlib.util.find_spec("contextpilot") is None,
-    reason="contextpilot extra not installed",
-)
-def test_deduplicate_replaces_exact_duplicate_content() -> None:
+def test_contextpilot_dedup_transform_uses_official_api() -> None:
     content = _duplicate_content()
-    blocks = [_block("a", content), _block("b", content)]
-
-    result = ContextPilotOptimizer(reorder=False, deduplicate=True).optimize(
-        blocks=blocks, query="q"
+    result = (
+        __import__("atlasos.context.transform", fromlist=["ContextPilotDedupTransform"])
+        .ContextPilotDedupTransform()
+        .transform(blocks=[_block("a", content), _block("b", content)], query="q")
     )
 
-    assert result.optimized_block_count == 2
+    assert result.transform_name == "contextpilot_dedup"
+    assert result.metadata["official_api"] == "contextpilot.dedup_chat_completions"
+    assert result.optimized_block_count == result.original_block_count == 2
     assert result.content_transformed is True
-    assert result.deduplicated is True
     assert result.optimized_context_chars < result.original_context_chars
-    assert result.blocks[0].content == content  # first copy kept
-    assert result.blocks[1].content != content  # second replaced by reference hint
+    assert result.blocks[0].content == content
     assert "identical to earlier" in result.blocks[1].content
-    # Block identity is preserved even though content changed.
-    assert result.blocks[1].block_id == "task-output:b"
 
 
-def test_deduplicate_keeps_distinct_content() -> None:
+def test_dedup_transform_keeps_distinct_content() -> None:
     first = "\n".join(f"alpha line {i} " + "x" * 60 for i in range(60))
     second = "\n".join(f"beta line {i} " + "y" * 60 for i in range(60))
-    result = ContextPilotOptimizer(reorder=False, deduplicate=True).optimize(
+
+    from atlasos.context.transform import ContextPilotDedupTransform
+
+    result = ContextPilotDedupTransform().transform(
         blocks=[_block("a", first), _block("b", second)], query="q"
     )
 
     assert result.content_transformed is False
-    assert [block.content for block in result.blocks] == [first, second]
+
+
+def test_missing_contextpilot_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    from atlasos.context.transform import ContextPilotDedupTransform
+
+    monkeypatch.setitem(sys.modules, "contextpilot", None)
+
+    with pytest.raises(ContextPilotUnavailable, match="not installed"):
+        ContextPilotDedupTransform().transform(blocks=[_block("a")], query="q")
+
+
+def _request(request_id: str) -> RenderedRequest:
+    return RenderedRequest(
+        request_id=request_id,
+        blocks=(_block(request_id),),
+        messages=({"role": "user", "content": request_id},),
+        prompt_hash=request_id,
+    )
+
+
+def test_identity_batch_policy_preserves_request_order() -> None:
+    requests = [_request("r1"), _request("r2")]
+
+    result = IdentityBatchRequestPolicy().order(requests)
+
+    assert result.order == ("r1", "r2")
+    assert result.reordered is False
+
+
+def test_missing_contextpilot_batch_policy_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "contextpilot", None)
+
+    with pytest.raises(BatchPolicyUnavailable, match="not installed"):
+        ContextPilotReorderPolicy().order([_request("r1")])

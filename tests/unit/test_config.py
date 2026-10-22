@@ -76,3 +76,10 @@ def test_complete_pricing_snapshot() -> None:
     assert config.pricing.is_complete is True
     assert config.pricing.snapshot_date is not None
     assert config.pricing.snapshot_date.isoformat() == "2026-10-22"
+
+
+def test_historical_optimizer_config_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        AtlasConfig.model_validate(
+            {"context": {"optimizer": {"name": "contextpilot", "reorder": True}}}
+        )

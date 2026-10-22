@@ -65,20 +65,12 @@ class ContextPilotOptions(BaseModel):
     deduplicate: bool = True
 
 
-class ContextOptimizerConfig(BaseModel):
-    """Explicit optimizer selection; flags are persisted with every run."""
+class ContextTransformConfig(BaseModel):
+    """Per-request context transform (deduplication only; reorder is a batch policy)."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    name: Literal["identity", "contextpilot"] = "identity"
-    reorder: bool = False
-    deduplicate: bool = False
-
-    @model_validator(mode="after")
-    def _validate_identity_flags(self) -> ContextOptimizerConfig:
-        if self.name == "identity" and (self.reorder or self.deduplicate):
-            raise ValueError("optimizer 'identity' cannot enable reorder or deduplicate")
-        return self
+    name: Literal["identity", "contextpilot_dedup"] = "identity"
 
 
 class ContextConfig(BaseModel):
@@ -86,7 +78,8 @@ class ContextConfig(BaseModel):
 
     policy: ContextPolicy = "upstream_default"
     renderer: RendererPolicy = "upstream_default"
-    optimizer: ContextOptimizerConfig = ContextOptimizerConfig()
+    transform: ContextTransformConfig = ContextTransformConfig()
+    # Deprecated Stage 1/2 fields retained only so historical configs still parse.
     contextpilot_enabled: bool = False
     contextpilot: ContextPilotOptions = ContextPilotOptions()
 
@@ -98,11 +91,11 @@ class ContextConfig(BaseModel):
                 f"{self.policy!r}/{self.renderer!r}; allowed pairs are "
                 f"{sorted(_ALLOWED_CONTEXT_MODES)}"
             )
-        if self.optimizer.name == "contextpilot" and (
+        if self.transform.name != "identity" and (
             self.policy != "task_scoped" or self.renderer != "stable_deterministic"
         ):
             raise ValueError(
-                "contextpilot optimizer requires policy='task_scoped' and "
+                "a non-identity context transform requires policy='task_scoped' and "
                 "renderer='stable_deterministic'"
             )
         return self

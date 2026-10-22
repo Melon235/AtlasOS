@@ -48,3 +48,9 @@ def test_store_creates_parent_directories(tmp_path: Path) -> None:
 
 def test_git_commit_is_none_outside_a_repository(tmp_path: Path) -> None:
     assert git_commit(tmp_path) is None
+
+
+def test_git_dirty_is_true_outside_a_repository(tmp_path: Path) -> None:
+    from atlasos.experiments import git_dirty
+
+    assert git_dirty(tmp_path) is True

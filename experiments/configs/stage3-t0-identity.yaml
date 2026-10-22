@@ -1,4 +1,4 @@
-# Stage 3 variant P1: official ContextPilot reorder only.
+# Stage 3 closure T0: identity per-request context transform.
 
 provider:
   name: deepseek
@@ -9,11 +9,8 @@ provider:
 context:
   policy: task_scoped
   renderer: stable_deterministic
-  optimizer:
-    name: contextpilot
-    reorder: true
-    deduplicate: false
-  contextpilot_enabled: false
+  transform:
+    name: identity
 
 scheduler:
   policy: upstream_default

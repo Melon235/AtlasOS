@@ -1,23 +1,28 @@
-"""Stage 3: ContextPilot P0-P3 on the functional and cache-stress workloads.
+"""Stage 3 closure: formal T0/T1 cache-stress runs plus functional checks.
 
     ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage3_contextpilot.py
 
-Functional runs go through AtlasRuntime (AnyCode tasks). The cache-stress harness calls the
-DeepSeek adapter directly with Atlas-rendered prompts so request sequence, block layout, and
-optimizer flags stay explicit; it does not introduce a second task runtime.
+Writes one run-level record per repetition to experiments/runs/stage3-formal.jsonl.
 """
 
 from __future__ import annotations
 
 import asyncio
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 from anycode.types import LLMChatOptions, LLMMessage, TextBlock
 from pydantic import BaseModel, ConfigDict
 
-from atlasos.context import ContextRef, StablePromptRenderer, context_layout_hash
-from atlasos.context.optimizers import ContextPilotOptimizer, IdentityContextOptimizer
-from atlasos.experiments import ExperimentStore
+from atlasos.context import StablePromptRenderer
+from atlasos.context.transform import ContextPilotDedupTransform, IdentityContextTransform
+from atlasos.experiments import (
+    ExperimentStore,
+    git_commit,
+    git_dirty,
+    package_version,
+)
 from atlasos.integrations.deepseek import DeepSeekAdapter
 from atlasos.runtime import AtlasRuntime
 from atlasos.stress import REQUESTS, cache_stress_blocks
@@ -25,55 +30,64 @@ from atlasos.workflow import AtlasTaskSpec, baseline_workflow
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = REPO_ROOT / "experiments" / "configs"
+REPETITIONS = 3
+SCALE = "small"
+MODEL = "deepseek-chat"
 
-VARIANTS = (
-    ("p0", "stage3-p0-identity.yaml", "identity", False, False),
-    ("p1", "stage3-p1-reorder.yaml", "contextpilot", True, False),
-    ("p2", "stage3-p2-dedup.yaml", "contextpilot", False, True),
-    ("p3", "stage3-p3-full.yaml", "contextpilot", True, True),
-)
-
-INPUT_TEXT = (
+FUNCTIONAL_INPUT = (
     "Two approaches are under consideration for a multi-agent runtime. "
     "Approach 1 aggressively prunes context before every model call. "
     "Approach 2 keeps a stable prefix and reorders context blocks for cache reuse."
 )
 
-STRESS_SYSTEM = (
+SYSTEM = (
     "You are a cache-stress analyst. Answer only from the supplied documents, cite document "
     "ids, and keep the answer under one hundred words."
 )
-REPETITIONS = 2
+
+VARIANTS = (
+    ("T0", "stage3-t0-identity.yaml", "identity"),
+    ("T1", "stage3-t1-dedup.yaml", "contextpilot_dedup"),
+)
 
 
-class StressCall(BaseModel):
+class StressRunRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    run_id: str
+    timestamp: datetime
     variant: str
-    rep: int
-    request_id: str
-    optimizer_name: str
-    reorder_enabled: bool
-    deduplicate_enabled: bool
+    repetition: int
+
+    git_commit: str | None
+    git_dirty: bool
+    model: str
+    anycode_version: str | None
+    contextpilot_version: str | None
+
+    transform_name: str
+    scale: str
+    request_sequence: list[str]
 
     prompt_tokens: int
     completion_tokens: int
     cache_hit_tokens: int | None
     cache_miss_tokens: int | None
     cache_hit_ratio: float | None
-    latency_ms: float
 
-    optimizer_latency_ms: float
+    provider_latency_ms: float
+    transform_latency_ms: float
     original_context_chars: int
     optimized_context_chars: int
-    pre_optimizer_layout_hash: str
-    post_optimizer_layout_hash: str
-    stable_prefix_hash: str
-    full_prompt_hash: str
+    task_success: bool
+
+
+def _transform(name: str):
+    return IdentityContextTransform() if name == "identity" else ContextPilotDedupTransform()
 
 
 async def run_functional() -> None:
-    for label, filename, _, _, _ in VARIANTS:
+    for label, filename, _ in VARIANTS:
         runtime = AtlasRuntime.from_config(
             CONFIGS / filename,
             runs_root=REPO_ROOT / "experiments" / "runs",
@@ -81,62 +95,39 @@ async def run_functional() -> None:
         )
         result = await runtime.run(
             baseline_workflow(),
-            experiment=f"stage3-functional-{label}",
-            input_text=INPUT_TEXT,
+            experiment=f"stage3-closure-functional-{label.lower()}",
+            input_text=FUNCTIONAL_INPUT,
         )
         metrics = result.metrics
         print(
-            f"functional {label}: {result.status} "
-            f"prompt={metrics.total_prompt_tokens} hit={metrics.total_cache_hit_tokens} "
-            f"miss={metrics.total_cache_miss_tokens} "
-            f"opt_ms={result.total_optimizer_latency_ms:.1f} "
-            f"optimizer={result.optimizer_name} reorder={result.reorder_enabled} "
-            f"dedup={result.deduplicate_enabled}"
+            f"functional {label}: {result.status} prompt={metrics.total_prompt_tokens} "
+            f"hit={metrics.total_cache_hit_tokens} miss={metrics.total_cache_miss_tokens} "
+            f"transform_ms={result.total_transform_latency_ms:.2f} "
+            f"transform={result.transform_name} deduplicated={result.deduplicated}"
         )
 
 
 async def run_stress() -> None:
-    blocks = cache_stress_blocks("small")
-    store = ExperimentStore(REPO_ROOT / "experiments" / "runs" / "stage3-stress.jsonl")
-    summaries: dict[str, dict[str, float]] = {}
+    blocks = cache_stress_blocks(SCALE)
+    store = ExperimentStore(REPO_ROOT / "experiments" / "runs" / "stage3-formal.jsonl")
+    renderer = StablePromptRenderer(preserve_input_order=True)
 
-    for label, _, name, reorder, dedup in VARIANTS:
-        totals = {"prompt": 0, "hit": 0, "miss": 0, "calls": 0, "opt_ms": 0.0}
-        for rep in range(REPETITIONS):
+    for label, _, transform_name in VARIANTS:
+        for repetition in range(1, REPETITIONS + 1):
             observations: list = []
             adapter = DeepSeekAdapter.from_env(on_call=observations.append)
-            optimizer = (
-                IdentityContextOptimizer()
-                if name == "identity"
-                else ContextPilotOptimizer(
-                    reorder=reorder,
-                    deduplicate=dedup,
-                    conversation_id=f"stress-{label}-{rep}",
-                )
-            )
+            transform = _transform(transform_name)
             contexts = [
                 [blocks[block_id] for block_id in request.block_ids] for request in REQUESTS
             ]
-            queries = [request.query for request in REQUESTS]
-            pre_hashes = [
-                context_layout_hash(
-                    [ContextRef(block.block_id, block.version) for block in context]
-                )
-                for context in contexts
-            ]
-            if name == "identity":
-                optimized = [
-                    optimizer.optimize(blocks=context, query=query)
-                    for context, query in zip(contexts, queries, strict=True)
-                ]
-            else:
-                optimized = optimizer.optimize_batch(contexts=contexts, queries=queries)
+            total_prompt = total_completion = total_hit = total_miss = 0
+            provider_latency = 0.0
+            transform_latency = 0.0
+            original_chars = optimized_chars = 0
+            success = True
 
-            renderer = StablePromptRenderer(preserve_input_order=True)
-            for request, context, pre_hash, item in zip(
-                REQUESTS, contexts, pre_hashes, optimized, strict=True
-            ):
-                del context
+            for request, context in zip(REQUESTS, contexts, strict=True):
+                transformed = transform.transform(blocks=context, query=request.query)
                 task = AtlasTaskSpec(
                     task_id=f"stress-{request.request_id}",
                     title="Cache Stress",
@@ -144,12 +135,12 @@ async def run_stress() -> None:
                     assignee="stress-agent",
                 )
                 rendered = renderer.render(
-                    stable_system_prefix=STRESS_SYSTEM,
+                    stable_system_prefix=SYSTEM,
                     agent_role="cache-stress analyst",
                     task=task,
-                    context_blocks=item.blocks,
+                    context_blocks=transformed.blocks,
                 )
-                await adapter.chat(
+                response = await adapter.chat(
                     [
                         LLMMessage(
                             role="user",
@@ -157,48 +148,57 @@ async def run_stress() -> None:
                         )
                     ],
                     LLMChatOptions(
-                        model="deepseek-chat",
+                        model=MODEL,
                         system_prompt=rendered.messages[0]["content"],
                         max_tokens=200,
                         temperature=0,
                     ),
                 )
-                observation = observations[-1]
-                usage = observation.usage
-                store.append(
-                    StressCall(
-                        variant=label,
-                        rep=rep,
-                        request_id=request.request_id,
-                        optimizer_name=item.optimizer_name,
-                        reorder_enabled=bool(item.metadata.get("reorder_enabled")),
-                        deduplicate_enabled=bool(item.metadata.get("deduplicate_enabled")),
-                        prompt_tokens=usage.prompt_tokens,
-                        completion_tokens=usage.completion_tokens,
-                        cache_hit_tokens=usage.cache_hit_tokens,
-                        cache_miss_tokens=usage.cache_miss_tokens,
-                        cache_hit_ratio=usage.cache_hit_ratio,
-                        latency_ms=usage.latency_ms,
-                        optimizer_latency_ms=item.optimizer_latency_ms,
-                        original_context_chars=item.original_context_chars,
-                        optimized_context_chars=item.optimized_context_chars,
-                        pre_optimizer_layout_hash=pre_hash,
-                        post_optimizer_layout_hash=rendered.context_layout_hash,
-                        stable_prefix_hash=rendered.stable_prefix_hash,
-                        full_prompt_hash=rendered.full_prompt_hash,
-                    )
+                success = success and bool(response.content)
+                usage = observations[-1].usage
+                total_prompt += usage.prompt_tokens
+                total_completion += usage.completion_tokens
+                total_hit += usage.cache_hit_tokens or 0
+                total_miss += usage.cache_miss_tokens or 0
+                provider_latency += usage.latency_ms
+                transform_latency += transformed.transform_latency_ms
+                original_chars += transformed.original_context_chars
+                optimized_chars += transformed.optimized_context_chars
+
+            denominator = total_hit + total_miss
+            ratio = total_hit / denominator if denominator else None
+            store.append(
+                StressRunRecord(
+                    run_id=uuid.uuid4().hex,
+                    timestamp=datetime.now(UTC),
+                    variant=label,
+                    repetition=repetition,
+                    git_commit=git_commit(REPO_ROOT),
+                    git_dirty=git_dirty(REPO_ROOT),
+                    model=MODEL,
+                    anycode_version=package_version("anycode-py"),
+                    contextpilot_version=package_version("contextpilot"),
+                    transform_name=transform_name,
+                    scale=SCALE,
+                    request_sequence=[request.request_id for request in REQUESTS],
+                    prompt_tokens=total_prompt,
+                    completion_tokens=total_completion,
+                    cache_hit_tokens=total_hit,
+                    cache_miss_tokens=total_miss,
+                    cache_hit_ratio=ratio,
+                    provider_latency_ms=provider_latency,
+                    transform_latency_ms=transform_latency,
+                    original_context_chars=original_chars,
+                    optimized_context_chars=optimized_chars,
+                    task_success=success,
                 )
-                totals["prompt"] += usage.prompt_tokens
-                totals["hit"] += usage.cache_hit_tokens or 0
-                totals["miss"] += usage.cache_miss_tokens or 0
-                totals["opt_ms"] += item.optimizer_latency_ms
-                totals["calls"] += 1
-        summaries[label] = totals
-        print(
-            f"stress {label}: calls={int(totals['calls'])} prompt={int(totals['prompt'])} "
-            f"hit={int(totals['hit'])} miss={int(totals['miss'])} "
-            f"opt_ms={totals['opt_ms']:.1f}"
-        )
+            )
+            print(
+                f"stress {label} rep={repetition}: prompt={total_prompt} "
+                f"hit={total_hit} miss={total_miss} ratio={ratio} "
+                f"provider_ms={provider_latency:.1f} transform_ms={transform_latency:.2f} "
+                f"chars={original_chars}->{optimized_chars} success={success}"
+            )
 
 
 async def main() -> None:

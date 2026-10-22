@@ -1,4 +1,4 @@
-# Stage 3 variant P2: official ContextPilot exact-block dedup only.
+# Stage 3 closure T1: official ContextPilot exact-block dedup transform.
 
 provider:
   name: deepseek
@@ -9,11 +9,8 @@ provider:
 context:
   policy: task_scoped
   renderer: stable_deterministic
-  optimizer:
-    name: contextpilot
-    reorder: false
-    deduplicate: true
-  contextpilot_enabled: false
+  transform:
+    name: contextpilot_dedup
 
 scheduler:
   policy: upstream_default
