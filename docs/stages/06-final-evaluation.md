@@ -1,6 +1,8 @@
 # Stage 6 — Final Evaluation and AtlasOS V1 Freeze
 
-Frozen 2026-10-23 from clean code commit `a527796` (all formal records `git_dirty=false`).
+Frozen 2026-10-23. E1–E4 formal records were captured at clean code commit `a527796`; E5 was
+rerun at clean `c12a706`, which includes the `2233bfd` latest-checkpoint ordering fix. All
+formal records have `git_dirty=false`.
 Results tables: [stage6-final.md](../../experiments/results/stage6-final.md).
 Generated tables: [stage6-tables.md](../../experiments/results/stage6-tables.md).
 Figures: [figures](../../experiments/results/figures/).
@@ -121,6 +123,12 @@ R1 execution counts are `research-a=1, research-b=2, review=1`; R2 is
 two blocks before Review executes; R1 rebuilds one durable root and re-executes the in-flight
 root. R0/R2 agree on ContextRefs, block content hashes, `context_layout_hash`, full prompt hash,
 and final deterministic output. R1 also matches on those checks. Q5: yes.
+
+During full-suite verification, a same-millisecond checkpoint-order bug surfaced: UUIDv7
+filenames can sort out of order, and upstream `resume_from="latest"` sorts filenames. AtlasOS now
+selects the latest checkpoint by `created_at` and passes that exact checkpoint id to AnyCode
+(`2233bfd`, with a regression test). E5 was rerun after the fix; counts and equivalence are
+unchanged.
 
 ## Interpretation
 
