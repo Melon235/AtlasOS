@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +23,7 @@ from anycode.types import (
 
 from atlasos.config import AtlasConfig
 from atlasos.context import InMemoryContextStore
-from atlasos.durability import InjectedCrash
+from atlasos.durability import InjectedCrash, ManifestMismatch
 from atlasos.metrics import InferenceObservation, InferenceUsage
 from atlasos.metrics.fingerprint import full_prompt_hash, stable_prefix_hash
 from atlasos.runtime import AtlasRunResult, AtlasRuntime
@@ -110,8 +111,9 @@ def _runtime(
     recorder: _Recorder,
     *,
     event_hook: Any = None,
+    config: AtlasConfig | None = None,
 ) -> AtlasRuntime:
-    config = AtlasConfig.model_validate(
+    resolved = config or AtlasConfig.model_validate(
         {
             "context": {"policy": "task_scoped", "renderer": "stable_deterministic"},
             "placement": {"policy": "capability_only"},
@@ -122,7 +124,7 @@ def _runtime(
         return _RecoveryAdapter(TASK_BY_AGENT[agent_name], recorder, on_call)
 
     return AtlasRuntime(
-        config,
+        resolved,
         runs_root=runs_root,
         adapter_factory=factory,
         event_hook=event_hook,
@@ -321,3 +323,57 @@ async def test_uninterrupted_and_recovered_review_context_are_equivalent(tmp_pat
     ]
     assert r0_blocks == r2_blocks
     assert [task.task_id for task in r0.tasks] == [task.task_id for task in r2.tasks]
+
+
+async def test_resume_rejects_changed_workflow(tmp_path: Path) -> None:
+    workflow = baseline_workflow()
+    runtime = _runtime(tmp_path, _Recorder())
+    result = await runtime.run(workflow, persist=False)
+
+    changed = replace(
+        workflow,
+        tasks=(
+            replace(workflow.tasks[0], description="a changed root description"),
+            workflow.tasks[1],
+            workflow.tasks[2],
+        ),
+    )
+    with pytest.raises(ManifestMismatch, match="workflow_hash"):
+        await runtime.resume(result.run_id, changed, persist=False)
+
+
+async def test_resume_rejects_changed_semantic_config(tmp_path: Path) -> None:
+    workflow = baseline_workflow()
+    runtime = _runtime(tmp_path, _Recorder())
+    result = await runtime.run(workflow, persist=False)
+
+    changed_config = AtlasConfig.model_validate(
+        {
+            "context": {"policy": "task_scoped", "renderer": "stable_deterministic"},
+            "placement": {"policy": "context_locality"},
+        }
+    )
+    changed_runtime = _runtime(tmp_path, _Recorder(), config=changed_config)
+    with pytest.raises(ManifestMismatch, match="semantic_config_hash"):
+        await changed_runtime.resume(result.run_id, workflow, persist=False)
+
+
+async def test_resume_accepts_operational_config_changes(tmp_path: Path) -> None:
+    workflow = baseline_workflow()
+    runtime = _runtime(tmp_path, _Recorder())
+    result = await runtime.run(workflow, persist=False)
+
+    operational_config = AtlasConfig.model_validate(
+        {
+            "context": {"policy": "task_scoped", "renderer": "stable_deterministic"},
+            "placement": {"policy": "capability_only"},
+            "pricing": {"provider": "deepseek"},
+        }
+    )
+    operational_runtime = _runtime(tmp_path, _Recorder(), config=operational_config)
+    resumed = await operational_runtime.resume(result.run_id, workflow, persist=False)
+
+    assert resumed.status == "succeeded"
+    assert resumed.recovery is not None
+    assert resumed.recovery.completed_tasks_before_resume == 3
+    assert resumed.recovery.completed_tasks_reexecuted == 0
