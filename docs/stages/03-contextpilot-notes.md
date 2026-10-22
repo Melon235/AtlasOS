@@ -1,90 +1,77 @@
-# Stage 3 Notes — ContextPilot Integration
+# Stage 3 Notes — ContextPilot Integration (Closure)
 
-Recorded 2026-10-22. Baseline commits: Stage 0 `98cedb8`, Stage 1 `7eae2c1`, Stage 2 `34ea504`.
+Recorded 2026-10-22. Commits: Stage 1 `7eae2c1`, Stage 2 `34ea504`, initial Stage 3 `ccbfa71`,
+closure code `3d90bfc`.
 
-## Boundary
-
-`ContextOptimizer` sits between `TaskScopedSelector` and the renderer:
+## Corrected architecture
 
 ```text
-selector (membership) -> stable pre-order -> optimizer -> renderer (preserve optimizer order)
+Task -> TaskScopedSelector -> selected blocks
+     -> per-request ContextTransform (identity | ContextPilot dedup)
+     -> StablePromptRenderer (Atlas owns prefix/task/layout)
+     -> rendered requests
+     -> BatchRequestPolicy (identity | ContextPilot reorder, experiment-only)
+     -> provider
 ```
 
-The selector output is sorted with the Stage 2 stable key **before** optimization, so
-`pre_optimizer_layout_hash` is deterministic regardless of parallel completion order. The stable
-renderer is constructed with `preserve_input_order=True` so ContextPilot's deliberate reorder is
-not sorted back. The stable system/task prefix and delimiters remain Atlas-owned.
+`ContextPilot.dedup_chat_completions()` is a per-request transformation.
+`ContextPilot.reorder()` is a cross-request batch primitive and is not part of the runtime path.
+Historical P0–P3 labels are retired; historical `optimizer` configs are rejected instead of
+silently mapping to the wrong semantics.
 
-Optimizers never select blocks, render text, call providers, or schedule tasks.
+## Runtime path
 
-## Modes
+- `ContextTransform` implementations: `IdentityContextTransform`,
+  `ContextPilotDedupTransform` (lazy import; missing package fails clearly).
+- Selection output is stable-ordered before the transform; the renderer preserves that order, so
+  `pre_transform_layout_hash` stays deterministic across inverted completion order.
+- Atlas keeps the stable system prefix, agent role, task prefix, delimiters, and dynamic tail.
+- A failed ContextPilot import never silently falls back to a different algorithm.
 
-| Variant | optimizer | reorder | dedup |
-|---|---|---:|---:|
-| P0 | identity | false | false |
-| P1 | contextpilot | true | false |
-| P2 | contextpilot | false | true |
-| P3 | contextpilot | true | true |
+## Experiment taxonomy
 
-Configuration fails fast on `identity` with flags enabled, and on ContextPilot without
-`policy=task_scoped` + `renderer=stable_deterministic`.
+| Layer | Variants |
+|---|---|
+| Per-request transform | T0 identity, T1 ContextPilot dedup |
+| Batch request policy | B0 identity, B1 ContextPilot reorder (experiment-only, not on the V1 path) |
 
-## Dependency isolation
+## Formal clean-worktree dedup result
 
-No top-level ContextPilot import. The adapter imports lazily on first use; a missing package
-raises `ContextPilotUnavailable` and the identity path continues to work. Initialization failures
-are surfaced, never silently downgraded to identity.
+Source tree clean at execution (`git_dirty=false`, code commit `3d90bfc`). Workload: deterministic
+cache-stress `small` scale, four requests, three repetitions per variant.
 
-## Metrics added
+| variant | prompt | hit | miss | ratio | provider ms (reps) | transform ms |
+|---|---:|---:|---:|---:|---|---:|
+| T0 identity | 19,868 | 18,944 | 924 | 0.9535 | 3,969.2 / 4,199.3 / 3,258.5 | 0 / 0 / 0 |
+| T1 dedup | 18,372 | 17,536 | 836 | 0.9545 | 4,925.7 / 3,664.1 / 4,691.1 | 2.41 / 2.38 / 2.78 |
 
-Per call: optimizer name/flags, optimizer latency, original/optimized block counts and context
-chars, pre/post optimizer layout hashes, index mode. Per run: same labels plus total optimizer
-latency, AnyCode/ContextPilot versions, `git_dirty`.
+Token counts are identical across repetitions; latency varies. Dedup reduced context characters
+104,496 → 96,375 (the exact duplicate block in request 4) and prompt tokens 19,868 → 18,372.
 
-## Live functional results (P0–P3, one run each)
+Cache-miss reduction: **(924 − 836) / 924 = 9.52%**. The provider cache was warm from earlier
+runs, so the absolute hit ratio is not a cold-start number; only the paired T0/T1 comparison is
+meaningful.
 
-| variant | status | prompt | hit | miss | optimizer latency |
-|---|---|---|---:|---:|---:|
-| P0 identity | succeeded | 940 | 128 | 812 | ~0 ms |
-| P1 reorder | succeeded | 927 | 128 | 799 | 0.6 ms |
-| P2 dedup | succeeded | 901 | 128 | 773 | 0.6 ms |
-| P3 full | succeeded | 900 | 128 | 772 | 0.6 ms |
+## Reorder CPU viability
 
-All tasks completed; stable prefix hashes are equal across variants; P0 pre/post layout hashes are
-equal. On this short workload reorder is a no-op (single-context calls) and dedup cannot trigger
-(fewer than two chunks per block).
+The bounded benchmark classifies ContextPilot reorder as **C — impractical for the online V1 CPU
+path**: ~1.1 s even for the smallest batch, and the 104 K-char stress batch did not finish within
+three minutes. B1 therefore remains experiment-only and was not run live. No unbounded vendor
+call remains in tests or examples.
 
-## Live cache-stress results
+## Claims
 
-Deterministic blocks (`small`, ~5 KB each; E is an exact copy of A), 4 requests per repetition,
-2 repetitions. Provider latency and cache tokens come from DeepSeek.
+- AtlasOS reproduced and integrated ContextPilot's official dedup behavior as a per-request
+  context transform.
+- AtlasOS measured provider-reported cache effects and reports a formal 9.52% miss reduction on
+  this deterministic workload.
+- ContextPilot reorder was verified to be a cross-request batch primitive and characterized as
+  impractical for the current online CPU path.
 
-| variant | calls | prompt tokens | hit | miss | notes |
-|---|---:|---:|---:|---:|---|
-| P0 identity | 8 | 39,736 | 18,944 | 20,792 | no optimization |
-| P2 dedup | 8 | 36,744 | 33,280 | 3,464 | request 4 drops from 4,967 to 3,471 prompt tokens |
-| P1 reorder | — | — | — | — | batched reorder did not finish in >3 min (two probes) |
-| P3 full | — | — | — | — | blocked by the same reorder cost |
+## Known limitations
 
-Structural effect: exact-block dedup replaced the second copy of block A with the official
-reference hint, saving 1,496 prompt characters in request 4 and preserving all block ids.
-Provider cache metrics are noisy and are reported as observations only.
-
-## Findings
-
-- The official dedup mechanism is reproducible and safe at block level: same block count, same
-  ids, transformed content, no semantic block dropped.
-- The official reorder mechanism is only meaningful across a batch of requests, and on the pinned
-  0.5.0 build it is prohibitively slow for long blocks (minutes of CPU for 16 × 5 KB documents).
-  That blocked live P1/P3 stress runs.
-- Functional P0–P3 all succeed and keep the Atlas stable prefix; no task semantics changed.
-- No ContextPilot request/batch scheduling is used; AtlasOS keeps request order explicit.
-
-## Limitations
-
-- Live runs were produced from a dirty worktree (`git_dirty=true`); they are exploratory, not
-  formal frozen results.
-- P1/P3 stress results are missing because of vendor reorder cost; this is a reproducible
-  structural limitation, not a silent fallback.
-- Dedup only triggers for multi-chunk content; short blocks are never shortened.
-- ContextPilot index state is not provider cache state; no cache claim relies on it.
+- One workload scale, one provider, three repetitions; latency is noisy.
+- The provider cache was warm, so the ratio is not cold-start.
+- Dedup only triggers for multi-chunk duplicate content.
+- Reorder is not evaluated live; only its cost is characterized.
+- The exploratory dirty-tree figure is superseded by the formal results above.

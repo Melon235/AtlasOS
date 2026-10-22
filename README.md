@@ -22,9 +22,10 @@ Provenance and licenses are recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
 ## Status
 
 Stage 0 (bootstrap), Stage 1 (runtime baseline), Stage 2 (explicit context runtime + stable
-rendering), and Stage 3 (ContextPilot reorder/dedup integration) are implemented. Stage 3 live
-results are exploratory: the functional P0–P3 runs succeeded; dedup stress results are recorded;
-batched reorder stress was blocked by vendor CPU cost. No cache-aware scheduling exists yet.
+rendering), and Stage 3 (ContextPilot dedup transform + reorder characterization) are complete.
+Per-request context transformation is separated from batch request ordering; ContextPilot reorder
+is experiment-only and classified as impractical for the online V1 CPU path. No cache-aware
+scheduling exists yet.
 
 - [Architecture](docs/architecture.md)
 - [Stage 0/1 specification](docs/stages/00-01-bootstrap-and-baseline.md)

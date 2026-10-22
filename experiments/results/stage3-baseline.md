@@ -1,44 +1,67 @@
-# Stage 3 Snapshot — ContextPilot P0–P3 (exploratory)
+# Stage 3 Snapshot — Formal Clean-Worktree Results
 
-Recorded 2026-10-22. Source tree was dirty (`git_dirty=true`) during these runs, so they are
-exploratory rather than formal frozen results. Raw data: `experiments/runs/runs.jsonl` and
-`experiments/runs/stage3-stress.jsonl` (gitignored).
+Frozen 2026-10-22 from code commit `3d90bfc` with `git_dirty=false` at run time
+(`examples/stage3_contextpilot.py`). Raw data: `experiments/runs/stage3-formal.jsonl`
+(gitignored). The earlier exploratory dirty-tree numbers are superseded and must not be quoted.
 
-## Functional workload (AtlasRuntime, P0–P3, one run each)
+## Formal T0/T1 cache-stress results
 
-| variant | optimizer | reorder | dedup | status | prompt | hit | miss |
-|---|---|---|---:|---:|---|---:|---:|---:|
-| P0 | identity | false | false | succeeded | 940 | 128 | 812 |
-| P1 | contextpilot | true | false | succeeded | 927 | 128 | 799 |
-| P2 | contextpilot | false | true | succeeded | 901 | 128 | 773 |
-| P3 | contextpilot | true | true | succeeded | 900 | 128 | 772 |
+Workload: deterministic `small` stress scale, four requests per repetition, three repetitions per
+variant, `deepseek-chat`.
 
-All tasks completed; stable-prefix hashes identical across variants; P0 pre/post layout equal.
+| variant | rep | prompt | hit | miss | ratio | provider ms | transform ms |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| T0 identity | 1 | 19,868 | 18,944 | 924 | 0.9535 | 3,969.2 | 0.00 |
+| T0 identity | 2 | 19,868 | 18,944 | 924 | 0.9535 | 4,199.3 | 0.00 |
+| T0 identity | 3 | 19,868 | 18,944 | 924 | 0.9535 | 3,258.5 | 0.00 |
+| T1 dedup | 1 | 18,372 | 17,536 | 836 | 0.9545 | 4,925.7 | 2.41 |
+| T1 dedup | 2 | 18,372 | 17,536 | 836 | 0.9545 | 3,664.1 | 2.38 |
+| T1 dedup | 3 | 18,372 | 17,536 | 836 | 0.9545 | 4,691.1 | 2.78 |
 
-## Cache-stress workload (small scale, 2 repetitions)
+### Summary
 
-| variant | calls | prompt | hit | miss |
-|---|---:|---:|---:|---:|
-| P0 identity | 8 | 39,736 | 18,944 | 20,792 |
-| P2 dedup | 8 | 36,744 | 33,280 | 3,464 |
-| P1 reorder | — | — | — | — |
-| P3 full | — | — | — | — |
+| metric | variant | mean | median | min | max |
+|---|---|---:|---:|---:|---:|
+| prompt_tokens | T0 | 19,868 | 19,868 | 19,868 | 19,868 |
+| prompt_tokens | T1 | 18,372 | 18,372 | 18,372 | 18,372 |
+| cache_hit_tokens | T0 | 18,944 | 18,944 | 18,944 | 18,944 |
+| cache_hit_tokens | T1 | 17,536 | 17,536 | 17,536 | 17,536 |
+| cache_miss_tokens | T0 | 924 | 924 | 924 | 924 |
+| cache_miss_tokens | T1 | 836 | 836 | 836 | 836 |
+| cache_hit_ratio | T0 | 0.9535 | 0.9535 | 0.9535 | 0.9535 |
+| cache_hit_ratio | T1 | 0.9545 | 0.9545 | 0.9545 | 0.9545 |
+| provider_latency_ms | T0 | 3,809.0 | 3,969.2 | 3,258.5 | 4,199.3 |
+| provider_latency_ms | T1 | 4,427.0 | 4,691.1 | 3,664.1 | 4,925.7 |
+| transform_latency_ms | T0 | 0.00 | 0.00 | 0.00 | 0.00 |
+| transform_latency_ms | T1 | 2.52 | 2.41 | 2.38 | 2.78 |
 
-Dedup effect: request 4 (`E A B`, where E is an exact copy of A) fell from 4,967 to 3,471
-prompt tokens; the duplicate was replaced by the official reference hint. Block ids and count
-were preserved.
+Context characters: 104,496 → 96,375 for T1 (dedup of the exact duplicate block in request 4).
 
-## Why P1/P3 stress are absent
+**Observed cache-miss reduction:** `(924 − 836) / 924 = 9.52%`.
 
-Batched `ContextPilot.reorder()` over 4 requests × 4 blocks (~5 KB each) did not complete within
-three minutes in two separate probes. Single-context reorder is effectively free but is a no-op.
-The reorder stress variants were therefore not run live; no silent fallback was used.
+The provider cache was warm from earlier runs, so the ~95% hit ratio is not a cold-start number;
+the paired T0/T1 comparison is the meaningful result.
+
+## Reorder CPU benchmark (bounded, 10 s timeout per case)
+
+| case | requests | blocks/req | chars | reorder ms | timed out |
+|---|---:|---:|---:|---:|---|
+| c1 | 2 | 2 | 8,352 | 1,119.8 | no |
+| c2 | 2 | 3 | 12,528 | 1,102.5 | no |
+| c3 | 3 | 3 | 18,792 | 1,140.1 | no |
+| c4 | 4 | 4 | 33,408 | 1,114.0 | no |
+| c5 | 2 | 2 | 16,112 | 1,133.3 | no |
+| c6 | 3 | 3 | 36,252 | 1,165.5 | no |
+
+Classification: **C — impractical for the AtlasOS V1 online CPU path.** The smallest batch already
+costs ~1.1 s, and the 104 K-char stress batch did not complete within three minutes.
 
 ## Reproduce
 
 ```bash
+# formal T0/T1 runs (clean worktree required for git_dirty=false)
 ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage3_contextpilot.py
-```
 
-(The script runs functional P0–P3 and the stress P0–P3 loop; on this vendor build the P1/P3 stress
-reorder step must be expected to spend minutes in CPU, which is why the recorded run omitted it.)
+# bounded reorder CPU benchmark
+uv run python experiments/benchmarks/reorder_cpu.py
+```
