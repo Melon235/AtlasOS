@@ -1,5 +1,5 @@
-# Baseline experiment configuration (Stage 1).
-# No AtlasOS optimization is enabled here: this is the reference run every ablation compares to.
+# Baseline experiment configuration (Stage 1 / U0).
+# No AtlasOS context optimization is enabled here: AnyCode builds the prompt.
 
 provider:
   name: deepseek
@@ -8,7 +8,8 @@ provider:
   api_key_env: DEEPSEEK_API_KEY
 
 context:
-  selector: full
+  policy: upstream_default
+  renderer: upstream_default
   contextpilot_enabled: false
   contextpilot:
     reorder: true

@@ -1,0 +1,21 @@
+# Stage 2 variant C1: task-scoped selection + naive (execution-order) rendering.
+# Layout is expected to change when dependency completion order changes.
+
+provider:
+  name: deepseek
+  model: deepseek-chat
+  base_url: null
+  api_key_env: DEEPSEEK_API_KEY
+
+context:
+  policy: task_scoped
+  renderer: naive_execution_order
+  contextpilot_enabled: false
+  contextpilot:
+    reorder: true
+    deduplicate: true
+
+scheduler:
+  policy: upstream_default
+
+pricing: null

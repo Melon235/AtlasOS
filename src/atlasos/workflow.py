@@ -28,10 +28,15 @@ class WorkflowError(ValueError):
 
 @dataclass(frozen=True)
 class AtlasAgentSpec:
-    """An agent role in the baseline workflow."""
+    """An agent role in the baseline workflow.
+
+    ``system_prompt`` is the complete static system message (stable prefix plus role);
+    ``role`` names the role so the renderer can label it without parsing prose.
+    """
 
     name: str
     system_prompt: str
+    role: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,6 +89,14 @@ class CompiledWorkflow:
     id_by_title: Mapping[str, str]
 
 
+def task_description(task: AtlasTaskSpec, workflow_input: str) -> str:
+    """Effective task text: the run input is attached to root tasks only."""
+
+    if not task.depends_on and workflow_input:
+        return f"{task.description}\n\nUser request:\n{workflow_input}"
+    return task.description
+
+
 def compile_workflow(
     workflow: AtlasWorkflow,
     *,
@@ -99,13 +112,10 @@ def compile_workflow(
 
     task_specs: list[TaskSpec] = []
     for task in workflow.tasks:
-        description = task.description
-        if not task.depends_on and workflow.input:
-            description = f"{description}\n\nUser request:\n{workflow.input}"
         task_specs.append(
             TaskSpec(
                 title=task.title,
-                description=description,
+                description=task_description(task, workflow.input),
                 assignee=task.assignee,
                 depends_on=[title_by_id[dependency] for dependency in task.depends_on],
             )
@@ -167,18 +177,21 @@ def baseline_workflow() -> AtlasWorkflow:
         agents=(
             AtlasAgentSpec(
                 name="researcher-a",
+                role="researcher covering benefits, evidence, and expected gains",
                 system_prompt=_system_prompt(
                     "researcher covering benefits, evidence, and expected gains"
                 ),
             ),
             AtlasAgentSpec(
                 name="researcher-b",
+                role="researcher covering risks, costs, and counterexamples",
                 system_prompt=_system_prompt(
                     "researcher covering risks, costs, and counterexamples"
                 ),
             ),
             AtlasAgentSpec(
                 name="reviewer",
+                role="reviewer who compares both research threads and recommends one option",
                 system_prompt=_system_prompt(
                     "reviewer who compares both research threads and recommends one option"
                 ),

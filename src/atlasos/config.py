@@ -12,10 +12,24 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SchedulerPolicy = Literal["upstream_default", "capability", "context_aware", "cache_aware"]
-ContextSelectorName = Literal["full", "task_scoped", "relevance"]
+ContextPolicy = Literal["upstream_default", "task_scoped"]
+RendererPolicy = Literal[
+    "upstream_default",
+    "naive_execution_order",
+    "stable_deterministic",
+]
+
+# Only these policy/renderer pairs are honest for Stage 2; anything else fails fast.
+_ALLOWED_CONTEXT_MODES: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("upstream_default", "upstream_default"),
+        ("task_scoped", "naive_execution_order"),
+        ("task_scoped", "stable_deterministic"),
+    }
+)
 
 
 class Pricing(BaseModel):
@@ -54,9 +68,20 @@ class ContextPilotOptions(BaseModel):
 class ContextConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    selector: ContextSelectorName = "full"
+    policy: ContextPolicy = "upstream_default"
+    renderer: RendererPolicy = "upstream_default"
     contextpilot_enabled: bool = False
     contextpilot: ContextPilotOptions = ContextPilotOptions()
+
+    @model_validator(mode="after")
+    def _validate_mode_pair(self) -> ContextConfig:
+        if (self.policy, self.renderer) not in _ALLOWED_CONTEXT_MODES:
+            raise ValueError(
+                "unsupported context policy/renderer pair: "
+                f"{self.policy!r}/{self.renderer!r}; allowed pairs are "
+                f"{sorted(_ALLOWED_CONTEXT_MODES)}"
+            )
+        return self
 
 
 class SchedulerConfig(BaseModel):

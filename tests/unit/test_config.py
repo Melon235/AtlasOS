@@ -15,9 +15,32 @@ def test_loads_baseline_configuration() -> None:
 
     assert config.provider.name == "deepseek"
     assert config.scheduler.policy == "upstream_default"
-    assert config.context.selector == "full"
+    assert config.context.policy == "upstream_default"
+    assert config.context.renderer == "upstream_default"
     assert config.context.contextpilot_enabled is False
     assert config.pricing is None
+
+
+def test_rejects_invalid_context_mode_pair() -> None:
+    with pytest.raises(ValidationError, match="unsupported context policy/renderer"):
+        AtlasConfig.model_validate(
+            {"context": {"policy": "upstream_default", "renderer": "stable_deterministic"}}
+        )
+
+
+def test_loads_stage2_variants() -> None:
+    configs = Path(__file__).resolve().parents[2] / "experiments" / "configs"
+    naive = load_config(configs / "stage2-naive.yaml")
+    stable = load_config(configs / "stage2-stable.yaml")
+
+    assert (naive.context.policy, naive.context.renderer) == (
+        "task_scoped",
+        "naive_execution_order",
+    )
+    assert (stable.context.policy, stable.context.renderer) == (
+        "task_scoped",
+        "stable_deterministic",
+    )
 
 
 def test_rejects_unknown_scheduler_policy() -> None:

@@ -21,14 +21,15 @@ Provenance and licenses are recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Status
 
-Stage 0 (bootstrap/upstream verification) and Stage 1 (runtime baseline) are complete. The
-baseline is frozen: no AtlasOS context optimization, context selection, or cache-aware
-scheduling exists yet, by design.
+Stage 0 (bootstrap/upstream verification), Stage 1 (runtime baseline), and Stage 2 (explicit
+context runtime + stable rendering) are complete. Context is now explicit and deterministically
+rendered; no cache-aware scheduling or ContextPilot integration exists yet, by design.
 
 - [Architecture](docs/architecture.md)
 - [Stage 0/1 specification](docs/stages/00-01-bootstrap-and-baseline.md)
 - [Stage 0 verification notes](docs/stages/00-verification-notes.md)
 - [Stage 1 baseline notes](docs/stages/01-baseline-notes.md)
+- [Stage 2 context runtime notes](docs/stages/02-context-runtime-notes.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -41,6 +42,9 @@ uv run python examples/baseline_team.py   # deterministic fakes, no network
 ```bash
 # live: needs DEEPSEEK_API_KEY in .env; runs the frozen workload twice
 ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/live_baseline.py
+
+# live Stage 2 ablation: U0 vs C1 (naive) vs C2 (stable) with inverted completion order
+ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage2_ablation.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -89,12 +93,12 @@ src/atlasos/
   experiments.py       JSONL persistence and reproducibility metadata
   integrations/        AnyCode wiring + DeepSeek adapter
   metrics/             normalized usage, prompt fingerprints, run aggregation
-  context/           (Stage 2) context blocks, store, selectors, renderer
+  context/             context blocks, store, selectors, naive/stable renderers
   scheduler/         (Stage 4) task-to-agent scheduling policies
 tests/unit             deterministic offline tests
 tests/integration      runtime-level tests with fake or live providers
-examples/              offline baseline and live DeepSeek baseline
-experiments/configs/   experiment configurations
+examples/              offline baseline, live baseline, Stage 2 ablation
+experiments/configs/   experiment configurations (U0, C1, C2)
 experiments/runs/      generated run records (gitignored)
 ```
 

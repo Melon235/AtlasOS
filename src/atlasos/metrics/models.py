@@ -73,11 +73,20 @@ class InferenceRecord(BaseModel):
 
     scheduler_policy: str
     context_policy: str
+    renderer_policy: str = "upstream_default"
     contextpilot_enabled: bool
 
     # Diagnostic metadata only; never rendered into a prompt.
     stable_prefix_hash: str | None = None
     full_prompt_hash: str | None = None
+    context_layout_hash: str | None = None
+
+    # Stage 2 structure metrics. ``None`` means "not measured", never a fabricated count.
+    rendered_dependency_order: list[str] | None = None
+    dependency_completion_order: list[str] | None = None
+    stable_prefix_tokens: int | None = None
+    context_block_tokens: int | None = None
+    dynamic_tail_tokens: int | None = None
 
     @classmethod
     def from_usage(
@@ -91,9 +100,16 @@ class InferenceRecord(BaseModel):
         agent_id: str | None = None,
         scheduler_policy: str = "upstream_default",
         context_policy: str = "upstream_default",
+        renderer_policy: str = "upstream_default",
         contextpilot_enabled: bool = False,
         stable_prefix_hash: str | None = None,
         full_prompt_hash: str | None = None,
+        context_layout_hash: str | None = None,
+        rendered_dependency_order: list[str] | None = None,
+        dependency_completion_order: list[str] | None = None,
+        stable_prefix_tokens: int | None = None,
+        context_block_tokens: int | None = None,
+        dynamic_tail_tokens: int | None = None,
     ) -> InferenceRecord:
         return cls(
             run_id=run_id,
@@ -109,7 +125,14 @@ class InferenceRecord(BaseModel):
             latency_ms=usage.latency_ms,
             scheduler_policy=scheduler_policy,
             context_policy=context_policy,
+            renderer_policy=renderer_policy,
             contextpilot_enabled=contextpilot_enabled,
             stable_prefix_hash=stable_prefix_hash,
             full_prompt_hash=full_prompt_hash,
+            context_layout_hash=context_layout_hash,
+            rendered_dependency_order=rendered_dependency_order,
+            dependency_completion_order=dependency_completion_order,
+            stable_prefix_tokens=stable_prefix_tokens,
+            context_block_tokens=context_block_tokens,
+            dynamic_tail_tokens=dynamic_tail_tokens,
         )
