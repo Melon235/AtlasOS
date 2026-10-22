@@ -140,3 +140,38 @@ def test_rebuild_is_deterministic() -> None:
     second = rebuild_context_store(_checkpoint(), _workflow())
 
     assert first.find_by_task("one") == second.find_by_task("one")
+
+
+def test_semantic_config_hash_ignores_operational_fields() -> None:
+    from atlasos.config import AtlasConfig
+    from atlasos.experiments import semantic_config_hash
+
+    first = semantic_config_hash(AtlasConfig())
+    second = semantic_config_hash(AtlasConfig.model_validate({"pricing": None}))
+    changed = semantic_config_hash(
+        AtlasConfig.model_validate(
+            {
+                "context": {
+                    "transform": {"name": "contextpilot_dedup"},
+                    "policy": "task_scoped",
+                    "renderer": "stable_deterministic",
+                }
+            }
+        )
+    )
+    assert first == second
+    assert first != changed
+
+
+def test_placed_assignment_hash_is_stable_and_sensitive() -> None:
+    from dataclasses import replace
+
+    from atlasos.experiments import placed_assignment_hash
+
+    workflow = _workflow()
+    assert placed_assignment_hash(workflow) == placed_assignment_hash(workflow)
+    changed = replace(
+        workflow,
+        tasks=(replace(workflow.tasks[0], assignee="b"), workflow.tasks[1]),
+    )
+    assert placed_assignment_hash(workflow) != placed_assignment_hash(changed)

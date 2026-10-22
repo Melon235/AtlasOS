@@ -30,3 +30,10 @@ Base: Stage 4 frozen at `38b83cc`. Verified upstream resume semantics are in
 
 Stage 5 is therefore **not frozen**. No custom checkpoint engine, event sourcing, or exactly-once
 side-effect claim exists; AnyCode remains execution truth.
+
+## Semantic and placement identity (implemented)
+
+`semantic_config_hash` hashes only provider/model, context policy/renderer/transform, scheduler,
+and placement policy/weights; operational fields (run id, resume marker, fault injection, paths,
+logging, secrets, timestamps) are excluded. `placed_assignment_hash` hashes the canonical
+`task_id -> agent_id` mapping for deterministic pre-placement resume verification.

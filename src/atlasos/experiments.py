@@ -94,3 +94,42 @@ class ExperimentStore:
                 if stripped:
                     rows.append(json.loads(stripped))
         return rows
+
+
+def semantic_config_hash(config: AtlasConfig) -> str:
+    """Hash only settings that change execution semantics.
+
+    Operational fields (run id, resume marker, fault injection, paths, logging, secrets,
+    timestamps) are intentionally absent so resuming cannot invalidate its own config.
+    """
+
+    payload = {
+        "provider": {
+            "name": config.provider.name,
+            "model": config.provider.model,
+            "base_url": config.provider.base_url,
+        },
+        "context": {
+            "policy": config.context.policy,
+            "renderer": config.context.renderer,
+            "transform": config.context.transform.name,
+        },
+        "scheduler": config.scheduler.policy,
+        "placement": {
+            "policy": config.placement.policy,
+            "weights": {
+                "locality": config.placement.weights.locality,
+                "load": config.placement.weights.load,
+            },
+        },
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def placed_assignment_hash(workflow) -> str:
+    """Canonical task_id -> agent_id identity for deterministic pre-placement."""
+
+    mapping = {task.task_id: task.assignee for task in workflow.tasks}
+    canonical = json.dumps(dict(sorted(mapping.items())), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
