@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import AsyncIterator, Callable, Mapping
+from pathlib import Path
 from typing import Any
 
 from anycode.plugins.registry import register_provider_factory
@@ -105,6 +106,16 @@ DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-chat"
 
 
+def _load_dotenv(dotenv_path: str | Path | None = None) -> None:
+    """Load ``.env`` (default: nearest to this module); real environment variables win."""
+
+    try:
+        from dotenv import load_dotenv
+    except ImportError:  # pragma: no cover - python-dotenv is a declared dependency
+        return
+    load_dotenv(dotenv_path=dotenv_path, override=False)
+
+
 def _usage_mapping(usage: Any) -> Mapping[str, Any] | None:
     if usage is None:
         return None
@@ -166,7 +177,11 @@ class DeepSeekAdapter:
         *,
         on_usage: Callable[[InferenceUsage], None] | None = None,
     ) -> DeepSeekAdapter:
-        values = os.environ if env is None else env
+        if env is None:
+            _load_dotenv()
+            values = os.environ
+        else:
+            values = env
         api_key = values.get("DEEPSEEK_API_KEY")
         if not api_key:
             raise RuntimeError("DEEPSEEK_API_KEY is not set; live DeepSeek calls are opt-in")

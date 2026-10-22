@@ -46,7 +46,8 @@ ContextPilot is an optional extra because it pulls a heavy scientific stack:
 uv sync --extra dev --extra contextpilot
 ```
 
-Live DeepSeek tests are opt-in and never part of the default suite:
+Live DeepSeek tests are opt-in and never part of the default suite. The adapter loads the
+nearest `.env` automatically, and real environment variables take precedence over the file:
 
 ```bash
 cp .env.example .env        # set DEEPSEEK_API_KEY

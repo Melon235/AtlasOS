@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -9,7 +11,11 @@ import pytest
 from anycode.plugins.registry import get_provider_factory
 from anycode.types import LLMChatOptions, LLMMessage, TextBlock
 
-from atlasos.integrations.deepseek import DeepSeekAdapter, register_deepseek_provider
+from atlasos.integrations.deepseek import (
+    DeepSeekAdapter,
+    _load_dotenv,
+    register_deepseek_provider,
+)
 
 
 def _completion(usage: Any) -> Any:
@@ -112,3 +118,23 @@ def test_register_deepseek_provider_is_idempotent() -> None:
 def test_from_env_requires_api_key() -> None:
     with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY"):
         DeepSeekAdapter.from_env({})
+
+
+def test_dotenv_loader_reads_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("DEEPSEEK_API_KEY=sk-dotenv-test\n", encoding="utf-8")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    try:
+        _load_dotenv(env_file)
+        assert os.environ["DEEPSEEK_API_KEY"] == "sk-dotenv-test"
+    finally:
+        os.environ.pop("DEEPSEEK_API_KEY", None)
+
+
+def test_from_env_prefers_process_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-env-test")
+
+    adapter = DeepSeekAdapter.from_env()
+
+    assert adapter.name == "deepseek"
