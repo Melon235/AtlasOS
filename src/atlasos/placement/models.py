@@ -22,7 +22,7 @@ class TaskRequirements:
 
 
 @dataclass
-class AgentContextState:
+class PlacementContextState:
     """Per-run logical working set. Never provider KV state and never durable truth."""
 
     agent_id: str
@@ -80,3 +80,7 @@ class PlacementSummary:
     total_logical_handoff_refs: int
     total_logical_handoff_chars: int
     assignment_distribution: Mapping[str, int]
+
+
+# Historical name kept as an alias; use PlacementContextState in new code.
+AgentContextState = PlacementContextState

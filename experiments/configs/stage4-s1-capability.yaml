@@ -1,0 +1,22 @@
+﻿provider:
+  name: deepseek
+  model: deepseek-chat
+  base_url: null
+  api_key_env: DEEPSEEK_API_KEY
+
+context:
+  policy: task_scoped
+  renderer: stable_deterministic
+  transform:
+    name: identity
+
+scheduler:
+  policy: upstream_default
+
+placement:
+  policy: capability_only
+  weights:
+    locality: 1.0
+    load: 0.2
+
+pricing: null

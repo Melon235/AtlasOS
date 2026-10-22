@@ -182,6 +182,7 @@ def baseline_workflow() -> AtlasWorkflow:
         agents=(
             AtlasAgentSpec(
                 name="researcher-a",
+                capabilities=frozenset({"research"}),
                 role="researcher covering benefits, evidence, and expected gains",
                 system_prompt=_system_prompt(
                     "researcher covering benefits, evidence, and expected gains"
@@ -189,6 +190,7 @@ def baseline_workflow() -> AtlasWorkflow:
             ),
             AtlasAgentSpec(
                 name="researcher-b",
+                capabilities=frozenset({"research"}),
                 role="researcher covering risks, costs, and counterexamples",
                 system_prompt=_system_prompt(
                     "researcher covering risks, costs, and counterexamples"
@@ -196,6 +198,7 @@ def baseline_workflow() -> AtlasWorkflow:
             ),
             AtlasAgentSpec(
                 name="reviewer",
+                capabilities=frozenset({"review"}),
                 role="reviewer who compares both research threads and recommends one option",
                 system_prompt=_system_prompt(
                     "reviewer who compares both research threads and recommends one option"
@@ -211,6 +214,7 @@ def baseline_workflow() -> AtlasWorkflow:
                     "and its main risk, one sentence each."
                 ),
                 assignee="researcher-a",
+                required_capabilities=frozenset({"research"}),
             ),
             AtlasTaskSpec(
                 task_id="research-b",
@@ -220,6 +224,7 @@ def baseline_workflow() -> AtlasWorkflow:
                     "and its main risk, one sentence each."
                 ),
                 assignee="researcher-b",
+                required_capabilities=frozenset({"research"}),
             ),
             AtlasTaskSpec(
                 task_id="review",
@@ -229,6 +234,7 @@ def baseline_workflow() -> AtlasWorkflow:
                     "one approach in under 120 words."
                 ),
                 assignee="reviewer",
+                required_capabilities=frozenset({"review"}),
                 depends_on=("research-a", "research-b"),
             ),
         ),

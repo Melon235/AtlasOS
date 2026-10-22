@@ -3,6 +3,7 @@
 from atlasos.placement.models import (
     AgentContextState,
     AgentProfile,
+    PlacementContextState,
     PlacementDecision,
     PlacementSummary,
     TaskRequirements,
@@ -23,6 +24,7 @@ from atlasos.placement.policies import (
 
 __all__ = [
     "AgentContextState",
+    "PlacementContextState",
     "AgentProfile",
     "CapabilityOnlyPolicy",
     "ContextLocalityPolicy",

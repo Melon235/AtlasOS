@@ -275,3 +275,35 @@ def test_runtime_is_a_thin_wrapper_over_anycode() -> None:
     # Configuration is validated, but AtlasOS exposes no scheduler/executor of its own.
     assert not hasattr(runtime, "execute")
     assert not hasattr(runtime, "schedule")
+
+
+async def test_placement_is_wired_and_persisted(tmp_path: Path) -> None:
+    config = AtlasConfig.model_validate(
+        {
+            "context": {"policy": "task_scoped", "renderer": "stable_deterministic"},
+            "placement": {"policy": "capability_only"},
+        }
+    )
+    runtime = AtlasRuntime(
+        config,
+        runs_root=tmp_path,
+        adapter_factory=_fake_factory(
+            {"researcher-a": ["a"], "researcher-b": ["b"], "reviewer": ["r"]}
+        ),
+        repo_root=tmp_path,
+    )
+    result = await runtime.run(baseline_workflow(), persist=False)
+
+    assert result.placement_policy == "capability_only"
+    assert len(result.placement_decisions) == 3
+    assert result.dependency_agent_switches >= 0
+    assert result.assignment_distribution
+    assert all("agent_id" in decision for decision in result.placement_decisions)
+
+
+def test_unknown_placement_policy_is_rejected() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        AtlasConfig.model_validate({"placement": {"policy": "cache_aware"}})

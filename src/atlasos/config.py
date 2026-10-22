@@ -116,6 +116,27 @@ class ProviderConfig(BaseModel):
     api_key_env: str = "DEEPSEEK_API_KEY"
 
 
+class PlacementWeightsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    locality: float = Field(default=1.0, ge=0)
+    load: float = Field(default=0.2, ge=0)
+
+
+class PlacementConfig(BaseModel):
+    """Task placement planning configuration (pre-placement)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    policy: Literal[
+        "bypass",
+        "static_baseline",
+        "capability_only",
+        "context_locality",
+    ] = "bypass"
+    weights: PlacementWeightsConfig = PlacementWeightsConfig()
+
+
 class AtlasConfig(BaseModel):
     """Top-level experiment configuration."""
 
@@ -124,6 +145,7 @@ class AtlasConfig(BaseModel):
     provider: ProviderConfig = ProviderConfig()
     context: ContextConfig = ContextConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
+    placement: PlacementConfig = PlacementConfig()
     pricing: Pricing | None = None
 
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -26,7 +26,7 @@ from anycode import (
 from anycode.plugins.registry import register_provider_factory
 from anycode.tasks.queue import TaskQueue
 from anycode.types import LLMAdapter, OrchestratorEvent
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from atlasos.config import AtlasConfig, load_config
 from atlasos.context import (
@@ -61,6 +61,13 @@ from atlasos.metrics import (
     MetricsCollector,
     RunMetrics,
     estimate_cost_for_run,
+)
+from atlasos.placement import (
+    CapabilityOnlyPolicy,
+    ContextLocalityPolicy,
+    PlacementWeights,
+    StaticPlacementPolicy,
+    plan_workflow,
 )
 from atlasos.workflow import (
     AtlasAgentSpec,
@@ -148,6 +155,17 @@ class AtlasRunResult(BaseModel):
     contextpilot_enabled: bool = False
     request_sequence: list[str] | None = None
     stress_scale: str | None = None
+
+    # Stage 4 placement planning (pre-placement; not dynamic scheduling).
+    placement_policy: str = "bypass"
+    placement_weights: dict[str, float] = Field(default_factory=dict)
+    placement_decisions: list[dict[str, Any]] = Field(default_factory=list)
+    mean_assignment_locality: float | None = None
+    weighted_assignment_locality: float | None = None
+    total_logical_handoff_refs: int = 0
+    total_logical_handoff_chars: int = 0
+    dependency_agent_switches: int = 0
+    assignment_distribution: dict[str, int] = Field(default_factory=dict)
 
 
 def _default_adapter_factory(
@@ -241,6 +259,29 @@ class AtlasRuntime:
         providers = self._register_providers(workflow, run_id, collector)
 
         effective = replace(workflow, input=input_text) if input_text is not None else workflow
+
+        placement_config = self._config.placement
+        placement_decisions: list[dict[str, Any]] = []
+        placement_summary = None
+        if placement_config.policy != "bypass":
+            policies = {
+                "static_baseline": StaticPlacementPolicy,
+                "capability_only": CapabilityOnlyPolicy,
+                "context_locality": ContextLocalityPolicy,
+            }
+            policy = policies[placement_config.policy]()
+            plan = plan_workflow(
+                effective,
+                policy=policy,
+                weights=PlacementWeights(
+                    locality=placement_config.weights.locality,
+                    load=placement_config.weights.load,
+                ),
+            )
+            effective = plan.workflow
+            placement_decisions = [asdict(decision) for decision in plan.decisions]
+            placement_summary = plan.summary
+
         compiled = compile_workflow(
             effective,
             providers=providers,
@@ -328,6 +369,27 @@ class AtlasRuntime:
             transform_name=transform_config.name,
             deduplicated=any(info.deduplicated for info in self._render_info.values()),
             total_transform_latency_ms=total_transform_ms,
+            placement_policy=placement_config.policy,
+            placement_weights={
+                "locality": placement_config.weights.locality,
+                "load": placement_config.weights.load,
+            },
+            placement_decisions=placement_decisions,
+            mean_assignment_locality=(
+                placement_summary.mean_assignment_locality if placement_summary else None
+            ),
+            total_logical_handoff_refs=(
+                placement_summary.total_logical_handoff_refs if placement_summary else 0
+            ),
+            total_logical_handoff_chars=(
+                placement_summary.total_logical_handoff_chars if placement_summary else 0
+            ),
+            dependency_agent_switches=(
+                placement_summary.dependency_agent_switches if placement_summary else 0
+            ),
+            assignment_distribution=(
+                dict(placement_summary.assignment_distribution) if placement_summary else {}
+            ),
         )
         if persist:
             ExperimentStore(self._runs_root / "runs.jsonl").append(result)
