@@ -64,16 +64,17 @@ def e2_offline_table(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _totals(rows: list[dict]) -> dict[str, float | int]:
-    prompt = sum(row["prompt_tokens"] for row in rows)
-    hit = sum(row["cache_hit_tokens"] or 0 for row in rows)
-    miss = sum(row["cache_miss_tokens"] or 0 for row in rows)
+def _totals(rows: list[dict], *, warm_only: bool = False) -> dict[str, float | int]:
+    selected = [row for row in rows if not warm_only or row["repetition"] >= 2]
+    prompt = sum(row["prompt_tokens"] for row in selected)
+    hit = sum(row["cache_hit_tokens"] or 0 for row in selected)
+    miss = sum(row["cache_miss_tokens"] or 0 for row in selected)
     return {
         "prompt": prompt,
         "hit": hit,
         "miss": miss,
         "ratio": hit / prompt if prompt else 0.0,
-        "latency": statistics.fmean([row["provider_latency_ms"] for row in rows]),
+        "latency": statistics.fmean([row["provider_latency_ms"] for row in selected]),
     }
 
 
@@ -83,7 +84,8 @@ def e2_live_table(rows: list[dict]) -> tuple[str, list[dict]]:
         by_variant[row["variant"]].append(row)
     lines = [
         "| scale | duplicate ratio | T0 prompt | T1 prompt | prompt reduction | "
-        "T0 miss | T1 miss | miss reduction | T0 weighted hit | T1 weighted hit |",
+        "T0 warm miss | T1 warm miss | warm miss reduction | T0 weighted hit | "
+        "T1 weighted hit |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     paired: list[dict] = []
@@ -93,9 +95,16 @@ def e2_live_table(rows: list[dict]) -> tuple[str, list[dict]]:
             t1 = by_variant.get(f"T1-{scale}-{duplicate}", [])
             if not t0 or not t1:
                 continue
-            a = _totals(t0)
-            b = _totals(t1)
-            prompt_reduction = (a["prompt"] - b["prompt"]) / a["prompt"] if a["prompt"] else 0.0
+            # Prompt totals use all five repetitions; cache comparisons use warm reps 2-5,
+            # because the provider cache is warm-prone and the first call of a variant is
+            # measurably colder than its steady state.
+            a = _totals(t0, warm_only=True)
+            b = _totals(t1, warm_only=True)
+            a_all = _totals(t0)
+            b_all = _totals(t1)
+            prompt_reduction = (
+                (a_all["prompt"] - b_all["prompt"]) / a_all["prompt"] if a_all["prompt"] else 0.0
+            )
             miss_reduction = (a["miss"] - b["miss"]) / a["miss"] if a["miss"] else 0.0
             paired.append(
                 {
@@ -109,8 +118,9 @@ def e2_live_table(rows: list[dict]) -> tuple[str, list[dict]]:
                 }
             )
             lines.append(
-                f"| {scale} | {t1[0]['duplicate_ratio']:.3f} | {a['prompt']:,} | {b['prompt']:,} | "
-                f"{prompt_reduction * 100:.1f}% | {a['miss']:,} | {b['miss']:,} | "
+                f"| {scale} | {t1[0]['duplicate_ratio']:.3f} | {a_all['prompt']:,} | "
+                f"{b_all['prompt']:,} | {prompt_reduction * 100:.1f}% | "
+                f"{a['miss']:,} | {b['miss']:,} | "
                 f"{miss_reduction * 100:.1f}% | {a['ratio']:.4f} | {b['ratio']:.4f} |"
             )
     return "\n".join(lines), paired
@@ -143,13 +153,15 @@ def e4_table(rows: list[dict]) -> str:
         group = by_variant[variant]
         first = group[0]
         prompt = statistics.fmean([row["prompt_tokens"] for row in group])
-        miss = statistics.fmean([row["cache_miss_tokens"] or 0 for row in group])
+        warm_miss = statistics.fmean(
+            [row["cache_miss_tokens"] or 0 for row in group if row["repetition"] >= 2]
+        )
         transform = statistics.fmean([row["transform_latency_ms"] for row in group])
         lines.append(
             f"| {variant.split('-')[0]} | {first['placement_policy']} | "
             f"{first['context_transform']} | {first['total_logical_handoff_refs']} | "
             f"{first['dependency_agent_switches']} | {first['mean_assignment_locality']:.3f} | "
-            f"{prompt:,.0f} | {miss:,.0f} | {transform:.2f} |"
+            f"{prompt:,.0f} | {warm_miss:,.0f} | {transform:.2f} |"
         )
     return "\n".join(lines)
 
@@ -194,10 +206,12 @@ def e5_records() -> tuple[str, list[dict]]:
     ]
     for variant in ("R0", "R1", "R2"):
         row = latest[variant]
+        layout = row["context_layout_equivalent"]
+        final = row["final_output_equivalent"]
         lines.append(
             f"| {variant} | {row['completed_tasks_reexecuted']} | "
             f"{row['inflight_tasks_reexecuted']} | {row['context_blocks_rebuilt']} | "
-            f"{row['context_layout_equivalent']} | {row['final_output_equivalent']} |"
+            f"{layout if layout is not None else '-'} | {final if final is not None else '-'} |"
         )
     summary = [
         {
@@ -231,14 +245,20 @@ def _svg_line_chart(
     left, right, top, bottom = 70, 20, 50, 60
     plot_w = width - left - right
     plot_h = height - top - bottom
-    y_max = max(max(values) for _, _, values in series) or 1.0
-    y_max *= 1.12
+    all_values = [value for _, _, values in series for value in values]
+    y_min = min(0.0, min(all_values))
+    y_max = max(0.0, max(all_values))
+    span = y_max - y_min
+    if span <= 0:
+        span = 1.0
+    y_min -= span * 0.08 if y_min < 0 else 0.0
+    y_max += span * 0.12
 
     def x_pos(index: int) -> float:
         return left + plot_w * index / max(1, len(x_labels) - 1)
 
     def y_pos(value: float) -> float:
-        return top + plot_h * (1.0 - value / y_max)
+        return top + plot_h * (1.0 - (value - y_min) / (y_max - y_min))
 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
@@ -248,7 +268,7 @@ def _svg_line_chart(
         f'font-size="16">{escape(title)}</text>',
     ]
     for tick in range(6):
-        value = y_max * tick / 5
+        value = y_min + (y_max - y_min) * tick / 5
         y = y_pos(value)
         parts.append(
             f'<line x1="{left}" y1="{y:.1f}" x2="{width - right}" y2="{y:.1f}" '
@@ -257,6 +277,12 @@ def _svg_line_chart(
         parts.append(
             f'<text x="{left - 8}" y="{y + 4:.1f}" text-anchor="end" '
             f'font-family="sans-serif" font-size="11">{value:.1f}{escape(y_suffix)}</text>'
+        )
+    if y_min < 0 < y_max:
+        zero_y = y_pos(0.0)
+        parts.append(
+            f'<line x1="{left}" y1="{zero_y:.1f}" x2="{width - right}" y2="{zero_y:.1f}" '
+            'stroke="#6b7280" stroke-width="1.5"/>'
         )
     parts.append(
         f'<line x1="{left}" y1="{top + plot_h}" x2="{width - right}" '

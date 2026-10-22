@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="400" viewBox="0 0 680 400">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="340.0" y="28" text-anchor="middle" font-family="sans-serif" font-size="16">Stage 6 E2: ContextPilot dedup latency vs context scale</text>
+<line x1="70" y1="340.0" x2="660" y2="340.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="62" y="344.0" text-anchor="end" font-family="sans-serif" font-size="11">0.0 ms</text>
+<line x1="70" y1="282.0" x2="660" y2="282.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="62" y="286.0" text-anchor="end" font-family="sans-serif" font-size="11">1.6 ms</text>
+<line x1="70" y1="224.0" x2="660" y2="224.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="62" y="228.0" text-anchor="end" font-family="sans-serif" font-size="11">3.3 ms</text>
+<line x1="70" y1="166.0" x2="660" y2="166.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="62" y="170.0" text-anchor="end" font-family="sans-serif" font-size="11">4.9 ms</text>
+<line x1="70" y1="108.0" x2="660" y2="108.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="62" y="112.0" text-anchor="end" font-family="sans-serif" font-size="11">6.6 ms</text>
+<line x1="70" y1="50.0" x2="660" y2="50.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="62" y="54.0" text-anchor="end" font-family="sans-serif" font-size="11">8.2 ms</text>
+<line x1="70" y1="340" x2="660" y2="340" stroke="#374151" stroke-width="1"/>
+<text x="70.0" y="362" text-anchor="middle" font-family="sans-serif" font-size="12">small</text>
+<text x="365.0" y="362" text-anchor="middle" font-family="sans-serif" font-size="12">medium</text>
+<text x="660.0" y="362" text-anchor="middle" font-family="sans-serif" font-size="12">large</text>
+<text x="365.0" y="388" text-anchor="middle" font-family="sans-serif" font-size="12">milliseconds</text>
+<polyline points="70.0,304.1 365.0,228.3 660.0,81.1" fill="none" stroke="#7c3aed" stroke-width="2.5"/>
+<circle cx="70.0" cy="304.1" r="4" fill="#7c3aed"/>
+<text x="70.0" y="295.1" text-anchor="middle" font-family="sans-serif" font-size="10">1.0 ms</text>
+<circle cx="365.0" cy="228.3" r="4" fill="#7c3aed"/>
+<text x="365.0" y="219.3" text-anchor="middle" font-family="sans-serif" font-size="10">3.2 ms</text>
+<circle cx="660.0" cy="81.1" r="4" fill="#7c3aed"/>
+<text x="660.0" y="72.1" text-anchor="middle" font-family="sans-serif" font-size="10">7.4 ms</text>
+<line x1="70" y1="36" x2="92" y2="36" stroke="#7c3aed" stroke-width="3"/>
+<text x="98" y="40" font-family="sans-serif" font-size="11">mean transform latency</text>
+</svg>
