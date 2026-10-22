@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atlasos"
+version = "0.0.1"
+description = "Experimental cache-aware context runtime for long-horizon multi-agent workloads"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "AtlasOS contributors" }]
+dependencies = [
+    "anycode-py[openai]==0.9.0",
+    "pydantic>=2.9",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# ContextPilot pulls a heavy scientific stack; install it only for the
+# context-optimization spikes and ablations.
+contextpilot = ["contextpilot==0.5.0"]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.9",
+    "pyright>=1.1.390",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/atlasos"]
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+markers = ["live: opt-in tests that call the real DeepSeek API"]
+addopts = "-q -m 'not live'"
+
+[tool.pyright]
+include = ["src", "tests"]
+extraPaths = ["src"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"

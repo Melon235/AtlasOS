@@ -1,0 +1,28 @@
+# Baseline experiment configuration (Stage 1).
+# No AtlasOS optimization is enabled here: this is the reference run every ablation compares to.
+
+provider:
+  name: deepseek
+  model: deepseek-chat
+  base_url: null
+  api_key_env: DEEPSEEK_API_KEY
+
+context:
+  selector: full
+  contextpilot_enabled: false
+  contextpilot:
+    reorder: true
+    deduplicate: true
+
+scheduler:
+  policy: upstream_default
+
+# Pricing is configuration-driven; fill in the snapshot you actually used.
+# When pricing is absent, cost is null and token metrics still work.
+pricing: null
+# pricing:
+#   provider: deepseek
+#   cache_hit_input_per_million: 0.0
+#   cache_miss_input_per_million: 0.0
+#   output_per_million: 0.0
+#   snapshot_date: 2026-10-22
