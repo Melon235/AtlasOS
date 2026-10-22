@@ -19,6 +19,7 @@ class RunMetrics(BaseModel):
     total_cache_miss_tokens: int | None = Field(default=None, ge=0)
     weighted_cache_hit_ratio: float | None = None
     total_latency_ms: float = Field(ge=0)
+    total_optimizer_latency_ms: float = Field(default=0.0, ge=0)
     task_success: bool | None = None
     estimated_cost: float | None = None
 

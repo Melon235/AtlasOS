@@ -1,0 +1,21 @@
+# Stage 3 variant P1: official ContextPilot reorder only.
+
+provider:
+  name: deepseek
+  model: deepseek-chat
+  base_url: null
+  api_key_env: DEEPSEEK_API_KEY
+
+context:
+  policy: task_scoped
+  renderer: stable_deterministic
+  optimizer:
+    name: contextpilot
+    reorder: true
+    deduplicate: false
+  contextpilot_enabled: false
+
+scheduler:
+  policy: upstream_default
+
+pricing: null

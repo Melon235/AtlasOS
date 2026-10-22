@@ -1,0 +1,21 @@
+# Stage 3 variant P2: official ContextPilot exact-block dedup only.
+
+provider:
+  name: deepseek
+  model: deepseek-chat
+  base_url: null
+  api_key_env: DEEPSEEK_API_KEY
+
+context:
+  policy: task_scoped
+  renderer: stable_deterministic
+  optimizer:
+    name: contextpilot
+    reorder: false
+    deduplicate: true
+  contextpilot_enabled: false
+
+scheduler:
+  policy: upstream_default
+
+pricing: null

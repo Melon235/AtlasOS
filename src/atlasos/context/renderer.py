@@ -120,9 +120,19 @@ class NaiveExecutionOrderRenderer(_RendererBase):
 
 
 class StablePromptRenderer(_RendererBase):
-    """Deterministic order by kind, stable task id, version, and block id."""
+    """Deterministic order by kind, stable task id, version, and block id.
+
+    With ``preserve_input_order=True`` the caller has already applied the stable order and an
+    optimizer (ContextPilot) may have reordered blocks deliberately; the renderer then preserves
+    that explicit order instead of re-sorting it back.
+    """
+
+    def __init__(self, *, preserve_input_order: bool = False) -> None:
+        self._preserve_input_order = preserve_input_order
 
     def _order(self, blocks: Sequence[ContextBlock]) -> list[ContextBlock]:
+        if self._preserve_input_order:
+            return list(blocks)
         return sorted(blocks, key=stable_block_key)
 
 

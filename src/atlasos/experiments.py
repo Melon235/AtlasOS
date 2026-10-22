@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,34 @@ def git_commit(repo_root: Path, *, timeout_s: float = 5.0) -> str | None:
         return None
     commit = completed.stdout.strip()
     return commit or None
+
+
+def git_dirty(repo_root: Path, *, timeout_s: float = 5.0) -> bool:
+    """True when the worktree has uncommitted changes or its state cannot be determined."""
+
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return True
+    if completed.returncode != 0:
+        return True
+    return bool(completed.stdout.strip())
+
+
+def package_version(distribution: str) -> str | None:
+    """Installed version of a distribution, or ``None`` when it is absent."""
+
+    try:
+        return metadata.version(distribution)
+    except metadata.PackageNotFoundError:
+        return None
 
 
 class ExperimentStore:

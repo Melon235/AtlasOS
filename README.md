@@ -21,15 +21,18 @@ Provenance and licenses are recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Status
 
-Stage 0 (bootstrap/upstream verification), Stage 1 (runtime baseline), and Stage 2 (explicit
-context runtime + stable rendering) are complete. Context is now explicit and deterministically
-rendered; no cache-aware scheduling or ContextPilot integration exists yet, by design.
+Stage 0 (bootstrap), Stage 1 (runtime baseline), Stage 2 (explicit context runtime + stable
+rendering), and Stage 3 (ContextPilot reorder/dedup integration) are implemented. Stage 3 live
+results are exploratory: the functional P0–P3 runs succeeded; dedup stress results are recorded;
+batched reorder stress was blocked by vendor CPU cost. No cache-aware scheduling exists yet.
 
 - [Architecture](docs/architecture.md)
 - [Stage 0/1 specification](docs/stages/00-01-bootstrap-and-baseline.md)
 - [Stage 0 verification notes](docs/stages/00-verification-notes.md)
 - [Stage 1 baseline notes](docs/stages/01-baseline-notes.md)
 - [Stage 2 context runtime notes](docs/stages/02-context-runtime-notes.md)
+- [Stage 3 ContextPilot notes](docs/stages/03-contextpilot-notes.md)
+- [Stage 3 API verification](docs/stages/03-contextpilot-verification-notes.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -45,6 +48,9 @@ ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/live_baseline.py
 
 # live Stage 2 ablation: U0 vs C1 (naive) vs C2 (stable) with inverted completion order
 ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage2_ablation.py
+
+# live Stage 3: ContextPilot P0-P3 functional + cache-stress (needs the contextpilot extra)
+ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage3_contextpilot.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,

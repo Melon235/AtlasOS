@@ -81,6 +81,19 @@ class InferenceRecord(BaseModel):
     full_prompt_hash: str | None = None
     context_layout_hash: str | None = None
 
+    # Stage 3 optimizer metadata (identity by default).
+    optimizer_name: str = "identity"
+    reorder_enabled: bool = False
+    deduplicate_enabled: bool = False
+    optimizer_latency_ms: float | None = None
+    original_block_count: int | None = None
+    optimized_block_count: int | None = None
+    original_context_chars: int | None = None
+    optimized_context_chars: int | None = None
+    pre_optimizer_layout_hash: str | None = None
+    post_optimizer_layout_hash: str | None = None
+    contextpilot_index_mode: str | None = None
+
     # Stage 2 structure metrics. ``None`` means "not measured", never a fabricated count.
     rendered_dependency_order: list[str] | None = None
     dependency_completion_order: list[str] | None = None

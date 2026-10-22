@@ -38,8 +38,21 @@ from atlasos.context import (
     PromptRenderer,
     StablePromptRenderer,
     TaskScopedSelector,
+    context_layout_hash,
+    stable_block_key,
 )
-from atlasos.experiments import ExperimentStore, configuration_hash, git_commit
+from atlasos.context.optimizers import (
+    ContextOptimizer,
+    ContextPilotOptimizer,
+    IdentityContextOptimizer,
+)
+from atlasos.experiments import (
+    ExperimentStore,
+    configuration_hash,
+    git_commit,
+    git_dirty,
+    package_version,
+)
 from atlasos.integrations.anycode_engine import AtlasContextEngine
 from atlasos.integrations.deepseek import DeepSeekAdapter
 from atlasos.metrics import (
@@ -72,6 +85,17 @@ class _RenderInfo:
     context_layout_hash: str
     rendered_dependency_order: tuple[str, ...]
     dependency_completion_order: tuple[str, ...]
+    pre_optimizer_layout_hash: str | None = None
+    post_optimizer_layout_hash: str | None = None
+    optimizer_name: str = "identity"
+    reorder_enabled: bool = False
+    deduplicate_enabled: bool = False
+    optimizer_latency_ms: float | None = None
+    original_block_count: int | None = None
+    optimized_block_count: int | None = None
+    original_context_chars: int | None = None
+    optimized_context_chars: int | None = None
+    contextpilot_index_mode: str | None = None
     stable_prefix_tokens: int | None = None
     context_block_tokens: int | None = None
     dynamic_tail_tokens: int | None = None
@@ -111,13 +135,23 @@ class AtlasRunResult(BaseModel):
     finished_at: datetime
     model: str
     git_commit: str | None = None
+    git_dirty: bool = False
+    anycode_version: str | None = None
+    contextpilot_version: str | None = None
     configuration_hash: str
 
     # Frozen experiment labels; validated against the configuration at run time.
     scheduler_policy: str = SCHEDULER_POLICY
     context_policy: str = "upstream_default"
     renderer_policy: str = "upstream_default"
+    optimizer_name: str = "identity"
+    reorder_enabled: bool = False
+    deduplicate_enabled: bool = False
+    contextpilot_index_mode: str | None = None
+    total_optimizer_latency_ms: float = 0.0
     contextpilot_enabled: bool = False
+    request_sequence: list[str] | None = None
+    stress_scale: str | None = None
 
 
 def _default_adapter_factory(
@@ -159,6 +193,7 @@ class AtlasRuntime:
         self._store: InMemoryContextStore | None = None
         self._selector: TaskScopedSelector | None = None
         self._renderer: PromptRenderer | None = None
+        self._optimizer: ContextOptimizer | None = None
         self._render_info: dict[str, _RenderInfo] = {}
 
     @classmethod
@@ -227,7 +262,7 @@ class AtlasRuntime:
             for task in effective.tasks
         }
         self._agents_by_name = {agent.name: agent for agent in effective.agents}
-        self._configure_context_mode()
+        self._configure_context_mode(run_id)
 
         options = OrchestratorConfig(
             checkpoint=CheckpointConfig(
@@ -257,8 +292,14 @@ class AtlasRuntime:
         succeeded = team_result.success and all(task.status == "completed" for task in tasks)
 
         metrics = collector.aggregate(task_success=succeeded)
+        total_optimizer_ms = sum(
+            info.optimizer_latency_ms or 0.0 for info in self._render_info.values()
+        )
         metrics = metrics.model_copy(
-            update={"estimated_cost": estimate_cost_for_run(metrics, self._config.pricing)}
+            update={
+                "estimated_cost": estimate_cost_for_run(metrics, self._config.pricing),
+                "total_optimizer_latency_ms": total_optimizer_ms,
+            }
         )
 
         final_task = effective.final_task()
@@ -267,6 +308,7 @@ class AtlasRuntime:
             "",
         )
 
+        optimizer_config = self._config.context.optimizer
         result = AtlasRunResult(
             run_id=run_id,
             timestamp=started_at,
@@ -281,27 +323,48 @@ class AtlasRuntime:
             finished_at=datetime.now(UTC),
             model=self._config.provider.model,
             git_commit=git_commit(self._repo_root),
+            git_dirty=git_dirty(self._repo_root),
+            anycode_version=package_version("anycode-py"),
+            contextpilot_version=package_version("contextpilot"),
             configuration_hash=configuration_hash(self._config),
             context_policy=self._config.context.policy,
             renderer_policy=self._config.context.renderer,
+            optimizer_name=optimizer_config.name,
+            reorder_enabled=optimizer_config.reorder,
+            deduplicate_enabled=optimizer_config.deduplicate,
+            contextpilot_index_mode=(
+                "warm_within_run" if optimizer_config.name == "contextpilot" else None
+            ),
+            total_optimizer_latency_ms=total_optimizer_ms,
         )
         if persist:
             ExperimentStore(self._runs_root / "runs.jsonl").append(result)
         return result
 
-    def _configure_context_mode(self) -> None:
+    def _configure_context_mode(self, run_id: str) -> None:
         if self._config.context.policy == "task_scoped":
             self._store = InMemoryContextStore()
             self._selector = TaskScopedSelector()
             self._renderer = (
                 NaiveExecutionOrderRenderer()
                 if self._config.context.renderer == "naive_execution_order"
-                else StablePromptRenderer()
+                else StablePromptRenderer(preserve_input_order=True)
             )
+            optimizer = self._config.context.optimizer
+            if optimizer.name == "identity":
+                self._optimizer = IdentityContextOptimizer()
+            else:
+                self._optimizer = ContextPilotOptimizer(
+                    reorder=optimizer.reorder,
+                    deduplicate=optimizer.deduplicate,
+                    conversation_id=f"atlasos-run-{run_id}",
+                    index_mode="warm_within_run",
+                )
         else:
             self._store = None
             self._selector = None
             self._renderer = None
+            self._optimizer = None
 
     def _build_atlas_prompt(self, task: Task, queue: TaskQueue) -> str:
         """Atlas-rendered prompt for one task (C1/C2 modes only)."""
@@ -348,11 +411,27 @@ class AtlasRuntime:
             store=self._store,
             available_refs=refs,
         )
+
+        # Deterministic layout before ContextPilot: the Stage 2 stable contract.
+        if isinstance(self._renderer, StablePromptRenderer):
+            pre_ordered = sorted(selected, key=stable_block_key)
+        else:
+            pre_ordered = list(selected)
+        pre_refs = tuple(
+            ContextRef(block_id=block.block_id, version=block.version) for block in pre_ordered
+        )
+        pre_optimizer_hash = context_layout_hash(pre_refs)
+
+        optimizer = self._optimizer
+        if optimizer is None:
+            raise RuntimeError("context optimizer is not configured")
+        optimized = optimizer.optimize(blocks=pre_ordered, query=spec.description)
+
         rendered = self._renderer.render(
             stable_system_prefix=agent.system_prompt,
             agent_role=agent.role,
             task=spec,
-            context_blocks=selected,
+            context_blocks=optimized.blocks,
         )
 
         rendered_order = tuple(
@@ -364,6 +443,17 @@ class AtlasRuntime:
             context_layout_hash=rendered.context_layout_hash,
             rendered_dependency_order=rendered_order,
             dependency_completion_order=tuple(direct_completion_order),
+            pre_optimizer_layout_hash=pre_optimizer_hash,
+            post_optimizer_layout_hash=rendered.context_layout_hash,
+            optimizer_name=optimized.optimizer_name,
+            reorder_enabled=bool(optimized.metadata.get("reorder_enabled", False)),
+            deduplicate_enabled=bool(optimized.metadata.get("deduplicate_enabled", False)),
+            optimizer_latency_ms=optimized.optimizer_latency_ms,
+            original_block_count=optimized.original_block_count,
+            optimized_block_count=optimized.optimized_block_count,
+            original_context_chars=optimized.original_context_chars,
+            optimized_context_chars=optimized.optimized_context_chars,
+            contextpilot_index_mode=optimized.metadata.get("index_mode"),
             stable_prefix_tokens=rendered.stable_prefix_tokens,
             context_block_tokens=rendered.context_block_tokens,
             dynamic_tail_tokens=rendered.dynamic_tail_tokens,
@@ -437,6 +527,17 @@ class AtlasRuntime:
                     stable_prefix_tokens=info.stable_prefix_tokens if info else None,
                     context_block_tokens=info.context_block_tokens if info else None,
                     dynamic_tail_tokens=info.dynamic_tail_tokens if info else None,
+                    optimizer_name=info.optimizer_name if info else "identity",
+                    reorder_enabled=info.reorder_enabled if info else False,
+                    deduplicate_enabled=info.deduplicate_enabled if info else False,
+                    optimizer_latency_ms=info.optimizer_latency_ms if info else None,
+                    original_block_count=info.original_block_count if info else None,
+                    optimized_block_count=info.optimized_block_count if info else None,
+                    original_context_chars=info.original_context_chars if info else None,
+                    optimized_context_chars=info.optimized_context_chars if info else None,
+                    pre_optimizer_layout_hash=(info.pre_optimizer_layout_hash if info else None),
+                    post_optimizer_layout_hash=(info.post_optimizer_layout_hash if info else None),
+                    contextpilot_index_mode=info.contextpilot_index_mode if info else None,
                 )
             )
 
