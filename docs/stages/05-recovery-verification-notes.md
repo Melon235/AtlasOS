@@ -32,3 +32,21 @@ completion wave and after each completed task within a wave.
 AnyCode checkpoints remain execution truth. AtlasOS adds only `AtlasSessionManifest` (identity,
 hashes, policies, versions, checkpoint location) and deterministic context reconstruction from
 completed task outputs.
+
+## Empirical partial-wave probe (deterministic)
+
+Setup: wave 0 = A, B; C depends on A+B. Agent-b adapter waits until the checkpoint file shows
+`A=completed` and `B!=completed`, then raises a non-retryable `InjectedCrash`.
+
+Observed checkpoint: `wave_index = -1`, tasks `A=completed`, `B=in_progress`, `C=blocked`.
+
+Resume via `run_tasks(..., resume_from="latest")` on a fresh engine:
+
+- A remained completed and was **not** re-executed (adapter calls: A stayed at 1),
+- B was re-executed (in_progress -> adapter calls 2),
+- C executed and the run succeeded.
+
+Conclusion: AnyCode 0.9.0 supports **task-level durable recovery** at partial-wave boundaries.
+Guarantee: completed tasks are skipped; in-flight tasks may re-execute (at-least-once). The
+non-retryable fault must be a `BaseException`; a plain `RuntimeError` is retried by
+`ResilientAdapter` and never reaches the recovery boundary.
