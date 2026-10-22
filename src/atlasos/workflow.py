@@ -17,6 +17,8 @@ from typing import Literal
 
 from anycode import AgentConfig, TaskSpec
 
+from atlasos.context.requirements import ContextRequirement
+
 TaskStatusName = Literal["pending", "in_progress", "completed", "failed", "blocked"]
 
 _TASK_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -37,6 +39,7 @@ class AtlasAgentSpec:
     name: str
     system_prompt: str
     role: str = ""
+    capabilities: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -48,6 +51,8 @@ class AtlasTaskSpec:
     description: str
     assignee: str
     depends_on: tuple[str, ...] = ()
+    required_capabilities: frozenset[str] = frozenset()
+    required_context: tuple[ContextRequirement, ...] = ()
 
 
 @dataclass(frozen=True)
