@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from collections.abc import AsyncIterable
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -408,6 +409,45 @@ def test_latest_checkpoint_uses_created_at_not_filename(tmp_path: Path) -> None:
     )
     (workflow_dir / "zzz-older.json").write_text(older.model_dump_json(), encoding="utf-8")
     (workflow_dir / "aaa-newer.json").write_text(newer.model_dump_json(), encoding="utf-8")
+
+    loaded = AtlasRuntime._load_checkpoint(checkpoint_dir)
+    assert loaded.id == "aaa-newer"
+    assert loaded.wave_index == 0
+
+
+def test_latest_checkpoint_breaks_created_at_ties_by_mtime(tmp_path: Path) -> None:
+    # Two checkpoints can share the same created_at clock tick. File mtime, which advances
+    # on the atomic replace, breaks the tie even when filenames/ids would choose the older one.
+    checkpoint_dir = tmp_path / "checkpoints"
+    workflow_dir = checkpoint_dir / "workflow"
+    workflow_dir.mkdir(parents=True)
+    created = datetime(2026, 1, 1, tzinfo=UTC)
+    older = CheckpointData(
+        id="zzz-older",
+        workflow_id="wf",
+        version=2,
+        tasks=[],
+        agent_results={},
+        wave_index=0,
+        total_token_usage=TokenUsage(),
+        created_at=created,
+    )
+    newer = CheckpointData(
+        id="aaa-newer",
+        workflow_id="wf",
+        version=2,
+        tasks=[],
+        agent_results={},
+        wave_index=0,
+        total_token_usage=TokenUsage(),
+        created_at=created,
+    )
+    older_path = workflow_dir / "zzz-older.json"
+    newer_path = workflow_dir / "aaa-newer.json"
+    older_path.write_text(older.model_dump_json(), encoding="utf-8")
+    newer_path.write_text(newer.model_dump_json(), encoding="utf-8")
+    os.utime(older_path, ns=(1_700_000_000_000_000_000, 1_700_000_000_000_000_000))
+    os.utime(newer_path, ns=(1_800_000_000_000_000_000, 1_800_000_000_000_000_000))
 
     loaded = AtlasRuntime._load_checkpoint(checkpoint_dir)
     assert loaded.id == "aaa-newer"

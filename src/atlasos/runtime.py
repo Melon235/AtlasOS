@@ -965,20 +965,34 @@ class AtlasRuntime:
 
     @staticmethod
     def _load_checkpoint(checkpoint_dir: Path) -> CheckpointData:
-        """Load the newest checkpoint written for this run.
+        """Load the most advanced checkpoint written for this run.
 
-        Checkpoint ids embed a millisecond timestamp, so filenames are not a reliable ordering
-        key: two checkpoints written in the same millisecond can sort in the wrong order. The
-        durable ``created_at`` field is authoritative.
+        Filenames and ids embed only a millisecond timestamp, so same-tick checkpoints can sort
+        in the wrong order. Selection therefore uses execution truth first: the number of
+        durably completed tasks is monotonic across checkpoints, then the wave index, then
+        ``created_at`` and the file's nanosecond modification time. A same-tick tie therefore
+        cannot select an older, less-complete state.
         """
 
         files = list(checkpoint_dir.rglob("*.json"))
         if not files:
             raise RuntimeError(f"no upstream checkpoint written under {checkpoint_dir}")
-        checkpoints = [
-            CheckpointData.model_validate_json(path.read_text(encoding="utf-8")) for path in files
-        ]
-        return max(checkpoints, key=lambda checkpoint: (checkpoint.created_at, checkpoint.id))
+        candidates = []
+        for path in files:
+            checkpoint = CheckpointData.model_validate_json(path.read_text(encoding="utf-8"))
+            completed = sum(1 for task in checkpoint.tasks if task.status == "completed")
+            candidates.append((checkpoint, completed, path.stat().st_mtime_ns))
+        checkpoint, _, _ = max(
+            candidates,
+            key=lambda pair: (
+                pair[1],
+                pair[0].wave_index,
+                pair[0].created_at,
+                pair[2],
+                pair[0].id,
+            ),
+        )
+        return checkpoint
 
 
 def _validate_runtime_config(config: AtlasConfig) -> None:
