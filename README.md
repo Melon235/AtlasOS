@@ -49,6 +49,34 @@ recovery preserves unfinished-task context.
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
+## V2 M1 — Tool Runtime and Progressive Discovery
+
+**V2 M1 is complete at clean commit `fc9aa6d`.** V1 remains frozen and unchanged; M1 adds a tool
+runtime layer around AnyCode's executor.
+
+```text
+Core tools (stable native tools[])
+        +
+tool.search -> Top-3 schemas in conversation tail
+        +
+RunToolState (disclosed ids)
+        +
+dispatch_action -> AtlasDispatchExecutor -> AnyCode ToolExecutor -> real tool / MCP
+```
+
+| Area | Result |
+|---|---|
+| One registry | 8 core + all searchable/MCP tools in one `ToolRegistry` |
+| Native surface | 8 core tools; external schemas never enter `tools[]`; hash stable across turns |
+| Semantic discovery (24-tool catalog) | Recall@1 0.875, Recall@3 **1.000**, MRR 0.938 |
+| Schema footprint | 4,207 vs 8,558 chars; live prompt 1,399 vs 2,599 tokens (**−46.2%**) |
+| Undisclosed execution | rejected with `tool_not_disclosed`; unavailable disclosed tool gives `tool_unavailable` |
+| Recovery | disclosure set + turn-boundary conversation survive crash/resume |
+
+Provider cache is warm-prone and uncontrolled; M1 claims schema-footprint reduction, not a
+cache-hit improvement. Full details: [M1 evaluation](docs/stages/v2-m1-tool-runtime.md),
+[M1 formal results](experiments/results/v2-m1-results.md).
+
 ## Headline results
 
 Measured from clean Stage 6 commits `a527796` (E1–E4) and `35b5774` (E5); details and caveats in
@@ -129,6 +157,12 @@ uv run python examples/stage5_recovery.py
 uv run python examples/stage6_offline.py
 ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/stage6_live.py
 uv run python examples/stage6_report.py
+
+# V2 M1 tool runtime (needs the tools extra for semantic search and real MCP)
+uv run python examples/m1_demo.py
+uv run python examples/m1_tool_search_eval.py
+uv run python examples/m1_surface_eval.py
+ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/m1_surface_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -152,6 +186,13 @@ ContextPilot is an optional extra because it pulls a heavy scientific stack:
 
 ```bash
 uv sync --extra dev --extra contextpilot
+```
+
+V2 M1 semantic tool search and real MCP use the `tools` extra (`mcp<2`, sentence-transformers,
+faiss-cpu):
+
+```bash
+uv sync --extra dev --extra tools
 ```
 
 Live DeepSeek tests are opt-in and never part of the default suite. The adapter loads the
@@ -182,6 +223,8 @@ src/atlasos/
   context/             context blocks, store, selectors, naive/stable renderers
   durability/          session manifest, compatibility checks, context rebuild, fault injection
   placement/           deterministic pre-placement policies and planner
+  tools/               one registry, catalog, search index, disclosure state, dispatch, MCP
+  experimental/        batch characterization and M1 retrieval evaluation set
 tests/unit             deterministic offline tests
 tests/integration      runtime-level tests with fake or live providers
 examples/              baseline, live, Stage 2/3/4/5/6 experiment entry points
@@ -193,12 +236,13 @@ experiments/runs/      generated run records (gitignored)
 ## Attribution and provenance
 
 - **AnyCode 0.9.0** provides the agent runtime, DAG/wave execution, task lifecycle,
-  checkpointing, and `resume_from` mechanics. AtlasOS does not reimplement or patch these; it
-  calls them.
+  tool registry/executor, MCP discovery, checkpointing, and `resume_from` mechanics. AtlasOS does
+  not reimplement or patch these; it calls them.
 - **AtlasOS** owns the integration architecture, task/context model, logical `ContextStore` and
   references, stable prompt layout, deterministic placement policy, durable session manifest and
   semantic/placement identity verification, rebuild-before-execution resume integration,
-  append-only recovery observations, and the Stage 2–6 experiment harnesses.
+  progressive tool catalog/discovery/dispatch, tool-state reconstruction, append-only recovery
+  observations, and the Stage 2–6 plus V2 M1 experiment harnesses.
 - **ContextPilot** is used only through the optional per-request dedup transform; its reorder
   path is characterized but not part of the online runtime.
 - **DeepSeek** is the live inference backend and the source of best-effort cache metrics.
@@ -219,5 +263,11 @@ such.
   is made for tasks, provider calls, tools, or external side effects.
 - Stage 5 supports one resume generation; recursive/multi-generation resume is out of scope.
 - Provider KV/cache state is never persisted. Live DeepSeek recovery was not run.
+- V2 M1 model-facing tool names are provider-safe (`tool_search`); search results and dispatch
+  targets keep the logical `tool.search` id. MCP 1.x and semantic retrieval are optional extras.
+- M1 disclosure/conversation sidecars are session metadata, not a second checkpoint engine;
+  AnyCode checkpoints remain execution truth.
+- A crash during a tool call after disclosure but before the next turn snapshot may leave the
+  disclosure set durable while the conversation snapshot is one turn behind.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
 
