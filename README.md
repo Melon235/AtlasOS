@@ -46,6 +46,8 @@ recovery preserves unfinished-task context.
 - [Stage 5 formal results](experiments/results/stage5-baseline.md)
 - [**Stage 6 final evaluation**](docs/stages/06-final-evaluation.md)
 - [**Stage 6 formal results**](experiments/results/stage6-final.md)
+- [**V2 M1 tool runtime and discovery**](docs/stages/v2-m1-tool-runtime.md)
+- [**V2 M1 formal results**](experiments/results/v2-m1-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
