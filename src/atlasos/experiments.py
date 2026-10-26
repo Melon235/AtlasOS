@@ -115,6 +115,12 @@ def semantic_config_hash(config: AtlasConfig) -> str:
             "transform": config.context.transform.name,
         },
         "scheduler": config.scheduler.policy,
+        "tools": {
+            "mode": config.tools.mode,
+            "search_backend": config.tools.search_backend,
+            "embedding_model": config.tools.embedding_model,
+            "max_results": config.tools.max_results,
+        },
         "placement": {
             "policy": config.placement.policy,
             "weights": {

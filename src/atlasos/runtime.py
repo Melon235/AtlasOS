@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,7 +27,7 @@ from anycode import (
 )
 from anycode.plugins.registry import register_provider_factory
 from anycode.tasks.queue import TaskQueue
-from anycode.types import LLMAdapter, OrchestratorEvent
+from anycode.types import LLMAdapter, OrchestratorEvent, ToolDefinition
 from pydantic import BaseModel, ConfigDict, Field
 
 from atlasos.config import AtlasConfig, load_config
@@ -84,6 +84,8 @@ from atlasos.placement import (
     StaticPlacementPolicy,
     plan_workflow,
 )
+from atlasos.tools import AtlasToolRuntime, ToolRuntimeMetrics
+from atlasos.tools.conversation import set_current_task_id
 from atlasos.workflow import (
     AtlasAgentSpec,
     AtlasTaskSpec,
@@ -209,6 +211,9 @@ class AtlasRunResult(BaseModel):
     # Stage 5 recovery observation (None for uninterrupted runs).
     recovery: RecoveryMetrics | None = None
 
+    # V2 M1 tool-surface/discovery observation (None when progressive tools are disabled).
+    tool_runtime: ToolRuntimeMetrics | None = None
+
 
 def _default_adapter_factory(
     agent_name: str,
@@ -229,6 +234,7 @@ class AtlasRuntime:
         adapter_factory: AdapterFactory | None = None,
         engine_factory: EngineFactory | None = None,
         event_hook: Callable[[OrchestratorEvent], None] | None = None,
+        tool_definitions: Sequence[ToolDefinition] = (),
         repo_root: str | Path | None = None,
     ) -> None:
         _validate_runtime_config(config)
@@ -238,6 +244,9 @@ class AtlasRuntime:
         self._engine_factory: EngineFactory = engine_factory or (lambda options: AnyCode(options))
         # Test/experiment-only observation hook for deterministic durable-boundary interruption.
         self._event_hook = event_hook
+        self._tool_definitions = tuple(tool_definitions)
+        self._tool_runtime: AtlasToolRuntime | None = None
+        self._tool_setup_errors: list[str] = []
         self._repo_root = (
             Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[2]
         )
@@ -266,6 +275,36 @@ class AtlasRuntime:
     def config(self) -> AtlasConfig:
         return self._config
 
+    @property
+    def tool_runtime(self) -> AtlasToolRuntime | None:
+        return self._tool_runtime
+
+    async def _setup_tool_runtime(self, run_id: str, run_dir: Path) -> None:
+        self._tool_runtime = None
+        self._tool_setup_errors = []
+        if self._config.tools.mode != "progressive":
+            return
+        runtime = AtlasToolRuntime(
+            run_id,
+            state_path=run_dir / "run_tool_state.json",
+            conversation_path=run_dir / "tool_conversations.json",
+            external_tools=self._tool_definitions,
+            search_backend=self._config.tools.search_backend,
+            embedding_model=self._config.tools.embedding_model,
+            max_results=self._config.tools.max_results,
+        )
+        try:
+            await runtime.connect_mcp_servers(self._config.tools.mcp_servers)
+        except Exception as error:
+            # A missing MCP server must not corrupt an otherwise valid session. Disclosed tool
+            # names remain durable and will surface as tool_unavailable on dispatch.
+            self._tool_setup_errors.append(str(error))
+        self._tool_runtime = runtime
+
+    async def _close_tool_runtime(self) -> None:
+        if self._tool_runtime is not None:
+            await self._tool_runtime.close()
+
     async def run(
         self,
         workflow: AtlasWorkflow,
@@ -288,6 +327,7 @@ class AtlasRuntime:
             )
         finally:
             self._running = False
+            await self._close_tool_runtime()
 
     async def resume(
         self,
@@ -315,6 +355,7 @@ class AtlasRuntime:
             )
         finally:
             self._running = False
+            await self._close_tool_runtime()
 
     def context_blocks(self) -> list[ContextBlock]:
         """Observation only: logical blocks currently held by the derived store."""
@@ -337,6 +378,7 @@ class AtlasRuntime:
         checkpoint_dir = run_dir / "checkpoints"
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self._begin_session(run_id, run_dir)
+        await self._setup_tool_runtime(run_id, run_dir)
 
         effective = replace(workflow, input=input_text) if input_text is not None else workflow
         effective, placement_decisions, placement_summary = self._place(effective)
@@ -418,6 +460,7 @@ class AtlasRuntime:
 
         self._begin_session(run_id, run_dir)
         self._recovered_task_ids = completed_before
+        await self._setup_tool_runtime(run_id, run_dir)
 
         collector = MetricsCollector()
         providers = self._register_providers(effective, run_id, collector, generation=1)
@@ -557,9 +600,13 @@ class AtlasRuntime:
             ),
             on_progress=self._on_progress,
         )
-        if self._renderer is None:
+        if self._renderer is None and self._tool_runtime is None:
             return self._engine_factory(options)
-        return AtlasContextEngine(options, prompt_builder=self._build_atlas_prompt)
+        return AtlasContextEngine(
+            options,
+            prompt_builder=(self._build_atlas_prompt if self._renderer is not None else None),
+            tool_runtime=self._tool_runtime,
+        )
 
     @staticmethod
     async def _execute(
@@ -667,6 +714,7 @@ class AtlasRuntime:
                 dict(placement_summary.assignment_distribution) if placement_summary else {}
             ),
             recovery=recovery,
+            tool_runtime=(self._tool_runtime.metrics() if self._tool_runtime is not None else None),
         )
 
         # The manifest records session completion; result.json is the final observation. A
@@ -922,10 +970,12 @@ class AtlasRuntime:
                 atlas_id = self._title_to_id.get(task.title)
                 if atlas_id is not None:
                     self._active_task[task.assignee] = atlas_id
+                    set_current_task_id(atlas_id)
         elif event.type == "task_complete" and event.task:
             agent = self._task_assignee.pop(event.task, None)
             if agent is not None:
                 self._active_task.pop(agent, None)
+            set_current_task_id(None)
         if self._event_hook is not None:
             self._event_hook(event)
 

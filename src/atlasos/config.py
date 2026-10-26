@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
+from anycode.types import MCPServerConfig
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SchedulerPolicy = Literal["upstream_default", "capability", "context_aware", "cache_aware"]
@@ -137,6 +138,22 @@ class PlacementConfig(BaseModel):
     weights: PlacementWeightsConfig = PlacementWeightsConfig()
 
 
+class ToolsConfig(BaseModel):
+    """Atlas V2 M1 tool-surface configuration.
+
+    ``disabled`` preserves V1 behavior exactly. ``progressive`` exposes only core tools natively
+    and hides external tools behind ``tool.search`` / ``dispatch_action``.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    mode: Literal["disabled", "progressive"] = "disabled"
+    search_backend: Literal["keyword", "semantic"] = "keyword"
+    embedding_model: str | None = None
+    max_results: int = Field(default=3, ge=1, le=10)
+    mcp_servers: tuple[MCPServerConfig, ...] = ()
+
+
 class AtlasConfig(BaseModel):
     """Top-level experiment configuration."""
 
@@ -146,6 +163,7 @@ class AtlasConfig(BaseModel):
     context: ContextConfig = ContextConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
     placement: PlacementConfig = PlacementConfig()
+    tools: ToolsConfig = ToolsConfig()
     pricing: Pricing | None = None
 
 
