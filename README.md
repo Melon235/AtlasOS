@@ -58,6 +58,7 @@ recovery preserves unfinished-task context.
 - [**V2 M3 acceptance matrix**](docs/stages/v2-m3-acceptance.md)
 - [**V2 M3 formal results**](experiments/results/v2-m3-results.md)
 - [**M1–M3 control-plane E2E**](docs/stages/control-plane-e2e.md)
+- [**M1–M3 control-plane results**](experiments/results/control-plane-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -238,6 +239,9 @@ uv run python examples/m2_scoped_worker_eval.py
 
 # V2 M3 action safety evaluation (clean tree required for formal record)
 uv run python examples/m3_action_safety_eval.py
+
+# M1–M3 control-plane reliability evaluation (clean tree required for formal record)
+uv run python examples/m1_m2_m3_control_plane_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,

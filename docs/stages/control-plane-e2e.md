@@ -1,7 +1,8 @@
 # AtlasOS M1–M3 Integrated Control-Plane Reliability Test
 
-Status: formal control-plane E2E. Scope is limited to M1 + M2 + M3; no M4–M8 behavior is
-implemented.
+Status: formal control-plane E2E. Metrics at clean `368a7e3` are in
+[`control-plane-results.md`](../../experiments/results/control-plane-results.md). Scope is limited
+to M1 + M2 + M3; no M4–M8 behavior is implemented.
 
 ## Scenario
 
