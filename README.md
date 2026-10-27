@@ -49,9 +49,10 @@ recovery preserves unfinished-task context.
 - [**V2 M1 tool runtime and discovery**](docs/stages/v2-m1-tool-runtime.md)
 - [**V2 M1 formal results**](experiments/results/v2-m1-results.md)
 - [**V2 M1 acceptance matrix**](docs/stages/v2-m1-acceptance.md)
-- [**V2 M2 delegated capability runtime**](docs/stages/v2-m2-delegated-capability.md)
+- [**V2 M2 central capability runtime**](docs/stages/v2-m2-delegated-capability.md)
+- [**V2 M2 semantic migration**](docs/stages/v2-m2-semantic-migration.md)
 - [**V2 M2 acceptance matrix**](docs/stages/v2-m2-acceptance.md)
-- [**V2 M2 formal results**](experiments/results/v2-m2-results.md)
+- [**V2 M2 correction results**](experiments/results/v2-m2-correction-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -83,32 +84,38 @@ Provider cache is warm-prone and uncontrolled; M1 claims schema-footprint reduct
 cache-hit improvement. Full details: [M1 evaluation](docs/stages/v2-m1-tool-runtime.md),
 [M1 formal results](experiments/results/v2-m1-results.md).
 
-## V2 M2 — Delegated Capability Runtime
+## V2 M2 — Central Capability Authorization Runtime
 
-**M2 adds runtime-issued delegation, not tool authorization.** V1 remains frozen; M1 tool
+**M2 adds central authority acquisition, not tool authorization.** V1 remains frozen; M1 tool
 semantics are unchanged.
 
 ```text
-PROPOSE
-→ VALIDATE (hard, before anything else)
-→ ROUTE (deterministic intent × capability)
-→ REVIEW (stateless, no tools)
-→ SATISFY POLICY / HITL GATES
-→ ISSUE (runtime-only GrantIssuer)
-→ REVALIDATE
-→ PERSIST run_execution_context.json
+Trusted Principal / Host
+→ RunAuthority ceiling (durable, immutable)
+→ Central AuthorizationRuntime
+→ VALIDATE against ceiling
+→ ROUTE → REVIEW → POLICY / HITL
+→ ISSUE → REVALIDATE → PERSIST per-agent context
 ```
 
+`RunAuthority` is the maximum authority envelope for the run, not any agent's current scopes.
+An orchestrator can request a specialist capability without owning it; the same central runtime
+authorizes the main agent and every child. Central grants are `principal → target` and do not
+encode spawn lineage.
+
+Explicit attenuation remains a separate operation: an already-authorized agent can call
+`delegate_capability()` and only pass on a subset of its own effective scopes. The run ceiling
+cannot be used to escalate that parent.
+
 Capabilities live only in AnyCode `DelegationGrant.scopes`; Atlas does not create a parallel
-identity, grant, policy, or approval model. The runtime derives the actor from
-`ToolUseContext.agent.name`, requires requested scopes to be a subset of the parent effective
-intersection, and appends a child grant only after all required gates pass. POLICY and HITL are
-orthogonal; a missing or failing required gate fails closed, and human approval can never
-override policy DENY.
+identity, grant, policy, approval, or checkpoint model. POLICY and HITL are orthogonal; a missing
+or failing required gate fails closed, human approval cannot override policy DENY, and neither
+can override the run ceiling.
 
 M2 deliberately does **not** enforce tool capabilities, add wildcards/resource scopes, or
 implement durable pending approvals. See [design and verification](docs/stages/v2-m2-delegated-capability.md),
-[acceptance matrix](docs/stages/v2-m2-acceptance.md), and [formal results](experiments/results/v2-m2-results.md).
+[migration](docs/stages/v2-m2-semantic-migration.md), [acceptance matrix](docs/stages/v2-m2-acceptance.md),
+and [formal results](experiments/results/v2-m2-correction-results.md).
 
 ## Headline results
 
@@ -306,15 +313,18 @@ such.
   AnyCode checkpoints remain execution truth.
 - A crash during a tool call after disclosure but before the next turn snapshot may leave the
   disclosure set durable while the conversation snapshot is one turn behind.
-- V2 M2 assumes the host/application supplies a trusted principal and root scopes; it does not
-  implement authentication, IAM, OAuth, credential issuance, or tenant provisioning.
+- V2 M2 assumes the host/application supplies a trusted principal, run identity, and
+  `RunAuthority` ceiling; it does not implement authentication, IAM, OAuth, credential issuance,
+  or tenant provisioning.
 - M2 does not enforce capabilities on normal tool calls, does not map tools to required
   capabilities, and does not support wildcard/resource-level scopes. Those belong to M3.
 - M2 does not persist or recover pending HITL approvals; a crash while waiting leaves no grant
   and the request must be re-proposed. Durable approval pause/wake belongs to M6.
 - The delegation reviewer uses the configured provider; unavailable/invalid reviewer output
   escalates to HITL. A required POLICY/HITL gate without its configured seam fails closed.
-- `run_execution_context.json` is a local trusted-host sidecar, not an authentication boundary
-  against a compromised host filesystem.
+- `run_authority.json` and `run_execution_context.json` are local trusted-host sidecars, not an
+  authentication boundary against a compromised host filesystem.
+- Spawn lineage is not persisted as an authorization input. M2 intentionally has no spawn graph;
+  orchestration may record it separately, but it never derives capability from it.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
 

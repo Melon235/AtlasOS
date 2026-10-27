@@ -11,7 +11,7 @@ from typing import cast
 import pytest
 from anycode.contracts.models import PolicyDecision
 from anycode.hitl.approval import ApprovalManager
-from anycode.identity.context import ExecutionContext
+from anycode.identity.context import DelegationGrant, ExecutionContext
 from anycode.identity.policy import PolicyEnforcer, PolicyRequest
 from anycode.types import (
     AgentConfig,
@@ -35,9 +35,10 @@ from atlasos.delegation import (
     ReviewerInput,
     ReviewerResult,
     ReviewerVerdict,
+    RunAuthority,
+    RunAuthorityStore,
     StaticReviewer,
-    TrustedRootIdentity,
-    bootstrap_root_context,
+    canonical_actor,
 )
 
 
@@ -55,14 +56,17 @@ def make_root(
     expires_at: datetime | None = None,
     **fields,
 ) -> ExecutionContext:
-    return bootstrap_root_context(
-        TrustedRootIdentity(
-            principal="user:wang",
-            main_agent="planner",
-            scopes=scopes,
-            expires_at=expires_at,
-            **fields,
-        )
+    return ExecutionContext(
+        principal="user:wang",
+        delegation=(
+            DelegationGrant(
+                delegator="user:wang",
+                delegatee=canonical_actor("planner"),
+                scopes=scopes,
+                expires_at=expires_at,
+            ),
+        ),
+        **fields,
     )
 
 
@@ -198,9 +202,16 @@ def make_runtime(
             approval_gate,
         )
     return DelegationRuntime(
-        run_id=run_id,
         store=store,
-        root_context=root,
+        run_authority=RunAuthority(
+            principal=root.principal,
+            run_id=run_id,
+            allowed_scopes=root.delegation[-1].scopes,
+            expires_at=root.delegation[-1].expires_at,
+        ),
+        authority_store=RunAuthorityStore(tmp_path / "run_authority.json", run_id=run_id),
+        base_context=root.model_copy(update={"delegation": ()}),
+        main_agent=root.delegation[-1].delegatee,
         validator=validator,
         reviewer=reviewer if reviewer is not None else StaticReviewer("AGREE"),
         policy_gate=policy_gate,
@@ -403,7 +414,9 @@ async def test_pending_approval_has_no_capability(tmp_path: Path) -> None:
 
 
 # T34/T35/T36
-async def test_issuer_is_internal_parent_immutable_and_appends_one_grant(tmp_path: Path) -> None:
+async def test_issuer_is_internal_parent_immutable_and_central_grant_is_one_grant(
+    tmp_path: Path,
+) -> None:
     root = make_root()
     before = root.model_dump(mode="json")
     runtime = make_runtime(tmp_path, root=root)
@@ -411,7 +424,9 @@ async def test_issuer_is_internal_parent_immutable_and_appends_one_grant(tmp_pat
     assert outcome.status == "granted"
     assert root.model_dump(mode="json") == before
     assert outcome.child_context is not None
-    assert len(outcome.child_context.delegation) == len(root.delegation) + 1
+    assert len(outcome.child_context.delegation) == 1
+    assert outcome.child_context.delegation[0].delegator == "user:wang"
+    assert outcome.operation == "central_authorization"
     assert not hasattr(GrantIssuer, "as_tool")
 
 

@@ -24,11 +24,27 @@ ReviewerVerdict = Literal["AGREE", "DISAGREE", "UNCERTAIN"]
 
 
 class DelegationRequest(BaseModel):
-    """Untrusted model proposal. Runtime fills identity and request id."""
+    """Untrusted explicit-delegation proposal. Runtime fills identity/request id."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     delegatee: str = Field(min_length=1, max_length=128)
+    intent: DelegationIntent
+    requested_scopes: tuple[str, ...] = Field(min_length=1)
+    task_summary: str = Field(min_length=1, max_length=2000)
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class AuthorizationRequest(BaseModel):
+    """Untrusted central-authorization proposal.
+
+    The requester may differ from the target. The requester's current scopes are intentionally
+    absent: central authorization is bounded by the trusted run ceiling, not by the requester.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target_agent: str = Field(min_length=1, max_length=128)
     intent: DelegationIntent
     requested_scopes: tuple[str, ...] = Field(min_length=1)
     task_summary: str = Field(min_length=1, max_length=2000)
@@ -71,12 +87,15 @@ class RouteDecision(BaseModel):
 
 
 class DelegationOutcome(BaseModel):
-    """Result of one runtime delegation attempt."""
+    """Result of one central-authorization or explicit-delegation attempt."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     request_id: str
     status: Literal["granted", "denied"]
+    operation: Literal["central_authorization", "explicit_delegation"] = "explicit_delegation"
+    requester_actor: str | None = None
+    target_agent: str | None = None
     reason_codes: tuple[str, ...] = ()
     route: RouteDecision | None = None
     reviewer: ReviewerResult | None = None
@@ -88,6 +107,10 @@ class DelegationOutcome(BaseModel):
 
     grant: DelegationGrant | None = None
     child_context: ExecutionContext | None = None
+
+
+# The outcome is shared by both authority operations; the operation field is the discriminant.
+AuthorizationOutcome = DelegationOutcome
 
 
 class DelegationDenied(RuntimeError):

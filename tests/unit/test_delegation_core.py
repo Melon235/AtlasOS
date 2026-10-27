@@ -11,6 +11,7 @@ from anycode.types import AgentInfo, ToolUseContext
 from pydantic import ValidationError
 
 from atlasos.delegation import (
+    AuthorizationRequest,
     DelegationRequest,
     DelegationRuntime,
     DelegationValidationError,
@@ -18,9 +19,9 @@ from atlasos.delegation import (
     ExecutionContextStore,
     IntentRouter,
     InvalidScope,
+    RunAuthority,
+    RunAuthorityStore,
     StaticReviewer,
-    TrustedRootIdentity,
-    bootstrap_root_context,
     canonical_actor,
     canonicalize_scopes,
     derive_child_expiry,
@@ -44,14 +45,17 @@ def make_root(
     main_agent: str = "planner",
     **identity_fields,
 ) -> ExecutionContext:
-    return bootstrap_root_context(
-        TrustedRootIdentity(
-            principal=principal,
-            main_agent=main_agent,
-            scopes=scopes,
-            expires_at=expires_at,
-            **identity_fields,
-        )
+    return ExecutionContext(
+        principal=principal,
+        delegation=(
+            DelegationGrant(
+                delegator=principal,
+                delegatee=canonical_actor(main_agent),
+                scopes=canonicalize_scopes(scopes),
+                expires_at=expires_at,
+            ),
+        ),
+        **identity_fields,
     )
 
 
@@ -90,10 +94,19 @@ def make_runtime(
     root = root or make_root()
     run_id = "run-1"
     store = ExecutionContextStore(tmp_path / "run_execution_context.json", run_id=run_id)
-    return DelegationRuntime(
+    authority = RunAuthority(
+        principal=root.principal,
         run_id=run_id,
+        allowed_scopes=root.delegation[-1].scopes,
+        expires_at=root.delegation[-1].expires_at,
+    )
+    base_context = root.model_copy(update={"delegation": ()})
+    return DelegationRuntime(
         store=store,
-        root_context=root,
+        run_authority=authority,
+        authority_store=RunAuthorityStore(tmp_path / "run_authority.json", run_id=run_id),
+        base_context=base_context,
+        main_agent=root.delegation[-1].delegatee,
         reviewer=reviewer if reviewer is not None else StaticReviewer("AGREE"),
         policy_gate=policy_gate,
         approval_gate=approval_gate,
@@ -102,34 +115,26 @@ def make_runtime(
     )
 
 
-# T01/T02
-def test_root_grant_bootstrap_is_runtime_only_and_request_rejects_identity(
-    tmp_path: Path,
-) -> None:
-    root = make_root(scopes=("github.read",))
-    assert root.principal == "user:wang"
-    assert root.delegation[0].delegator == "user:wang"
-    assert root.delegation[0].delegatee == "agent:planner"
-    assert root.delegation[0].scopes == ("github.read",)
-
+# T02 / A01
+def test_untrusted_requests_reject_identity_fields() -> None:
+    common = {
+        "intent": "research",
+        "requested_scopes": ["github.read"],
+        "task_summary": "x",
+        "principal": "user:forged",
+    }
     with pytest.raises(ValidationError):
-        DelegationRequest.model_validate(
+        DelegationRequest.model_validate({"delegatee": "agent:worker", **common})
+    with pytest.raises(ValidationError):
+        AuthorizationRequest.model_validate({"target_agent": "agent:worker", **common})
+    with pytest.raises(ValidationError):
+        AuthorizationRequest.model_validate(
             {
-                "delegatee": "agent:worker",
+                "target_agent": "agent:worker",
                 "intent": "research",
                 "requested_scopes": ["github.read"],
                 "task_summary": "x",
-                "principal": "user:forged",
-            }
-        )
-    with pytest.raises(ValidationError):
-        DelegationRequest.model_validate(
-            {
-                "delegatee": "agent:worker",
-                "intent": "research",
-                "requested_scopes": ["github.read"],
-                "task_summary": "x",
-                "delegator": "agent:planner",
+                "run_id": "forged",
             }
         )
 
@@ -225,7 +230,7 @@ def test_scope_format_and_canonical_order() -> None:
 
 
 # T10
-async def test_requested_scopes_must_be_parent_subset(tmp_path: Path) -> None:
+async def test_requested_scopes_must_be_inside_run_authority(tmp_path: Path) -> None:
     root = make_root(scopes=("github.read",))
     reviewer = StaticReviewer("AGREE")
     runtime = make_runtime(tmp_path, root=root, reviewer=reviewer)
@@ -234,7 +239,7 @@ async def test_requested_scopes_must_be_parent_subset(tmp_path: Path) -> None:
         request(delegatee="agent:worker", scopes=("database.write",)),
     )
     assert outcome.status == "denied"
-    assert outcome.reason_codes == ("scope_escalation",)
+    assert outcome.reason_codes == ("outside_run_authority",)
     assert outcome.route is None
     assert reviewer.calls == 0
 

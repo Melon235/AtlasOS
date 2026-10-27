@@ -1,4 +1,4 @@
-"""Deterministic M2 delegation demo: AUTO, HITL, POLICY, escalation, and recovery."""
+"""Deterministic M2 central authorization demo: low-privilege planner and specialists."""
 
 from __future__ import annotations
 
@@ -19,14 +19,16 @@ from anycode.types import (
 )
 
 from atlasos.delegation import (
+    AuthorizationRequest,
+    AuthorizationRuntime,
     DelegationApprovalGate,
     DelegationPolicyGate,
     DelegationRequest,
-    DelegationRuntime,
     ExecutionContextStore,
+    RunAuthorityStore,
     StaticReviewer,
-    TrustedRootIdentity,
-    bootstrap_root_context,
+    TrustedRunIdentity,
+    bootstrap_run_authority,
     effective_scopes,
 )
 
@@ -60,22 +62,23 @@ def tool_context(actor: str = "planner") -> ToolUseContext:
     return ToolUseContext(agent=AgentInfo(name=actor, role="demo", model="fake"))
 
 
-def request(delegatee: str, intent: str, scopes: tuple[str, ...]) -> DelegationRequest:
-    return DelegationRequest(
-        delegatee=delegatee,
+def auth_request(target: str, intent: str, scopes: tuple[str, ...]) -> AuthorizationRequest:
+    return AuthorizationRequest(
+        target_agent=target,
         intent=intent,  # type: ignore[arg-type]
         requested_scopes=scopes,
-        task_summary="demonstrate delegated authority",
+        task_summary="demonstrate central authority",
     )
 
 
 async def main() -> None:
     with tempfile.TemporaryDirectory() as temporary:
-        root = bootstrap_root_context(
-            TrustedRootIdentity(
+        authority, base = bootstrap_run_authority(
+            TrustedRunIdentity(
                 principal="user:wang",
+                run_id="m2-demo",
                 main_agent="planner",
-                scopes=("github.read", "github.write", "email.send"),
+                allowed_scopes=("agent.orchestrate", "github.read", "email.send"),
             )
         )
         approval = ApprovalManager(
@@ -87,47 +90,71 @@ async def main() -> None:
             ),
             Approve(),
         )
-        runtime = DelegationRuntime(
-            run_id="m2-demo",
+        runtime = AuthorizationRuntime(
             store=ExecutionContextStore(
                 Path(temporary) / "run_execution_context.json", run_id="m2-demo"
             ),
-            root_context=root,
+            run_authority=authority,
+            authority_store=RunAuthorityStore(
+                Path(temporary) / "run_authority.json", run_id="m2-demo"
+            ),
+            base_context=base,
+            main_agent="planner",
             reviewer=StaticReviewer("AGREE"),
             policy_gate=DelegationPolicyGate(PolicyEnforcer(AllowPolicy(), fail_closed=True)),
             approval_gate=DelegationApprovalGate(approval),
         )
 
-        auto = await runtime.propose(
+        planner = await runtime.authorize_agent(
             tool_context(),
-            request("agent:github_worker", "research", ("github.read",)),
+            auth_request("agent:planner", "research", ("agent.orchestrate",)),
         )
+        print("PLANNER:", planner.status, planner.required_gates)
+
+        github = await runtime.authorize_agent(
+            tool_context(),
+            auth_request("agent:github_worker", "research", ("github.read",)),
+        )
+        print("GITHUB:", github.status, github.required_gates)
+
+        helper = await runtime.delegate_capability(
+            tool_context("github_worker"),
+            DelegationRequest(
+                delegatee="agent:issue_reader",
+                intent="research",
+                requested_scopes=("github.read",),
+                task_summary="explicit attenuation",
+            ),
+        )
+        print("DELEGATION:", helper.status, helper.operation)
+
+        outside = await runtime.authorize_agent(
+            tool_context(),
+            auth_request("agent:db_worker", "modify_data", ("database.admin",)),
+        )
+        print("OUTSIDE:", outside.status, outside.reason_codes)
+
+        planner_context = runtime.context_for("agent:planner")
+        print("PLANNER SCOPES:", sorted(effective_scopes(planner_context)))
         print(
-            "AUTO:", auto.status, auto.required_gates, sorted(effective_scopes(auto.child_context))
+            "WORKER SCOPES:",
+            sorted(effective_scopes(runtime.context_for("github_worker"))),
         )
+        print("HELPER CHAIN:", helper.child_context.delegation if helper.child_context else None)
 
-        hitl = await runtime.propose(
-            tool_context(),
-            request("agent:email_worker", "external_communication", ("email.send",)),
-        )
-        print("HITL:", hitl.status, hitl.required_gates, hitl.approval_outcome)
-
-        escalation = await runtime.propose(
-            tool_context(),
-            request("agent:db_worker", "modify_data", ("database.write",)),
-        )
-        print("ESCALATION:", escalation.status, escalation.reason_codes)
-
-        resumed = DelegationRuntime(
-            run_id="m2-demo",
+        resumed = AuthorizationRuntime(
             store=ExecutionContextStore(
                 Path(temporary) / "run_execution_context.json", run_id="m2-demo"
             ),
-            root_context=root,
+            run_authority=authority,
+            authority_store=RunAuthorityStore(
+                Path(temporary) / "run_authority.json", run_id="m2-demo"
+            ),
+            base_context=base,
+            main_agent="planner",
             reviewer=StaticReviewer("DISAGREE"),
         )
         print("RECOVERY equality:", resumed.snapshot_hash() == runtime.snapshot_hash())
-        print("RECOVERED chain:", resumed.context_for("agent:github_worker").delegation)
 
 
 if __name__ == "__main__":

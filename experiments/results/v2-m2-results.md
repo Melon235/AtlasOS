@@ -1,5 +1,8 @@
 # V2 M2 Formal Results — Delegated Capability Runtime
 
+> **Historical:** this record predates the M2 semantic correction. The current authority model and
+> measurements are in [v2-m2-correction-results.md](v2-m2-correction-results.md).
+
 ## Provenance
 
 ```text

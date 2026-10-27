@@ -36,3 +36,26 @@ class GrantIssuer:
         # Revalidate the exact context that would be committed. Parent stays immutable.
         self._validator.validate_context(child_context, expected_actor=request.delegatee)
         return grant, child_context
+
+    def issue_central(
+        self,
+        *,
+        base_context: ExecutionContext,
+        principal: str,
+        target_agent: str,
+        scopes: tuple[str, ...],
+        expires_at: datetime | None,
+    ) -> tuple[DelegationGrant, ExecutionContext]:
+        """Create principal -> target authority, independent of spawn lineage."""
+
+        if base_context.delegation:
+            raise ValueError("central authorization requires a capability-free base context")
+        grant = DelegationGrant(
+            delegator=principal,
+            delegatee=target_agent,
+            scopes=scopes,
+            expires_at=expires_at,
+        )
+        child_context = base_context.model_copy(update={"delegation": (grant,)})
+        self._validator.validate_context(child_context, expected_actor=target_agent)
+        return grant, child_context

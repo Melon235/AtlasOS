@@ -8,7 +8,7 @@ from pathlib import Path
 
 from anycode.contracts.models import PolicyDecision
 from anycode.hitl.approval import ApprovalManager
-from anycode.identity.context import ExecutionContext
+from anycode.identity.context import DelegationGrant, ExecutionContext
 from anycode.identity.policy import PolicyEnforcer, PolicyRequest
 from anycode.types import (
     AgentConfig,
@@ -25,22 +25,26 @@ from atlasos.delegation import (
     DelegationRequest,
     DelegationRuntime,
     ExecutionContextStore,
+    RunAuthority,
+    RunAuthorityStore,
     StaticReviewer,
-    TrustedRootIdentity,
-    bootstrap_root_context,
+    canonical_actor,
     effective_scopes,
 )
 from atlasos.tools import AtlasToolRuntime
 
 
 def root(scopes: tuple[str, ...], *, expires_at=None) -> ExecutionContext:
-    return bootstrap_root_context(
-        TrustedRootIdentity(
-            principal="user:wang",
-            main_agent="planner",
-            scopes=scopes,
-            expires_at=expires_at,
-        )
+    return ExecutionContext(
+        principal="user:wang",
+        delegation=(
+            DelegationGrant(
+                delegator="user:wang",
+                delegatee=canonical_actor("planner"),
+                scopes=scopes,
+                expires_at=expires_at,
+            ),
+        ),
     )
 
 
@@ -124,9 +128,16 @@ def make_runtime(
         )
         approval_gate = DelegationApprovalGate(manager)
     return DelegationRuntime(
-        run_id="m2-run",
         store=store,
-        root_context=root_context,
+        run_authority=RunAuthority(
+            principal="user:wang",
+            run_id="m2-run",
+            allowed_scopes=root_context.delegation[-1].scopes,
+            expires_at=root_context.delegation[-1].expires_at,
+        ),
+        authority_store=RunAuthorityStore(tmp_path / "run_authority.json", run_id="m2-run"),
+        base_context=root_context.model_copy(update={"delegation": ()}),
+        main_agent=root_context.delegation[-1].delegatee,
         reviewer=reviewer or StaticReviewer("AGREE"),
         policy_gate=policy_gate,
         approval_gate=approval_gate,
@@ -278,7 +289,7 @@ async def test_scenario_f_hard_privilege_escalation(tmp_path: Path) -> None:
         request(delegatee="agent:db_worker", intent="modify_data", scopes=("database.write",)),
     )
     assert outcome.status == "denied"
-    assert outcome.reason_codes == ("scope_escalation",)
+    assert outcome.reason_codes == ("outside_run_authority",)
     assert reviewer.calls == 0
     assert policy.requests == []
     assert approval.requests == []
