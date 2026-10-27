@@ -1,6 +1,6 @@
 # V2 M2 — Central Capability Authorization Runtime
 
-Status: **PASS after semantic correction**; formal measurements at clean commit `...` are in
+Status: **PASS after semantic correction**; formal measurements at clean commit `5d1aace` are in
 `experiments/results/v2-m2-correction-results.md`.
 Baseline: M1 final `9b0d861`; pre-correction M2 docs at `b8d2f32`; V1 frozen at `bd6134b`.
 

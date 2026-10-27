@@ -326,6 +326,15 @@ async def test_unmatched_route_and_reviewer_escalate_but_policy_deny_is_final(
     assert unmatched.status == "granted"
     assert unmatched.required_gates == ("HITL",)
 
+    denied_approval = ApprovalGate(False)
+    denied_runtime, _, _, _ = make_central(
+        tmp_path / "unmatched-deny", ("email.send",), approval=denied_approval
+    )
+    denied = await authorize(denied_runtime, "agent:email_worker", "research", ("email.send",))
+    assert denied.status == "denied"
+    assert denied.reason_codes == ("approval_denied",)
+    assert denied.child_context is None
+
     reviewer = CapturingReviewer("DISAGREE")
     approval = ApprovalGate(True)
     runtime, _, _, _ = make_central(
