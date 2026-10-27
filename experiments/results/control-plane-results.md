@@ -5,6 +5,7 @@
 ```text
 starting HEAD:          5ed1305
 implementation commit:  368a7e3
+final docs commit:      14afab0
 git_dirty:              false
 timestamp:              2026-10-27T15:32:23Z
 formal record:          experiments/runs/v2-control-plane-e2e.jsonl
@@ -15,7 +16,7 @@ git status:             clean
 
 ```text
 ruff check .             All checks passed
-ruff format --check .    146 files already formatted
+ruff format --check .    147 files already formatted
 pyright                  0 errors, 0 warnings, 0 informations
 pytest                   185 passed
 ```
