@@ -49,6 +49,8 @@ recovery preserves unfinished-task context.
 - [**V2 M1 tool runtime and discovery**](docs/stages/v2-m1-tool-runtime.md)
 - [**V2 M1 formal results**](experiments/results/v2-m1-results.md)
 - [**V2 M1 acceptance matrix**](docs/stages/v2-m1-acceptance.md)
+- [**V2 M2 delegated capability runtime**](docs/stages/v2-m2-delegated-capability.md)
+- [**V2 M2 acceptance matrix**](docs/stages/v2-m2-acceptance.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -79,6 +81,33 @@ dispatch_action -> AtlasDispatchExecutor -> AnyCode ToolExecutor -> real tool / 
 Provider cache is warm-prone and uncontrolled; M1 claims schema-footprint reduction, not a
 cache-hit improvement. Full details: [M1 evaluation](docs/stages/v2-m1-tool-runtime.md),
 [M1 formal results](experiments/results/v2-m1-results.md).
+
+## V2 M2 — Delegated Capability Runtime
+
+**M2 adds runtime-issued delegation, not tool authorization.** V1 remains frozen; M1 tool
+semantics are unchanged.
+
+```text
+PROPOSE
+→ VALIDATE (hard, before anything else)
+→ ROUTE (deterministic intent × capability)
+→ REVIEW (stateless, no tools)
+→ SATISFY POLICY / HITL GATES
+→ ISSUE (runtime-only GrantIssuer)
+→ REVALIDATE
+→ PERSIST run_execution_context.json
+```
+
+Capabilities live only in AnyCode `DelegationGrant.scopes`; Atlas does not create a parallel
+identity, grant, policy, or approval model. The runtime derives the actor from
+`ToolUseContext.agent.name`, requires requested scopes to be a subset of the parent effective
+intersection, and appends a child grant only after all required gates pass. POLICY and HITL are
+orthogonal; a missing or failing required gate fails closed, and human approval can never
+override policy DENY.
+
+M2 deliberately does **not** enforce tool capabilities, add wildcards/resource scopes, or
+implement durable pending approvals. See [design and verification](docs/stages/v2-m2-delegated-capability.md)
+and [acceptance matrix](docs/stages/v2-m2-acceptance.md).
 
 ## Headline results
 
@@ -166,6 +195,10 @@ uv run python examples/m1_demo.py
 uv run python examples/m1_tool_search_eval.py
 uv run python examples/m1_surface_eval.py
 ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/m1_surface_eval.py
+
+# V2 M2 deterministic delegation evaluation (clean tree required for formal record)
+uv run python examples/m2_delegation_demo.py
+uv run python examples/m2_delegation_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -272,5 +305,15 @@ such.
   AnyCode checkpoints remain execution truth.
 - A crash during a tool call after disclosure but before the next turn snapshot may leave the
   disclosure set durable while the conversation snapshot is one turn behind.
+- V2 M2 assumes the host/application supplies a trusted principal and root scopes; it does not
+  implement authentication, IAM, OAuth, credential issuance, or tenant provisioning.
+- M2 does not enforce capabilities on normal tool calls, does not map tools to required
+  capabilities, and does not support wildcard/resource-level scopes. Those belong to M3.
+- M2 does not persist or recover pending HITL approvals; a crash while waiting leaves no grant
+  and the request must be re-proposed. Durable approval pause/wake belongs to M6.
+- The delegation reviewer uses the configured provider; unavailable/invalid reviewer output
+  escalates to HITL. A required POLICY/HITL gate without its configured seam fails closed.
+- `run_execution_context.json` is a local trusted-host sidecar, not an authentication boundary
+  against a compromised host filesystem.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
 
