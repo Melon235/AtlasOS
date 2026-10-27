@@ -1,11 +1,11 @@
-# V2 M3 Formal Results â€” Global Action Safety Gate
+# V2 M3 Formal Results â€?Global Action Safety Gate
 
 ## Provenance
 
 ```text
 starting commit:          b30b8db (M2 correction final)
 implementation commit:     c42f72b
-verification commit:       697711b
+verification commit:       697711b\nfinal docs commit:         ec4dc5e
 git_dirty:                  false
 timestamp:                  2026-10-27T14:30:14Z
 git status:                 clean
@@ -14,13 +14,13 @@ M3 focused tests:           14 passed
 ```
 
 Formal record: `experiments/runs/v2-m3-eval.jsonl` (ignored run artifact).
-The final repository commit includes docs/results only; code/tests are `697711b`.
+The final repository commit (`ec4dc5e`) includes docs/results only; code/tests are `697711b`. Formal evaluation was run against clean `697711b` before the docs commit.
 
 ## Quality gates
 
 ```text
 ruff check .             All checks passed
-ruff format --check .    148 files already formatted
+ruff format --check .    149 files already formatted
 pyright                  0 errors, 0 warnings, 0 informations
 pytest                   217 passed
 ```
@@ -76,31 +76,31 @@ audit.
 
 ```text
 ResearchWorker github.issue.read
-  â†’ hard security pass
-  â†’ policy ALLOW
-  â†’ scope aligned
-  â†’ no reviewer/HITL
-  â†’ execute
+  â†?hard security pass
+  â†?policy ALLOW
+  â†?scope aligned
+  â†?no reviewer/HITL
+  â†?execute
 
 CodingWorker web.search
-  â†’ policy ALLOW
-  â†’ scope mismatch
-  â†’ reviewer CONSISTENT
-  â†’ execute
+  â†?policy ALLOW
+  â†?scope mismatch
+  â†?reviewer CONSISTENT
+  â†?execute
 
 ResearchWorker email.send
-  â†’ policy REQUIRE_HUMAN
-  â†’ digest-bound approval
-  â†’ execute only after approval
+  â†?policy REQUIRE_HUMAN
+  â†?digest-bound approval
+  â†?execute only after approval
 
 Outside workspace file read
-  â†’ AnyCode hard deny
-  â†’ no reviewer/HITL
-  â†’ no execute
+  â†?AnyCode hard deny
+  â†?no reviewer/HITL
+  â†?no execute
 
 vendor.magic_action with no catalog entry
-  â†’ UNKNOWN
-  â†’ REQUIRE_HUMAN
+  â†?UNKNOWN
+  â†?REQUIRE_HUMAN
 ```
 
 ## M1/M2 regression
