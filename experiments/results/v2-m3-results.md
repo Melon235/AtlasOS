@@ -1,4 +1,4 @@
-# V2 M3 Formal Results â€?Global Action Safety Gate
+# V2 M3 Formal Results â€”Global Action Safety Gate
 
 ## Provenance
 
@@ -76,31 +76,31 @@ audit.
 
 ```text
 ResearchWorker github.issue.read
-  â†?hard security pass
-  â†?policy ALLOW
-  â†?scope aligned
-  â†?no reviewer/HITL
-  â†?execute
+  â†’hard security pass
+  â†’policy ALLOW
+  â†’scope aligned
+  â†’no reviewer/HITL
+  â†’execute
 
 CodingWorker web.search
-  â†?policy ALLOW
-  â†?scope mismatch
-  â†?reviewer CONSISTENT
-  â†?execute
+  â†’policy ALLOW
+  â†’scope mismatch
+  â†’reviewer CONSISTENT
+  â†’execute
 
 ResearchWorker email.send
-  â†?policy REQUIRE_HUMAN
-  â†?digest-bound approval
-  â†?execute only after approval
+  â†’policy REQUIRE_HUMAN
+  â†’digest-bound approval
+  â†’execute only after approval
 
 Outside workspace file read
-  â†?AnyCode hard deny
-  â†?no reviewer/HITL
-  â†?no execute
+  â†’AnyCode hard deny
+  â†’no reviewer/HITL
+  â†’no execute
 
 vendor.magic_action with no catalog entry
-  â†?UNKNOWN
-  â†?REQUIRE_HUMAN
+  â†’UNKNOWN
+  â†’REQUIRE_HUMAN
 ```
 
 ## M1/M2 regression
