@@ -1,7 +1,8 @@
 # V2 M2 Acceptance Matrix — Semantic Correction
 
-Status: **PASS** for the central-authorization revision. The old parent-authority matrix was
-reclassified in [semantic migration](v2-m2-semantic-migration.md).
+Status: **PASS** for the central-authorization revision. Formal measurements are in
+[`../../experiments/results/v2-m2-correction-results.md`](../../experiments/results/v2-m2-correction-results.md).
+The old parent-authority matrix was reclassified in [semantic migration](v2-m2-semantic-migration.md).
 
 ## Central authorization — A01–A25
 

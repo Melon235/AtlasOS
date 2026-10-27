@@ -1,6 +1,6 @@
-# V2 M2 — Central Capability Authorization Runtime
+# V2 M2 —Central Capability Authorization Runtime
 
-Status: **PASS after semantic correction**; formal measurements at clean commit `5d1aace` are in
+Status: **PASS after semantic correction**; formal measurements at clean commit `bee0cee` are in
 `experiments/results/v2-m2-correction-results.md`.
 Baseline: M1 final `9b0d861`; pre-correction M2 docs at `b8d2f32`; V1 frozen at `bd6134b`.
 
@@ -46,12 +46,9 @@ engine exists. There is no second policy engine or checkpoint engine.
 
 ```text
 Principal / Trusted Host
-        ↓
-Run Authority Ceiling (RunAuthority)
-        ↓
-Central Authorization Runtime
-        ↓
-Per-Agent ExecutionContext
+        →Run Authority Ceiling (RunAuthority)
+        →Central Authorization Runtime
+        →Per-Agent ExecutionContext
 ```
 
 `RunAuthority(principal, run_id, allowed_scopes, expires_at)` is a frozen, canonicalized,
@@ -64,18 +61,18 @@ The main agent and every child must pass through the same central pipeline:
 
 ```text
 AuthorizationRequest
-→ ceiling check
-→ Router
-→ Reviewer
-→ Policy / HITL
-→ GrantIssuer
-→ per-agent ExecutionContext
-→ persist
+→ceiling check
+→Router
+→Reviewer
+→Policy / HITL
+→GrantIssuer
+→per-agent ExecutionContext
+→persist
 ```
 
 ## Two distinct operations
 
-### Central authorization — `authorize_agent()`
+### Central authorization —`authorize_agent()`
 
 Used when an orchestrator asks the runtime to authorize a specialist (including itself):
 
@@ -83,7 +80,7 @@ Used when an orchestrator asks the runtime to authorize a specialist (including 
 requester: agent:planner (may only have agent.orchestrate)
 target:    agent:email_worker
 requested: email.send
-check:     requested_scopes ⊆ RunAuthority.allowed_scopes
+check:     requested_scopes ⊆RunAuthority.allowed_scopes
 ```
 
 The requester's effective scopes are irrelevant. The central grant is:
@@ -96,19 +93,19 @@ DelegationGrant(
 )
 ```
 
-The stored chain is exactly `principal → target`; no spawn parent is encoded. The main agent is
+The stored chain is exactly `principal →target`; no spawn parent is encoded. The main agent is
 not a capability authority.
 
-### Explicit delegation — `delegate_capability()`
+### Explicit delegation —`delegate_capability()`
 
 Used when an already-authorized agent deliberately attenuates part of its own authority:
 
 ```text
 GitHubWorker effective: {github.read, github.write}
 helper requested:       {github.read}
-check:                  requested_scopes ⊆ parent effective scopes
-grant:                  github_worker → issue_reader
-chain:                  principal → github_worker → issue_reader
+check:                  requested_scopes ⊆parent effective scopes
+grant:                  github_worker →issue_reader
+chain:                  principal →github_worker →issue_reader
 ```
 
 The run ceiling cannot be used to escalate the parent. `email.send` may be inside the run ceiling
@@ -146,7 +143,7 @@ deduplicated, and stable-sorted. `github.write` does not imply `github.read`.
 Effective capabilities are the intersection of every grant's scopes:
 
 ```text
-S_effective = S1 ∩ S2 ∩ ... ∩ Sn
+S_effective = S1 ∩S2 ∩... ∩Sn
 ```
 
 An empty delegation has zero capabilities.
@@ -157,7 +154,7 @@ Central authorization checks, before any decision component:
 
 - trusted `RunAuthority` exists and matches the run;
 - requested scopes are non-empty and syntactically valid;
-- `requested_scopes ⊆ RunAuthority.allowed_scopes`;
+- `requested_scopes ⊆RunAuthority.allowed_scopes`;
 - requester actor exists in trusted runtime state.
 
 Explicit delegation checks:
@@ -170,7 +167,7 @@ Explicit delegation checks:
 - delegatee != actor;
 - delegatee not already in the ancestor path;
 - non-empty, syntactically valid scopes;
-- requested scopes ⊆ parent effective scopes.
+- requested scopes ⊆parent effective scopes.
 
 Ceiling violation returns `outside_run_authority` immediately. Router, Reviewer, Policy, HITL,
 and GrantIssuer are not called. Human approval cannot override the ceiling.
@@ -209,9 +206,9 @@ Composition only escalates:
 
 ```text
 AGREE       -> gates unchanged
-DISAGREE    -> gates ∪ {HITL}
-UNCERTAIN   -> gates ∪ {HITL}
-error/timeout/invalid output -> gates ∪ {HITL}
+DISAGREE    -> gates ∩{HITL}
+UNCERTAIN   -> gates ∩{HITL}
+error/timeout/invalid output -> gates ∩{HITL}
 ```
 
 The Reviewer cannot remove POLICY or HITL, cannot expand the ceiling, and cannot issue a grant.
@@ -240,13 +237,13 @@ approval is persisted; while approval is pending the target capability does not 
 Central issuance creates exactly:
 
 ```text
-principal → target_agent
+principal →target_agent
 ```
 
 Explicit issuance appends exactly:
 
 ```text
-current_agent → target_agent
+current_agent →target_agent
 ```
 
 The child context is a `model_copy` of the trusted base/parent with only `delegation` replaced;
