@@ -5,6 +5,7 @@
 ```text
 starting HEAD:              cad34ce
 implementation commit:      5c217f8
+final docs commit:          0494a42
 git_dirty:                  false
 timestamp:                  2026-10-27T15:05:48Z
 formal record:              experiments/runs/v2-m2-workers-eval.jsonl
@@ -20,7 +21,7 @@ git status:                 clean
 
 ```text
 ruff check .             All checks passed
-ruff format --check .    142 files already formatted
+ruff format --check .    143 files already formatted
 pyright                  0 errors, 0 warnings, 0 informations
 pytest                   180 passed
 ```
