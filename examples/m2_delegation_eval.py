@@ -211,6 +211,7 @@ async def _run_scenarios(base: Path) -> tuple[int, int, dict[str, int]]:
     )
     total += 1
     passed += int(outcome.status == "denied")
+    counts["reviewer_agree"] += runtime.stats["reviewer_agree"]
     counts["policy_decisions"] += len(deny_policy.requests)
 
     # D: POLICY + HITL
