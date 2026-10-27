@@ -1,6 +1,8 @@
 # V2 M3 Acceptance Matrix — Global Action Safety Gate
 
-Status: **PASS**. Focused implementation:
+Status: **PASS**. Formal measurements are in
+[`../../experiments/results/v2-m3-results.md`](../../experiments/results/v2-m3-results.md).
+Focused implementation:
 [`tests/integration/test_action_safety.py`](../../tests/integration/test_action_safety.py).
 
 ## Policy core — M3-01..M3-10

@@ -1,6 +1,6 @@
 # V2 M3 — Global Action Safety Gate
 
-Status: **implemented and acceptance-tested**; formal measurements are recorded in
+Status: **PASS**; formal measurements at clean verification commit `697711b` are in
 `experiments/results/v2-m3-results.md`. Baseline: M2 correction final `b30b8db`; M1 final
 `9b0d861`; V1 frozen at `bd6134b`.
 
