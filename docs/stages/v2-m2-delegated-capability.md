@@ -1,6 +1,7 @@
 # V2 M2 — Delegated Capability Runtime
 
-Status: **implemented and acceptance-tested**, pending the formal result record.
+Status: **PASS**; formal measurements at clean commit `75516c7` are in
+`experiments/results/v2-m2-results.md`.
 Baseline: M1 final commit `9b0d861`; V1 remains frozen at `bd6134b`.
 
 ## What M2 answers

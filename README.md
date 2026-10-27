@@ -51,6 +51,7 @@ recovery preserves unfinished-task context.
 - [**V2 M1 acceptance matrix**](docs/stages/v2-m1-acceptance.md)
 - [**V2 M2 delegated capability runtime**](docs/stages/v2-m2-delegated-capability.md)
 - [**V2 M2 acceptance matrix**](docs/stages/v2-m2-acceptance.md)
+- [**V2 M2 formal results**](experiments/results/v2-m2-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -106,8 +107,8 @@ orthogonal; a missing or failing required gate fails closed, and human approval 
 override policy DENY.
 
 M2 deliberately does **not** enforce tool capabilities, add wildcards/resource scopes, or
-implement durable pending approvals. See [design and verification](docs/stages/v2-m2-delegated-capability.md)
-and [acceptance matrix](docs/stages/v2-m2-acceptance.md).
+implement durable pending approvals. See [design and verification](docs/stages/v2-m2-delegated-capability.md),
+[acceptance matrix](docs/stages/v2-m2-acceptance.md), and [formal results](experiments/results/v2-m2-results.md).
 
 ## Headline results
 
