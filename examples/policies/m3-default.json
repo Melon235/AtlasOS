@@ -1,0 +1,15 @@
+{
+  "name": "m3-default",
+  "default": "REQUIRE_HUMAN",
+  "rules": [
+    {"id": "control-search", "decision": "ALLOW", "action": "control.search"},
+    {"id": "control-dispatch", "decision": "ALLOW", "action": "control.dispatch"},
+    {"id": "filesystem-read", "decision": "ALLOW", "action": "filesystem.read"},
+    {"id": "web-search", "decision": "ALLOW", "action": "web.search"},
+    {"id": "filesystem-write", "decision": "REQUIRE_HUMAN", "action": "filesystem.write"},
+    {"id": "shell-execute", "decision": "REQUIRE_HUMAN", "action": "shell.execute"},
+    {"id": "external-communication", "decision": "REQUIRE_HUMAN", "action": "communication.send"},
+    {"id": "external-mutation", "decision": "REQUIRE_HUMAN", "action": "github.issue.create"},
+    {"id": "database-write", "decision": "REQUIRE_HUMAN", "action": "database.write"}
+  ]
+}

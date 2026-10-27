@@ -53,6 +53,10 @@ recovery preserves unfinished-task context.
 - [**V2 M2 semantic migration**](docs/stages/v2-m2-semantic-migration.md)
 - [**V2 M2 acceptance matrix**](docs/stages/v2-m2-acceptance.md)
 - [**V2 M2 correction results**](experiments/results/v2-m2-correction-results.md)
+- [**V2 M3 global action safety**](docs/stages/v2-m3-action-safety.md)
+- [**V2 M3 migration**](docs/stages/v2-m3-migration.md)
+- [**V2 M3 acceptance matrix**](docs/stages/v2-m3-acceptance.md)
+- [**V2 M3 formal results**](experiments/results/v2-m3-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -116,6 +120,33 @@ M2 deliberately does **not** enforce tool capabilities, add wildcards/resource s
 implement durable pending approvals. See [design and verification](docs/stages/v2-m2-delegated-capability.md),
 [migration](docs/stages/v2-m2-semantic-migration.md), [acceptance matrix](docs/stages/v2-m2-acceptance.md),
 and [formal results](experiments/results/v2-m2-correction-results.md).
+
+## V2 M3 — Global Action Safety Gate
+
+**M3 authorizes concrete tool actions; it does not grant capability.** Every configured real
+tool call passes one pre-invoke gate around the existing AnyCode `ToolExecutor`:
+
+```text
+validate input
+→ AnyCode hard security
+→ ActionCatalog / resource
+→ deterministic ActionPolicy
+→ optional scope reviewer
+→ external policy if configured
+→ digest-bound HITL if required
+→ AnyCode idempotency claim
+→ tool.execute
+```
+
+The gate covers native, searchable, MCP, custom, batch, main-agent, and worker calls. The
+`dispatch_action` control wrapper is ALLOWed, but its target is re-authorized before execution.
+Unknown tools are never guessed safe; the default is REQUIRE_HUMAN. Hard AnyCode deny, local
+policy DENY, and external policy DENY cannot be overridden by reviewer or human approval.
+
+M3 is opt-in at runtime construction (`AtlasToolRuntime(action_policy=...)`) to preserve V1/M1/M2
+behavior. It does not add a second executor, registry, approval engine, policy engine, OPA/Rego,
+sandbox, durable ledger, or durable HITL. See [design](docs/stages/v2-m3-action-safety.md),
+[migration](docs/stages/v2-m3-migration.md), and [acceptance](docs/stages/v2-m3-acceptance.md).
 
 ## Headline results
 
@@ -207,6 +238,9 @@ ATLASOS_RUN_LIVE_TESTS=1 uv run python examples/m1_surface_eval.py
 # V2 M2 deterministic delegation evaluation (clean tree required for formal record)
 uv run python examples/m2_delegation_demo.py
 uv run python examples/m2_delegation_eval.py
+
+# V2 M3 action safety evaluation (clean tree required for formal record)
+uv run python examples/m3_action_safety_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -317,7 +351,8 @@ such.
   `RunAuthority` ceiling; it does not implement authentication, IAM, OAuth, credential issuance,
   or tenant provisioning.
 - M2 does not enforce capabilities on normal tool calls, does not map tools to required
-  capabilities, and does not support wildcard/resource-level scopes. Those belong to M3.
+  capabilities, and does not support wildcard/resource-level scopes. M3 adds concrete action
+  safety, not capability-to-tool mapping.
 - M2 does not persist or recover pending HITL approvals; a crash while waiting leaves no grant
   and the request must be re-proposed. Durable approval pause/wake belongs to M6.
 - The delegation reviewer uses the configured provider; unavailable/invalid reviewer output
@@ -326,5 +361,13 @@ such.
   authentication boundary against a compromised host filesystem.
 - Spawn lineage is not persisted as an authorization input. M2 intentionally has no spawn graph;
   orchestration may record it separately, but it never derives capability from it.
+- M3 is opt-in at tool-runtime construction; a deployment must install `ActionSafetyGate` before
+  agents start. Without an action policy, the pre-M3 tool path remains for backwards compatibility.
+- M3 policy/WorkerProfile files must be supplied by the trusted host outside agent-writable
+  workspaces; M3 does not implement authentication or an OS sandbox.
+- M3 HITL is current-run/synchronous only. Durable pending approvals, the Action Ledger,
+  velocity/sequence limits, OPA/Rego, and MCP identity forwarding are later stages.
+- M3 does not map tool capabilities to M2 grants; action safety and capability acquisition are
+  separate planes.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
 

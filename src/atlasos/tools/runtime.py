@@ -13,8 +13,10 @@ import json
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from anycode.hitl.approval import ApprovalManager
+from anycode.identity.policy import PolicyEnforcer
 from anycode.mcp.bridge import discover_and_register
 from anycode.mcp.client import MCPClient
 from anycode.tools.built_in import BUILT_IN_TOOLS
@@ -29,6 +31,12 @@ from anycode.types import (
 )
 from pydantic import BaseModel, ConfigDict
 
+from atlasos.actions import (
+    ActionCatalog,
+    ActionPolicy,
+    ActionReviewer,
+    ActionSafetyGate,
+)
 from atlasos.tools.catalog import (
     CORE_TOOL_DISPATCH,
     CORE_TOOL_SEARCH,
@@ -102,6 +110,11 @@ class AtlasToolRuntime:
         embedding_model: str | None = None,
         max_results: int = 3,
         idempotency_store: Any | None = None,
+        action_policy: ActionPolicy | None = None,
+        action_catalog: ActionCatalog | None = None,
+        action_reviewer: ActionReviewer | None = None,
+        action_approval_manager: ApprovalManager | None = None,
+        action_external_policy: PolicyEnforcer | None = None,
     ) -> None:
         if max_results < 1:
             raise ValueError("max_results must be >= 1")
@@ -133,11 +146,25 @@ class AtlasToolRuntime:
             backend=search_backend,
             model_name=embedding_model,
         )
-        self._inner_executor = ToolExecutor(
+        raw_executor = ToolExecutor(
             self.registry,
             idempotency_store=idempotency_store or InMemoryToolIdempotencyStore(),
         )
-        self.executor = AtlasDispatchExecutor(self._inner_executor, self)
+        self.action_safety_gate: ActionSafetyGate | None = None
+        if action_policy is not None:
+            self.action_safety_gate = ActionSafetyGate(
+                raw_executor,
+                self.registry,
+                policy=action_policy,
+                catalog=action_catalog,
+                reviewer=action_reviewer,
+                approval_manager=action_approval_manager,
+                external_policy=action_external_policy,
+            )
+            self._inner_executor = cast(Any, self.action_safety_gate)
+        else:
+            self._inner_executor = raw_executor
+        self.executor = AtlasDispatchExecutor(cast(ToolExecutor, self._inner_executor), self)
 
     # -- tool construction --
 
