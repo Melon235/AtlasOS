@@ -1,3 +1,5 @@
+# HISTORICAL — superseded by [v2-m2-scoped-worker-migration.md](v2-m2-scoped-worker-migration.md).
+
 # V2 M2 Semantic Migration — Parent Authority → Run Authority Ceiling
 
 Baseline before correction: `b8d2f32`.

@@ -1,3 +1,5 @@
+> **HISTORICAL:** pre-correction capability authorization record; superseded by [v2-m2-workers-results.md](v2-m2-workers-results.md).
+
 # V2 M2 Formal Results — Delegated Capability Runtime
 
 > **Historical:** this record predates the M2 semantic correction. The current authority model and

@@ -421,6 +421,11 @@ class ActionSafetyGate:
             resource=evaluation.request.resource,
             digest=evaluation.request.digest,
             decision=evaluation.decision.decision,
+            task_id=evaluation.request.context.task_id,
+            worker_id=evaluation.request.context.worker_id,
+            profile_id=evaluation.request.context.profile_id,
+            parent_agent=evaluation.request.context.parent_agent,
+            operating_scope=evaluation.request.context.operating_scope,
             matched_rule=evaluation.decision.matched_rule,
             reviewer_verdict=evaluation.decision.reviewer_verdict,
             human_outcome=human_outcome,
@@ -455,16 +460,32 @@ def _action_context(context: ToolUseContext) -> ActionContext:
     execution_context = context.execution_context
     assert execution_context is not None
     attributes = execution_context.attributes
+    nested = attributes.get("atlas_worker")
+    worker = nested if isinstance(nested, dict) else {}
 
     def attr(key: str) -> str | None:
         value = attributes.get(key)
+        if value is None:
+            value = worker.get(key)
         return str(value) if value is not None else None
+
+    def worker_scope() -> str | None:
+        flat = attr("operating_scope")
+        if flat is not None:
+            return flat
+        scopes = worker.get("operating_scope")
+        if isinstance(scopes, list) and scopes:
+            return str(scopes[0])
+        return None
 
     return ActionContext(
         run_id=attr("run_id"),
         task_id=attr("task_id"),
-        worker_profile=attr("worker_profile"),
-        operating_scope=attr("operating_scope"),
+        worker_profile=attr("worker_profile") or attr("profile_id"),
+        worker_id=attr("worker_id"),
+        profile_id=attr("profile_id"),
+        parent_agent=attr("parent_agent"),
+        operating_scope=worker_scope(),
         tenant=execution_context.tenant_scope,
         classification=execution_context.classification,
         trace_id=execution_context.trace_id,

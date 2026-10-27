@@ -1,3 +1,5 @@
+# HISTORICAL — superseded by [v2-m2-scoped-worker.md](v2-m2-scoped-worker.md). The old capability authorization runtime was removed from active code.
+
 # V2 M2 —Central Capability Authorization Runtime
 
 Status: **PASS after semantic correction**; formal measurements at clean commit `bee0cee` are in

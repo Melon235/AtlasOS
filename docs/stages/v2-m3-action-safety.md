@@ -219,11 +219,11 @@ full observability.
 ## M1 / M2 boundaries
 
 M1 native surface, search/disclosure, dispatch state, MCP hidden-by-default, and provider naming
-are untouched. M2 capability/authority acquisition is a separate plane and is not used by this
-tool execution path. M3 does not enforce tool capabilities against M2 grants; it authorizes the
-concrete tool action.
+are untouched. M2 now builds scoped workers and supplies trusted worker metadata; it does not
+grant capability. M3 authorizes the concrete worker/main-agent action and does not enforce
+capability-to-tool mapping.
 
-The M3 gate is opt-in at runtime construction (`action_policy=...`), preserving V1/M1/M2 behavior
+The M3 gate is opt-in at runtime construction (`action_policy=...`), preserving V1/M1 behavior
 when not configured. A deployment enabling M3 should install it on the run's tool runtime before
 agents start.
 

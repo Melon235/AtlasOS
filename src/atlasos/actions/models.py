@@ -19,6 +19,9 @@ class ActionContext(BaseModel):
     run_id: str | None = None
     task_id: str | None = None
     worker_profile: str | None = None
+    worker_id: str | None = None
+    profile_id: str | None = None
+    parent_agent: str | None = None
     operating_scope: str | None = None
     tenant: str | None = None
     classification: str | None = None
@@ -93,6 +96,11 @@ class ActionAudit(BaseModel):
     resource: str
     digest: str
     decision: ActionDecisionValue
+    task_id: str | None = None
+    worker_id: str | None = None
+    profile_id: str | None = None
+    parent_agent: str | None = None
+    operating_scope: str | None = None
     matched_rule: str | None = None
     reviewer_verdict: ReviewerVerdict | None = None
     human_outcome: str | None = None

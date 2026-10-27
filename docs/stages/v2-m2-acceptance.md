@@ -1,119 +1,84 @@
-# V2 M2 Acceptance Matrix — Semantic Correction
+# V2 M2 Acceptance Matrix — Scoped Worker Construction
 
-Status: **PASS** for the central-authorization revision. Formal measurements are in
-[`../../experiments/results/v2-m2-correction-results.md`](../../experiments/results/v2-m2-correction-results.md).
-The old parent-authority matrix was reclassified in [semantic migration](v2-m2-semantic-migration.md).
+Status: **PASS**. Formal measurements are in
+[`../../experiments/results/v2-m2-workers-results.md`](../../experiments/results/v2-m2-workers-results.md).
+Tests: `tests/integration/test_scoped_workers.py` and
+`tests/integration/test_worker_action_safety.py`.
 
-## Central authorization — A01–A25
-
-| ID | Check | Test |
-|---|---|---|
-| A01 | run_authority_is_trusted_and_immutable | `tests/integration/test_central_authorization.py::test_run_authority_is_trusted_immutable_and_canonical` |
-| A02 | run_authority_scopes_are_canonical | same |
-| A03 | main_agent_uses_authorization_runtime | `test_main_and_child_use_same_central_runtime_without_parent_scope` |
-| A04 | child_agent_uses_same_authorization_runtime | same |
-| A05 | central_authorization_does_not_require_parent_scope | same; `test_explicit_delegation_requires_parent_capability_and_cannot_use_ceiling` |
-| A06 | low_privilege_planner_can_request_specialist_capability | same; `test_low_privilege_planner_and_independent_specialists` |
-| A07 | child_scope_must_be_within_run_authority | `test_outside_ceiling_is_hard_denied_before_all_decision_components` |
-| A08 | outside_run_authority_is_hard_denied | same |
-| A09 | outside_run_authority_does_not_call_router | same (route is None/zero calls) |
-| A10 | outside_run_authority_does_not_call_reviewer | same (reviewer inputs empty) |
-| A11 | outside_run_authority_does_not_call_policy | same (policy requests empty) |
-| A12 | outside_run_authority_does_not_call_hitl | same (approval requests empty) |
-| A13 | human_cannot_override_run_authority_ceiling | same |
-| A14 | policy_cannot_expand_run_authority_ceiling | same (policy never called) |
-| A15 | reviewer_cannot_expand_run_authority_ceiling | same; `test_central_grant_uses_principal_and_target_not_spawn_parent` (grant scopes are requested) |
-| A16 | central_grant_delegator_is_principal | `test_central_grant_uses_principal_and_target_not_spawn_parent` |
-| A17 | central_grant_target_is_requested_agent | same |
-| A18 | central_grant_does_not_encode_spawn_parent | same |
-| A19 | sibling_agent_authorities_are_independent | `test_sibling_authorities_are_independent_and_planner_does_not_gain_them` |
-| A20 | planner_does_not_gain_child_capability | same |
-| A21 | child_does_not_inherit_planner_capability_implicitly | same |
-| A22 | central_authorization_unmatched_route_adds_hitl | `test_unmatched_route_and_reviewer_escalate_but_policy_deny_is_final` |
-| A23 | reviewer_disagreement_adds_hitl | same |
-| A24 | policy_deny_remains_final | same |
-| A25 | required_policy_and_hitl_both_required | same |
-
-## Explicit delegation — D01–D08
+## M2-01..M2-25
 
 | ID | Check | Test |
 |---|---|---|
-| D01 | explicit_delegation_requires_parent_capability | `test_explicit_delegation_requires_parent_capability_and_cannot_use_ceiling` |
-| D02 | delegated_scopes_must_be_parent_subset | same |
-| D03 | explicit_delegation_chain_is_contiguous | `test_explicit_attenuation_chain_cycles_expiry_and_distinct_operation` |
-| D04 | delegation_cycle_is_rejected | same |
-| D05 | delegated_expiry_cannot_outlive_parent | same |
-| D06 | delegation_effective_scopes_are_intersection | same; `tests/unit/test_delegation_core.py::test_effective_scopes_are_intersection` |
-| D07 | explicit_delegation_does_not_use_run_ceiling_to_escalate_parent | same/subset test; central email path in the same test |
-| D08 | central_authorization_and_explicit_delegation_are_distinct_operations | same (operation fields and delegators) |
+| M2-01 | WorkerProfile frozen | `test_profile_and_assignment_are_immutable_and_reject_trusted_fields` |
+| M2-02 | unknown profile rejected | same |
+| M2-03 | Planner cannot override profile fields | same |
+| M2-04 | WorkerAssignment extra fields rejected | same |
+| M2-05 | same input produces stable rendered context | `test_renderer_is_stable_and_task_cannot_mutate_profile` |
+| M2-06 | task injection cannot mutate trusted profile | same |
+| M2-07 | child ExecutionContext distinct from parent | `test_child_context_is_distinct_and_preserves_only_run_metadata` |
+| M2-08 | principal preserved | same |
+| M2-09 | tenant preserved | same |
+| M2-10 | classification preserved | same |
+| M2-11 | trace metadata preserved | same |
+| M2-12 | worker runtime metadata present | same |
+| M2-13 | task text not duplicated into ExecutionContext | same |
+| M2-14 | base tools come from trusted profile | `test_base_tools_and_scopes_come_from_trusted_profile` |
+| M2-15 | invalid profile tool fails configuration | same |
+| M2-16 | can_delegate=false receives no delegate tool | same |
+| M2-17 | operating_scope remains coarse | same |
+| M2-18 | M2 invokes no PolicyEnforcer | `test_factory_has_no_policy_gate_hitl_or_grant_semantics` |
+| M2-19 | M2 invokes no ActionSafetyGate | same |
+| M2-20 | M2 invokes no HITL | same |
+| M2-21 | M2 creates no capability grant | same; child delegation empty in context test |
+| M2-22 | general worker works | `test_general_worker_is_a_limited_fallback` |
+| M2-23 | WorkerInstance persists | `test_worker_persists_and_resumes_with_identical_hash` |
+| M2-24 | resume hash identical | same |
+| M2-25 | parent context remains unchanged | `test_parent_context_is_unchanged_and_renderer_hash_is_stable`; context test |
 
-## Persistence / recovery — R01–R09
+## M2 × M3 integration — I01..I07
 
 | ID | Check | Test |
 |---|---|---|
-| R01 | run_authority_is_durable | `test_run_authority_and_per_agent_contexts_survive_resume_without_re_review` |
-| R02 | run_authority_hash_matches_after_resume | same |
-| R03 | per_agent_authority_is_durable | same |
-| R04 | central_grant_survives_resume | `test_crash_after_central_commit_restores_exact_context`; R01 test |
-| R05 | explicit_delegation_survives_resume | R01 test (includes issue_reader chain) |
-| R06 | committed_grant_is_not_re_reviewed_on_resume | R01 test (reviewer/policy calls zero) |
-| R07 | crash_before_commit_creates_no_capability | `test_crash_before_central_commit_creates_no_capability` |
-| R08 | crash_after_commit_restores_capability | `test_crash_after_central_commit_restores_exact_context` |
-| R09 | spawn_lineage_is_not_used_to_reconstruct_authority | R08 test; central chain has no planner |
+| I01 | research normal action | `test_i01_research_worker_normal_github_action_passes_gate` |
+| I02 | research unrelated communication | `test_i02_research_worker_external_send_requires_human` |
+| I03 | coding worker | `test_i03_coding_worker_normal_file_action_passes_gate` |
+| I04 | general worker same gate | `test_i04_general_worker_still_uses_same_gate` |
+| I05 | main vs worker | `test_i05_main_and_worker_both_pass_the_same_gate` |
+| I06 | worker recovery | `test_i06_worker_recovery_preserves_metadata_and_hash` |
+| I07 | malicious worker task | `test_i07_malicious_task_cannot_change_trusted_metadata` |
 
-## Required E2E
+## Migration classification
 
-| Scenario | Test |
-|---|---|
-| Low-privilege planner → GitHubWorker | `test_low_privilege_planner_and_independent_specialists` |
-| Independent GitHub/Email/DB specialists | same |
-| Unknown route → HITL approve/deny | `test_unmatched_route_and_reviewer_escalate_but_policy_deny_is_final`; `test_unknown_route_and_explicit_attenuation_e2e` |
-| Ceiling cannot be overridden | `test_outside_ceiling_is_hard_denied_before_all_decision_components` |
-| Explicit attenuation | `test_unknown_route_and_explicit_attenuation_e2e` |
-| Recovery | R01/R08 tests |
-
-## Retained M2 pipeline tests
-
-The deterministic Router, Reviewer, Policy/HITL, GrantIssuer internals, and M1 regression remain
-covered by:
-
-```text
-tests/unit/test_delegation_core.py
-tests/integration/test_delegation_runtime.py
-tests/integration/test_delegation_reviewer.py
-tests/integration/test_m2_acceptance.py
-tests/integration/test_central_authorization.py
-```
+See [migration](v2-m2-scoped-worker-migration.md). Old capability tests were removed or moved to
+M3; no capability runtime tests remain active.
 
 ## One-vote audit
 
 | Veto | Result |
 |---|---|
-| Central still requires parent effective scope | absent; central checks ceiling only |
-| Planner must own specialist capabilities | absent; low-privilege E2E |
-| Spawn parent treated as authority | absent; central chain is principal→target |
-| Ceiling derived from agent scopes | absent; trusted `RunAuthority` |
-| Agent/reviewer/policy/HITL can modify ceiling | absent; immutable model, no mutation API |
-| Main agent bypasses runtime | absent; same `authorize_agent()` |
-| Child uses different authorization | absent; same runtime/pipeline |
-| Central grant encodes spawn parent | absent |
-| Central/explicit conflated | absent; separate APIs and operations |
-| Explicit exceeds parent | absent; validator + D07 |
-| Global mutable capability set | absent; per-agent contexts |
-| M2 enforces tool capabilities | absent; M1 full suite unchanged |
-| Tool names used as capabilities | absent |
-| M1 semantics changed | absent |
-| Second policy/checkpoint/IAM system | absent |
-| Durable pending HITL | absent |
-| M3 started | absent |
+| Capability authorization active in M2 | no; package removed |
+| RunAuthorityCeiling active state | no |
+| GrantIssuer required for workers | no |
+| Planner chooses tools/scope/turns/delegation | no; assignment extra=forbid |
+| Planner supplies trusted context fields | no |
+| LLM generates profile/safety metadata | no; immutable Python catalog |
+| Profile loaded from agent-writable path | no file loader |
+| Child aliases parent context | no; distinct model copy |
+| Task prompt changes metadata | no; JSON untrusted section only |
+| operating_scope becomes capability list | no; coarse enum |
+| M2 performs HITL/action auth | no |
+| M2 duplicates M3 reviewer/policy | no; M3 package untouched semantically |
+| M2 creates another ToolRegistry | no |
+| M2 changes M1 disclosure | no |
+| Worker/GeneralWorker bypass M3 | no; tests use same gate |
+| Recursive delegation by default | no; can_delegate=false, no delegate tool |
+| Recovery reconstructs scope from prompt | no; stored metadata + deterministic hash |
 
 ## Reproduce
 
 ```bash
-python -m pytest \
-  tests/integration/test_central_authorization.py \
-  tests/unit/test_delegation_core.py \
-  tests/integration/test_delegation_runtime.py \
-  tests/integration/test_delegation_reviewer.py \
-  tests/integration/test_m2_acceptance.py
+python -m pytest tests/integration/test_scoped_workers.py
+python -m pytest tests/integration/test_worker_action_safety.py
+python -m pytest tests/integration/test_action_safety.py
+python -m pytest
 ```

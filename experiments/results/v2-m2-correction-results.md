@@ -1,3 +1,5 @@
+> **HISTORICAL:** capability authorization results only; superseded by [v2-m2-workers-results.md](v2-m2-workers-results.md).
+
 # V2 M2 Semantic Correction —Formal Results
 
 ## Provenance

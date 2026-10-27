@@ -17,7 +17,7 @@ grants as the tool authorization source.
 | M2 `Router` (intent × capability) | not used for tool actions; M3 has deterministic `ActionPolicy` |
 | M2 `Reviewer` structured-output skeleton | pattern reused for `ActionReviewer`; no capability authority |
 | M2 policy/HITL delegation gates | not reused as capability gates; M3 uses policy + existing AnyCode `ApprovalManager` at action level |
-| M2 `GrantIssuer` / RunAuthority / delegation scopes | not on the M3 tool path; M2 remains an isolated capability plane |
+| M2 `GrantIssuer` / RunAuthority / delegation scopes | removed by the final M2 migration; no active code or M3 dependency |
 | AnyCode hard security / approval / policy enforcer | reused; hard security remains highest authority |
 | new Atlas executor/registry/approval engine | not created |
 
@@ -44,16 +44,15 @@ The gate does not execute tools, register tools, or replace the executor.
 
 ## Old M2 capability semantics
 
-M2's capability runtime is not imported by `AtlasToolRuntime` or the M3 action gate. It remains a
-separate optional module for the prior Scoped Worker Construction stage and is not an active
-requirement of the tool execution path. M3 does not enforce `github.issue.get requires github.read`
-or any similar capability mapping; that was intentionally outside M2 and remains outside M3 V1.
+M2's old capability runtime was removed during the final M2 migration to Scoped Worker
+Construction. M3 does not enforce `github.issue.get requires github.read` or any similar
+capability mapping; that was intentionally outside M2 and remains outside M3 V1.
 
 This distinction is explicit in the code:
 
 ```text
 M1: tool discovery / dispatch
-M2: capability acquisition
+M2: scoped worker construction
 M3: concrete action safety
 ```
 
@@ -90,6 +89,6 @@ Local/external DENY is before HITL and cannot be overridden.
 
 ## Remaining historical code
 
-Historical M2 docs/tests and the isolated M2 capability module remain for provenance and
-regression. They are not required by M3 execution, and no M3 code path depends on
-`RunAuthority`, `requested_scopes`, `GrantIssuer`, or capability accumulation.
+Historical capability documentation remains for provenance only. The capability module itself was
+removed by the final M2 migration; M3 has no dependency on `RunAuthority`, `requested_scopes`,
+`GrantIssuer`, or capability accumulation.

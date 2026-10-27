@@ -120,7 +120,8 @@ Focused implementation:
 | second executor/registry/approval/policy engine | no; thin wrapper delegates to AnyCode |
 | OPA/Rego | absent |
 | durable HITL / ledger / sandbox / velocity | absent |
-| old M2 capability runtime on tool path | absent; M3 path does not import/use it |
+| old M2 capability runtime on tool path | absent; removed by final M2 migration |
+| worker metadata reaches M3 | additively verified by final M2 × M3 integration tests |
 
 ## Reproduce
 
