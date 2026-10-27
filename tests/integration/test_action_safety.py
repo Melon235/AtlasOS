@@ -8,8 +8,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from anycode.contracts.models import PolicyDecision
 from anycode.hitl.approval import ApprovalManager
 from anycode.identity.context import ExecutionContext
+from anycode.identity.policy import PolicyEnforcer, PolicyRequest
 from anycode.tools.executor import ToolExecutor
 from anycode.tools.idempotency import (
     InMemoryToolIdempotencyStore,
@@ -120,6 +122,7 @@ def make_gate(
     approval_manager: ApprovalManager | None = None,
     idempotency_store=None,
     catalog: ActionCatalog | None = None,
+    external_policy: PolicyEnforcer | None = None,
 ):
     registry = ToolRegistry()
     calls: list[dict[str, Any]] = []
@@ -151,6 +154,7 @@ def make_gate(
         reviewer=reviewer,
         approval_manager=approval_manager,
         catalog=catalog,
+        external_policy=external_policy,
     )
     return gate, calls
 
@@ -181,6 +185,21 @@ def email_tool() -> ToolDefinition:
         execute=execute,
         side_effecting=True,
     )
+
+
+class DenyPolicyAdapter:
+    async def decide(self, request: PolicyRequest) -> PolicyDecision:
+        return PolicyDecision(
+            id="external-deny",
+            run_id=request.run_id,
+            task_id=request.task_id,
+            outcome="deny",
+            policy_version="test/1",
+            reason_codes=("external_denied",),
+            correlation_id=request.correlation_id,
+            generation=request.generation,
+            attempt=request.attempt,
+        )
 
 
 class RaisingReviewer:
@@ -398,6 +417,22 @@ async def test_atlas_native_searchable_dispatch_and_batch_are_gated(tmp_path: Pa
 
 
 # M3-24/M3-25/M3-22
+async def test_external_policy_deny_is_final_before_hitl() -> None:
+    approval = ApprovalGate(True)
+    gate, calls = make_gate(
+        web_tool(),
+        policy=make_policy((allow("web.search"),)),
+        approval_manager=approval_manager(approval),
+        external_policy=PolicyEnforcer(DenyPolicyAdapter(), fail_closed=True),
+    )
+    result = await gate.execute("web.search", {"query": "x"}, make_context())
+    assert result.is_error is True
+    assert "external_denied" in result.data
+    assert calls == []
+    assert approval.requests == []
+    assert gate.audits[-1].decision == "DENY"
+
+
 async def test_main_agent_and_known_mcp_action_use_the_same_gate() -> None:
     reviewer = StaticActionReviewer("CONSISTENT")
     main_gate, main_calls = make_gate(
