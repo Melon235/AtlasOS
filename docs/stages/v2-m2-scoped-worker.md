@@ -1,6 +1,6 @@
 # V2 M2 — Scoped Worker Construction
 
-Status: **PASS**; formal measurements are in
+Status: **PASS**; formal measurements at clean verification commit `5c217f8` are in
 `experiments/results/v2-m2-workers-results.md`.
 Baseline: V1 `bd6134b`, M1 `9b0d861`, M3 `cad34ce`.
 
