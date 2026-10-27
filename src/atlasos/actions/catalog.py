@@ -16,6 +16,7 @@ class ActionMapping:
     action: str
     resource_kind: str = "tool"
     expected_scopes: frozenset[str] = frozenset()
+    hard_path: bool = False
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class ActionResolution:
     action: str
     resource: str
     expected_scopes: frozenset[str]
+    hard_path: bool = False
 
 
 _READ_SCOPES = frozenset({"research", "coding", "data", "diagnostics", "general"})
@@ -34,11 +36,11 @@ DEFAULT_MAPPINGS: tuple[ActionMapping, ...] = (
     ActionMapping("tool.search", "control.search"),
     ActionMapping("tool_search", "control.search"),
     ActionMapping("dispatch_action", "control.dispatch"),
-    ActionMapping("file_read", "filesystem.read", "filesystem", _READ_SCOPES),
-    ActionMapping("grep", "filesystem.read", "filesystem", _READ_SCOPES),
-    ActionMapping("list_files", "filesystem.read", "filesystem", _READ_SCOPES),
-    ActionMapping("file_write", "filesystem.write", "filesystem", _CODE_SCOPES),
-    ActionMapping("file_edit", "filesystem.write", "filesystem", _CODE_SCOPES),
+    ActionMapping("file_read", "filesystem.read", "filesystem", _READ_SCOPES, True),
+    ActionMapping("grep", "filesystem.read", "filesystem", _READ_SCOPES, True),
+    ActionMapping("list_files", "filesystem.read", "filesystem", _READ_SCOPES, True),
+    ActionMapping("file_write", "filesystem.write", "filesystem", _CODE_SCOPES, True),
+    ActionMapping("file_edit", "filesystem.write", "filesystem", _CODE_SCOPES, True),
     ActionMapping("bash", "shell.execute", "shell", _CODE_SCOPES),
     ActionMapping("web.search", "web.search", "web", frozenset({"research", "diagnostics"})),
     ActionMapping("email.send", "communication.send", "email", _COMM_SCOPES),
@@ -72,6 +74,16 @@ def _resolve_resource(kind: str, tool_name: str, arguments: dict[str, Any]) -> s
         repo = _first(arguments, "repo", "repository")
         issue = _first(arguments, "issue", "issue_number")
         return f"github:{repo}:{issue}" if issue != "<unknown>" else f"github:{repo}"
+    if kind == "github_issue":
+        return f"github:repo:{_first(arguments, 'repo', 'repository')}"
+    if kind == "logs":
+        return f"logs:{_first(arguments, 'service')}:{_first(arguments, 'release')}"
+    if kind == "docs":
+        return f"docs:{_first(arguments, 'query')}"
+    if kind == "code":
+        return f"code:{_first(arguments, 'path')}"
+    if kind == "tests":
+        return f"tests:{_first(arguments, 'suite', 'command')}"
     if kind == "database":
         database = _first(arguments, "database", "db")
         table = _first(arguments, "table")
@@ -95,9 +107,11 @@ class ActionCatalog:
                 action="unknown",
                 resource=f"tool:{tool_name}",
                 expected_scopes=frozenset(),
+                hard_path=False,
             )
         return ActionResolution(
             action=mapping.action,
             resource=_resolve_resource(mapping.resource_kind, tool_name, arguments),
             expected_scopes=mapping.expected_scopes,
+            hard_path=mapping.hard_path,
         )

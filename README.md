@@ -57,6 +57,7 @@ recovery preserves unfinished-task context.
 - [**V2 M3 migration**](docs/stages/v2-m3-migration.md)
 - [**V2 M3 acceptance matrix**](docs/stages/v2-m3-acceptance.md)
 - [**V2 M3 formal results**](experiments/results/v2-m3-results.md)
+- [**M1–M3 control-plane E2E**](docs/stages/control-plane-e2e.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 

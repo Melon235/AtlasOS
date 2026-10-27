@@ -43,8 +43,6 @@ from atlasos.actions.reviewer import ActionReviewer
 
 logger = logging.getLogger(__name__)
 
-_FILE_TOOLS = frozenset({"file_read", "file_write", "file_edit", "grep", "list_files"})
-
 
 @dataclass(frozen=True)
 class _Evaluation:
@@ -107,7 +105,8 @@ class ActionSafetyGate:
         canonical_arguments = validated.model_dump(mode="json")
 
         try:
-            self._hard_precheck(tool_name, canonical_arguments, context)
+            resolution = self.catalog.resolve(tool_name, canonical_arguments)
+            self._hard_precheck(tool_name, canonical_arguments, context, resolution)
         except ToolSecurityError as error:
             return _failure(f"action_hard_denied: {safe_exception_message(error)}")
 
@@ -347,6 +346,8 @@ class ActionSafetyGate:
             "call_id": evaluation.request.call_id,
             "digest": evaluation.request.digest,
             "tool_name": evaluation.request.tool_name,
+            "agent": evaluation.request.agent,
+            "principal": evaluation.request.principal,
             "action": evaluation.request.action,
             "resource": evaluation.request.resource,
             "canonical_arguments": evaluation.request.canonical_arguments,
@@ -395,9 +396,13 @@ class ActionSafetyGate:
         )
 
     def _hard_precheck(
-        self, tool_name: str, arguments: dict[str, Any], context: ToolUseContext
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        context: ToolUseContext,
+        resolution,
     ) -> None:
-        if tool_name in _FILE_TOOLS:
+        if resolution.hard_path:
             path = arguments.get("path")
             if path is not None:
                 resolve_tool_path(str(path), context)
