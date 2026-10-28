@@ -6,7 +6,7 @@
 starting HEAD:          3abcaf7
 implementation commit:  450c4bb
 verification commit:    450c4bb (git_dirty=false)
-final docs commit:      pending
+final docs commit:      bd64464
 formal record:          experiments/runs/v2-m4-durable-actions.jsonl
 ```
 
@@ -14,7 +14,7 @@ formal record:          experiments/runs/v2-m4-durable-actions.jsonl
 
 ```text
 ruff check .             All checks passed
-ruff format --check .    160 files already formatted
+ruff format --check .    161 files already formatted
 pyright                  0 errors, 0 warnings, 0 informations
 pytest                   204 passed
 M4 integration:          9 passed
