@@ -70,13 +70,15 @@ class AtlasDispatchExecutor:
         self,
         calls: list[BatchToolCall],
         context: ToolUseContext,
+        *,
+        idempotency_keys: dict[str, str] | None = None,
     ) -> dict[str, ToolResult]:
         async def run(call: BatchToolCall) -> tuple[str, ToolResult]:
             result = await self.execute(
                 call.name,
                 call.input,
                 context,
-                idempotency_key=call.id,
+                idempotency_key=(idempotency_keys or {}).get(call.id, call.id),
             )
             return call.id, result
 

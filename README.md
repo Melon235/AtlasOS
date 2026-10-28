@@ -64,6 +64,8 @@ recovery preserves unfinished-task context.
 - [**V2 M4 idempotency guarantees**](docs/stages/v2-m4-idempotency.md)
 - [**V2 M4 acceptance matrix**](docs/stages/v2-m4-acceptance.md)
 - [**V2 M4 formal results**](experiments/results/v2-m4-results.md)
+- [**M1–M4 reliability experiment**](docs/stages/m1-m4-reliability.md)
+- [**M1–M4 reliability results**](experiments/results/v2-m1-m4-reliability-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -277,6 +279,9 @@ uv run python examples/m1_m2_m3_control_plane_eval.py
 
 # V2 M4 durable action evaluation (clean tree required for formal record)
 uv run python examples/m4_durable_action_eval.py
+
+# M1–M4 crash/replay/idempotency reliability evaluation (clean tree required)
+uv run python examples/m1_m4_failure_injection_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
