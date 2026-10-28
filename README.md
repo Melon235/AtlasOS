@@ -59,6 +59,11 @@ recovery preserves unfinished-task context.
 - [**V2 M3 formal results**](experiments/results/v2-m3-results.md)
 - [**M1–M3 control-plane E2E**](docs/stages/control-plane-e2e.md)
 - [**M1–M3 control-plane results**](experiments/results/control-plane-results.md)
+- [**V2 M4 durable action ledger**](docs/stages/v2-m4-durable-ledger.md)
+- [**V2 M4 failure model**](docs/stages/v2-m4-failure-model.md)
+- [**V2 M4 idempotency guarantees**](docs/stages/v2-m4-idempotency.md)
+- [**V2 M4 acceptance matrix**](docs/stages/v2-m4-acceptance.md)
+- [**V2 M4 formal results**](experiments/results/v2-m4-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -144,8 +149,35 @@ policy DENY, and external policy DENY cannot be overridden by reviewer or human 
 
 M3 is opt-in at runtime construction (`AtlasToolRuntime(action_policy=...)`) to preserve V1/M1/M2
 behavior. It does not add a second executor, registry, approval engine, policy engine, OPA/Rego,
-sandbox, durable ledger, or durable HITL. See [design](docs/stages/v2-m3-action-safety.md),
+or sandbox. See [design](docs/stages/v2-m3-action-safety.md),
 [migration](docs/stages/v2-m3-migration.md), and [acceptance](docs/stages/v2-m3-acceptance.md).
+
+## V2 M4 — Durable Action Ledger & Idempotency
+
+**M4 records and recovers execution; AnyCode owns deduplication.** It answers whether an
+authorized side effect has already executed, can be safely replayed, conflicts, or is uncertain
+after a crash.
+
+```text
+M3 authorized final input
+→ M4 ledger IN_PROGRESS
+→ AnyCode IdempotencyStore.claim()
+→ AnyCode ToolExecutor executes
+→ AnyCode complete()
+→ M4 ledger COMPLETED / UNCERTAIN
+```
+
+The ledger stores lifecycle metadata and digests, not raw arguments, results, secrets, or email
+bodies. `action_id`, `attempt_id`, trusted idempotency key, and M3 call identity remain separate.
+M4 adds no claim engine, replay lock, replacement executor, or second registry. M3 DENY/HITL
+reject consume no claim and produce no execution record.
+
+Only side-effecting tools enter M4 semantics. Safe replay is AnyCode's; M4 never caches read
+results. Provider-enforced idempotency can be effectively-once where the provider honors the same
+key; local-only effects can become UNCERTAIN after a crash and never auto-retry.
+
+See [design](docs/stages/v2-m4-durable-ledger.md), [failure model](docs/stages/v2-m4-failure-model.md),
+[idempotency](docs/stages/v2-m4-idempotency.md), and [acceptance](docs/stages/v2-m4-acceptance.md).
 
 ## Headline results
 
@@ -242,6 +274,9 @@ uv run python examples/m3_action_safety_eval.py
 
 # M1–M3 control-plane reliability evaluation (clean tree required for formal record)
 uv run python examples/m1_m2_m3_control_plane_eval.py
+
+# V2 M4 durable action evaluation (clean tree required for formal record)
+uv run python examples/m4_durable_action_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -362,9 +397,17 @@ such.
   agents start. Without an action policy, the pre-M3 tool path remains for backwards compatibility.
 - M3 policy/WorkerProfile files must be supplied by the trusted host outside agent-writable
   workspaces; M3 does not implement authentication or an OS sandbox.
-- M3 HITL is current-run/synchronous only. Durable pending approvals, the Action Ledger,
-  velocity/sequence limits, OPA/Rego, and MCP identity forwarding are later stages.
+- M3 HITL is current-run/synchronous only. Durable pending approvals and velocity/sequence limits
+  are later stages; M4 adds the durable execution ledger, not durable approval state.
 - M3 does not map tool capabilities to M2 worker profiles; action safety and worker construction
   are separate planes.
+- M4 does not claim exactly-once execution. Local-only external effects can be UNCERTAIN after a
+  crash; UNCERTAIN never auto-retries.
+- M4 ledger and AnyCode idempotency store are separate SQLite stores without 2PC. Recovery and
+  reconciliation handle short-lived inconsistency.
+- AnyCode lacks a universal public idempotency inspection API; M4 fails closed to UNCERTAIN when
+  no safe observation exists instead of querying private tables.
+- M4 does not implement real provider idempotency adapters; it defines the trusted key contract
+  and deterministic fakes.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
 

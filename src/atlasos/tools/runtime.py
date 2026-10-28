@@ -11,6 +11,7 @@ import contextlib
 import hashlib
 import json
 import time
+import uuid
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
@@ -37,6 +38,7 @@ from atlasos.actions import (
     ActionReviewer,
     ActionSafetyGate,
 )
+from atlasos.ledger import ActionLedgerStore, DurableActionBridge
 from atlasos.tools.catalog import (
     CORE_TOOL_DISPATCH,
     CORE_TOOL_SEARCH,
@@ -115,10 +117,17 @@ class AtlasToolRuntime:
         action_reviewer: ActionReviewer | None = None,
         action_approval_manager: ApprovalManager | None = None,
         action_external_policy: PolicyEnforcer | None = None,
+        action_ledger: ActionLedgerStore | None = None,
+        runtime_instance_id: str | None = None,
     ) -> None:
+        if action_ledger is not None and action_policy is None:
+            raise ValueError("action_ledger requires action_policy; M4 runs only after M3")
         if max_results < 1:
             raise ValueError("max_results must be >= 1")
         self.run_id = run_id
+        self.runtime_instance_id = runtime_instance_id or f"runtime-{uuid.uuid4()}"
+        self.action_ledger = action_ledger
+        self.durable_bridge: DurableActionBridge | None = None
         self.max_results = max_results
         self.registry = ProviderSafeToolRegistry()
         self.state_store = RunToolStateStore(state_path)
@@ -150,10 +159,20 @@ class AtlasToolRuntime:
             self.registry,
             idempotency_store=idempotency_store or InMemoryToolIdempotencyStore(),
         )
+        base_executor: Any = raw_executor
+        if action_ledger is not None:
+            self.durable_bridge = DurableActionBridge(
+                raw_executor,
+                self.registry,
+                action_ledger,
+                runtime_instance_id=self.runtime_instance_id,
+                catalog=action_catalog,
+            )
+            base_executor = self.durable_bridge
         self.action_safety_gate: ActionSafetyGate | None = None
         if action_policy is not None:
             self.action_safety_gate = ActionSafetyGate(
-                raw_executor,
+                base_executor,
                 self.registry,
                 policy=action_policy,
                 catalog=action_catalog,
@@ -163,7 +182,7 @@ class AtlasToolRuntime:
             )
             self._inner_executor = cast(Any, self.action_safety_gate)
         else:
-            self._inner_executor = raw_executor
+            self._inner_executor = base_executor
         self.executor = AtlasDispatchExecutor(cast(ToolExecutor, self._inner_executor), self)
 
     # -- tool construction --
