@@ -34,6 +34,7 @@ class RecoveryClassifier:
         ):
             return RecoveryClassification(state="ACTIVE", reason="current_runtime_instance")
 
+        unresolved_seen = False
         if inspector is not None and idempotency_key is not None:
             try:
                 inspection = await inspector.inspect(record.tool_name, idempotency_key)
@@ -47,16 +48,13 @@ class RecoveryClassifier:
                         reason="anycode_completed_result",
                     )
                 if inspection.status == "unresolved":
+                    unresolved_seen = True
+                else:
                     return RecoveryClassification(
-                        state="UNCERTAIN",
-                        completion_kind="BLOCKED_IN_PROGRESS",
-                        reason="anycode_unresolved_claim",
+                        state="RECONCILABLE",
+                        reason="no_anycode_claim",
+                        retry_allowed=True,
                     )
-                return RecoveryClassification(
-                    state="RECONCILABLE",
-                    reason="no_anycode_claim",
-                    retry_allowed=True,
-                )
 
         if reconciler is not None:
             result = await reconciler.reconcile(record)
@@ -74,6 +72,12 @@ class RecoveryClassifier:
                 )
             return RecoveryClassification(state="UNCERTAIN", reason="reconciler_still_unknown")
 
+        if unresolved_seen:
+            return RecoveryClassification(
+                state="UNCERTAIN",
+                completion_kind="BLOCKED_IN_PROGRESS",
+                reason="anycode_unresolved_claim",
+            )
         return RecoveryClassification(state="UNCERTAIN", reason="no_safe_observation")
 
 

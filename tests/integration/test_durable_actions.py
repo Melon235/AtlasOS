@@ -87,6 +87,7 @@ class CountingStore(InMemoryToolIdempotencyStore):
         self.claims = 0
         self.completes = 0
         self.fail_complete = False
+        self.crash_complete = False
 
     async def claim(self, tool_name: str, key: str, input_fingerprint: str):
         self.claims += 1
@@ -94,6 +95,8 @@ class CountingStore(InMemoryToolIdempotencyStore):
 
     async def complete(self, tool_name: str, key: str, result: ToolResult) -> None:
         self.completes += 1
+        if self.crash_complete:
+            raise InjectedCrash("crash before complete")
         if self.fail_complete:
             raise RuntimeError("complete store failure")
         await super().complete(tool_name, key, result)
@@ -169,6 +172,11 @@ class Fixture:
             self.calls["crash_before"] = self.calls.get("crash_before", 0) + 1
             raise InjectedCrash("crash after claim before tool")
 
+        async def provider_crash(validated: EmailInput, context: ToolUseContext) -> ToolResult:
+            self.calls["provider_crash"] = self.calls.get("provider_crash", 0) + 1
+            self.provider.send(context.idempotency_key or "", validated.model_dump())
+            raise InjectedCrash("crash after provider effect")
+
         async def non_idempotent_failure(
             validated: EmailInput, context: ToolUseContext
         ) -> ToolResult:
@@ -210,6 +218,15 @@ class Fixture:
             )
         )
 
+        self.registry.register(
+            ToolDefinition(
+                name="email.provider_crash",
+                description="provider crash",
+                input_model=EmailInput,
+                execute=provider_crash,
+                side_effecting=True,
+            )
+        )
         self.registry.register(
             ToolDefinition(
                 name="email.nonidem",
@@ -374,7 +391,15 @@ async def test_m4_18_to_24_crash_windows(tmp_path: Path) -> None:
     assert retry.is_error is True
     assert fixture3.non_idempotent.effects == 1
 
-    # C4/C5: after Tool returns before ledger completion.
+    # C4: Tool returned but AnyCode complete was not durably recorded.
+    fixture_c4 = Fixture(tmp_path / "c4")
+    fixture_c4.store.crash_complete = True
+    with pytest.raises(InjectedCrash):
+        await _send(fixture_c4.bridge(), fixture_c4, "c4")
+    assert fixture_c4.store.completes == 1
+    assert fixture_c4.ledger.list()[-1].state == "UNCERTAIN"
+
+    # C5: AnyCode complete succeeds, then ledger finalization crashes.
     def crash_after_execute() -> None:
         raise InjectedCrash("after execute")
 
@@ -459,6 +484,33 @@ async def test_m4_31_to_33_provider_idempotency(tmp_path: Path) -> None:
     conflict = provider.send("provider-key", {"to": "a", "body": "y"})
     assert conflict.is_error is True
     assert provider.effects == 1
+
+    # A provider-backed crash, then a fresh local retry: provider key prevents a
+    # duplicate external effect even though the local claim is new.
+    crashed = Fixture(tmp_path / "provider-crash")
+    with pytest.raises(InjectedCrash):
+        await crashed.bridge().execute(
+            "email.provider_crash",
+            {"to": "ops@example.test", "body": "x"},
+            crashed.context,
+            idempotency_key="provider-crash-key",
+        )
+    assert crashed.provider.effects == 1
+    fresh = DurableActionBridge(
+        ToolExecutor(crashed.registry, idempotency_store=CountingStore()),
+        crashed.registry,
+        crashed.ledger,
+        runtime_instance_id="runtime-fresh",
+        catalog=ActionCatalog(),
+    )
+    with pytest.raises(InjectedCrash):
+        await fresh.execute(
+            "email.provider_crash",
+            {"to": "ops@example.test", "body": "x"},
+            crashed.context,
+            idempotency_key="provider-crash-key",
+        )
+    assert crashed.provider.effects == 1
 
 
 async def test_m4_34_to_39_recovery_and_non_idempotent(tmp_path: Path) -> None:
