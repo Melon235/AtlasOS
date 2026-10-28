@@ -97,11 +97,12 @@ timestamp before writing the record. Both runs were identical.
 - two independent logical actions with identical args used different action IDs and both executed;
 - batch entries had independent identities/outcomes; duplicate and conflict used an explicitly
   supplied trusted logical key, while the M3-denied entry had no claim;
-- no stale claim deletion and no TTL-based retry.
+- no stale claim deletion and no TTL-based retry; aged unresolved records (up to simulated 30 days) remained unresolved.
 
 ### Failure injection
 
 ```text
+F0 M3 approval crash     no ledger/claim/effect; pending not restored
 F1 before ledger         no ledger/claim/effect
 F2 after ledger          IN_PROGRESS, no claim; retry still claimed
 F3 after claim           UNCERTAIN; no effect; retry in_progress

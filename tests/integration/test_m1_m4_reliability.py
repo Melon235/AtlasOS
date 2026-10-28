@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -834,7 +834,8 @@ async def test_restart_pending_hitl_and_modified_input(tmp_path: Path) -> None:
     assert restarted.provider.actual_side_effects == 1
     assert restarted.ledger.list()[-1].completion_kind == "REPLAYED"
 
-    # Pending approval is not durable: crash during approval, restart, still denied.
+    # F0: crash before M3 approval completes; no claim/ledger/effect.
+    # Pending approval is not durable: restart still denies.
     pending = Harness(tmp_path / "pending", approval=ScriptedApprovalGate())
     pending.approval.mode = "crash"  # type: ignore[union-attr]
     await pending.search("send email notification")
@@ -938,6 +939,23 @@ async def test_recovery_repair_stale_uncertain_and_reconciler(tmp_path: Path) ->
         )
     uncertain = h2.ledger.list()[-1]
     assert uncertain.state == "UNCERTAIN"
+    # Experiment R: aging never converts an unresolved action into a safe retry.
+    aged = uncertain.model_copy(
+        update={
+            "created_at": uncertain.created_at - timedelta(days=30),
+            "updated_at": uncertain.updated_at - timedelta(days=30),
+        }
+    )
+    h2.ledger.update(aged)
+    for days in (1, 60, 1440, 43200):
+        aged = aged.model_copy(
+            update={
+                "created_at": aged.created_at + timedelta(minutes=days),
+                "updated_at": aged.updated_at + timedelta(minutes=days),
+            }
+        )
+        h2.ledger.update(aged)
+        assert h2.ledger.get(uncertain.action_id, uncertain.attempt_id) is not None
     still = await RecoveryClassifier().classify(
         uncertain,
         idempotency_key="uncertain",

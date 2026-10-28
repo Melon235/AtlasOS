@@ -45,7 +45,7 @@ provider is used.
 | M3 | DENY and HITL reject occur before AnyCode claim/M4 record; modified input reauthorizes |
 | M4 | normal execution, replay, conflict, read freshness, provider/local uncertainty |
 | Concurrency | 50 deterministic two-caller races; exactly one provider effect per race |
-| Failure injection | F1 before ledger; F2 after ledger before claim; F3 after claim before Tool; F4 after external effect; F5 complete failure; F6 complete-before-ledger; F7 terminal |
+| Failure injection | F0 before M3 approval completes; F1 before ledger; F2 after ledger before claim; F3 after claim before Tool; F4 after external effect; F5 complete failure; F6 complete-before-ledger; F7 terminal |
 | Recovery | completed AnyCode result repairs ledger; unresolved/uncertain never auto-retries |
 | Restart | M1 disclosure, M2 worker, M4 ledger and completed action replay survive runtime restart |
 | Pending HITL | crashed approval is not restored as approved; no claim/effect after restart |
@@ -56,6 +56,7 @@ provider is used.
 ## Failure model mapping
 
 ```text
+F0  crash during M3 approval  no ledger, no claim, no effect; pending approval not restored
 F1  before_record hook        no ledger, no claim, no effect
 F2  after_record hook         ledger IN_PROGRESS, no claim; retry must claim
 F3  Tool crash before effect  claim unresolved, ledger UNCERTAIN
@@ -78,7 +79,7 @@ The formal evaluator runs the full scenario twice and compares all metrics excep
   prove cross-process AnyCode SQLite durability here.
 - Durable HITL is M6; pending approval is intentionally not restored.
 - No real provider adapters; provider idempotency is deterministic fake behavior.
-- No TTL/pruning logic; stale unresolved claims are never auto-deleted.
+- No TTL/pruning logic; aged unresolved claims (tested with timestamps advanced by minutes through 30 days) remain unresolved and are never auto-deleted.
 - `CONFIRMED_NOT_EXECUTED` cannot safely clear an unresolved AnyCode claim; this remains a
   documented limitation rather than a deletion.
 - Reconciliation is an interface + fake implementation, not a production external system.
