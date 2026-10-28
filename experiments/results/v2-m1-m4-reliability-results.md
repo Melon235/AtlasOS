@@ -4,8 +4,8 @@
 
 ```text
 starting HEAD:         850a14f
-experiment commit:     8a179d6
-verification commit:   8a179d6 (git_dirty=false)
+experiment commit:     d429565
+verification commit:   d429565 (git_dirty=false)
 formal record:         experiments/runs/v2-m1-m4-reliability.jsonl
 ```
 
