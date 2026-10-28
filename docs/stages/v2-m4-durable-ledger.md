@@ -1,6 +1,6 @@
 # V2 M4 — Durable Action Ledger & Idempotency
 
-Status: **PASS**. Baseline: control-plane final `3abcaf7`; formal metrics at `450c4bb` are in
+Status: **PASS**. Baseline: control-plane final `3abcaf7`; formal metrics at `fe1d13e` are in
 [`v2-m4-results.md`](../../experiments/results/v2-m4-results.md).
 
 ```text
