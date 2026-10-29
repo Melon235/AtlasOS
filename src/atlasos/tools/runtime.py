@@ -39,6 +39,7 @@ from atlasos.actions import (
     ActionSafetyGate,
 )
 from atlasos.ledger import ActionLedgerStore, DurableActionBridge
+from atlasos.sandbox.tools import SandboxWorkspaceTools
 from atlasos.tools.catalog import (
     CORE_TOOL_DISPATCH,
     CORE_TOOL_SEARCH,
@@ -119,6 +120,7 @@ class AtlasToolRuntime:
         action_external_policy: PolicyEnforcer | None = None,
         action_ledger: ActionLedgerStore | None = None,
         runtime_instance_id: str | None = None,
+        sandbox_tools: SandboxWorkspaceTools | None = None,
     ) -> None:
         if action_ledger is not None and action_policy is None:
             raise ValueError("action_ledger requires action_policy; M4 runs only after M3")
@@ -143,6 +145,8 @@ class AtlasToolRuntime:
 
         atlas_tools = self._build_atlas_tools()
         core_defs = {tool.name: tool for tool in BUILT_IN_TOOLS}
+        if sandbox_tools is not None:
+            core_defs.update({tool.name: tool for tool in sandbox_tools.tool_definitions()})
         core_defs.update({tool.name: tool for tool in atlas_tools})
         self.catalog = ToolCatalog(core_tool_names=frozenset(core_defs))
         for name in sorted(core_defs):

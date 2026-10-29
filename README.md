@@ -68,6 +68,8 @@ recovery preserves unfinished-task context.
 - [**M1–M4 reliability results**](experiments/results/v2-m1-m4-reliability-results.md)
 - [**M4.1 SQLite process durability**](docs/stages/m4-sqlite-process-durability.md)
 - [**M4.1 SQLite process results**](experiments/results/v2-m4-sqlite-process-results.md)
+- [**V2 M5 project sandbox**](docs/stages/m5-project-sandbox.md)
+- [**V2 M5 formal results**](experiments/results/v2-m5-project-sandbox-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -184,6 +186,30 @@ SQLite idempotency is verified across independent process boundaries (M4.1).
 See [design](docs/stages/v2-m4-durable-ledger.md), [failure model](docs/stages/v2-m4-failure-model.md),
 [idempotency](docs/stages/v2-m4-idempotency.md), and [acceptance](docs/stages/v2-m4-acceptance.md).
 
+## V2 M5 — Project Sandbox Binding
+
+**M5 binds one project task to one AnyCode-managed sandbox; it does not implement a second sandbox
+runtime.** The same six logical workspace tools (`file_read`, `file_write`, `file_edit`, `grep`,
+`list_files`, `bash`) keep one name/schema/registry but route their physical backend to the same
+`SandboxHandle` at `/workspace/project`.
+
+```text
+trusted task config + clean Git repo
+→ one-task single-flight binding
+→ AnyCode SandboxProvider.create
+→ Git bundle clone inside sandbox
+→ M3 authorizes every logical tool call
+→ M4 owns side-effect idempotency
+→ ToolDefinition.execute → sandbox
+```
+
+Network is fixed to `none`, secrets to `{}`, image/provider come only from trusted config. A lost,
+cancelled, dirty, oversized, or unprovisionable sandbox fails closed: no host fallback, no silent
+recreation, no old M4 history continued on a new filesystem. Patches are exported as untrusted
+artifacts and never auto-applied to Host.
+
+See [design](docs/stages/m5-project-sandbox.md).
+
 ## Headline results
 
 Measured from clean Stage 6 commits `a527796` (E1–E4) and `35b5774` (E5); details and caveats in
@@ -288,6 +314,9 @@ uv run python examples/m1_m4_failure_injection_eval.py
 
 # M4.1 real SQLite cross-process idempotency verification (clean tree required)
 uv run python examples/m4_sqlite_process_eval.py
+
+# V2 M5 project sandbox evaluation (clean tree required for formal record)
+uv run python examples/m5_project_sandbox_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
@@ -420,5 +449,10 @@ such.
   no safe observation exists instead of querying private tables.
 - M4 does not implement real provider idempotency adapters; it defines the trusted key contract
   and deterministic fakes.
+- M5 v1 formal PASS uses a deterministic local FakeSandboxProvider; live Modal/other cloud
+  backends are optional smoke tests and are not required for the record.
+- M5 v1 fixes network to none and injects no secrets; no domain allowlist or credential proxy.
+- M5 v1 has no automatic sandbox resume/snapshot restore/workspace replay and no patch apply.
+- A provisioning crash may leave an orphan remote sandbox; this is documented operational debt.
 - Multi-node scheduling, self-hosted serving, and KV prefetch are explicitly out of V1 scope.
 
