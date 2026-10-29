@@ -73,10 +73,9 @@ The formal evaluator runs the full scenario twice and compares all metrics excep
 
 ## Limitations
 
-- AnyCode `SQLiteToolIdempotencyStore` requires the optional `anycode-py[persistence]`
-  (`aiosqlite`) extra, which is not installed in this environment. The restart experiment shares
-  one AnyCode in-memory store across runtime instances and persists M1/M2/M4 sidecars; it does not
-  prove cross-process AnyCode SQLite durability here.
+- This reliability run shared one AnyCode in-memory store across runtime instances. Cross-process
+  AnyCode SQLite durability is separately verified in
+  [M4.1](m4-sqlite-process-durability.md) with real independent Python processes.
 - Durable HITL is M6; pending approval is intentionally not restored.
 - No real provider adapters; provider idempotency is deterministic fake behavior.
 - No TTL/pruning logic; aged unresolved claims (tested with timestamps advanced by minutes through 30 days) remain unresolved and are never auto-deleted.

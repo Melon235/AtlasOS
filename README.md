@@ -66,6 +66,8 @@ recovery preserves unfinished-task context.
 - [**V2 M4 formal results**](experiments/results/v2-m4-results.md)
 - [**M1–M4 reliability experiment**](docs/stages/m1-m4-reliability.md)
 - [**M1–M4 reliability results**](experiments/results/v2-m1-m4-reliability-results.md)
+- [**M4.1 SQLite process durability**](docs/stages/m4-sqlite-process-durability.md)
+- [**M4.1 SQLite process results**](experiments/results/v2-m4-sqlite-process-results.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 
@@ -176,7 +178,8 @@ reject consume no claim and produce no execution record.
 
 Only side-effecting tools enter M4 semantics. Safe replay is AnyCode's; M4 never caches read
 results. Provider-enforced idempotency can be effectively-once where the provider honors the same
-key; local-only effects can become UNCERTAIN after a crash and never auto-retry.
+key; local-only effects can become UNCERTAIN after a crash and never auto-retry. Restart-safe
+SQLite idempotency is verified across independent process boundaries (M4.1).
 
 See [design](docs/stages/v2-m4-durable-ledger.md), [failure model](docs/stages/v2-m4-failure-model.md),
 [idempotency](docs/stages/v2-m4-idempotency.md), and [acceptance](docs/stages/v2-m4-acceptance.md).
@@ -282,6 +285,9 @@ uv run python examples/m4_durable_action_eval.py
 
 # M1–M4 crash/replay/idempotency reliability evaluation (clean tree required)
 uv run python examples/m1_m4_failure_injection_eval.py
+
+# M4.1 real SQLite cross-process idempotency verification (clean tree required)
+uv run python examples/m4_sqlite_process_eval.py
 ```
 
 Every run appends one JSON object to `experiments/runs/runs.jsonl` with task outcomes,
