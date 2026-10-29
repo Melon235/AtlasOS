@@ -173,7 +173,7 @@ the only sandbox-bound surface. No alternate `filesystem.*`, `shell.*`, `python.
 - M5 v1 uses a deterministic local FakeSandboxProvider for formal PASS; no real cloud provider is
   required.
 - Network is fixed to `none`; domain allowlists and secret injection are out of scope.
-- No automatic resume/snapshot/workspace replay after runtime restart.
+- No automatic resume/snapshot/workspace replay after runtime restart. Binding metadata is runtime-scoped in v1; a restarted runtime cannot prove it still owns the same sandbox and fails closed rather than recreating.
 - No patch apply.
 - Orphan remote resources after a crash between provider create and durable handle recording are
   documented operational debt.

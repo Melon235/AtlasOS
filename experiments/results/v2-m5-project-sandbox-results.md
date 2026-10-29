@@ -90,7 +90,7 @@ Control plane:            5 passed
   smoke tests and are not required.
 - M5 v1 fixes network=none, secrets={}, workspace=/workspace/project; no allowlists or credential
   proxy.
-- No automatic resume/snapshot restore/workspace replay or patch apply.
+- No automatic resume/snapshot restore/workspace replay or patch apply. Binding metadata is runtime-scoped in v1; restart fails closed rather than recreating a sandbox.
 - Possible orphan remote sandbox after a crash between provider create and durable handle record is
   documented operational debt.
 - Bash is constrained by `cwd`, not by a complete command AST; sandbox isolation remains the
