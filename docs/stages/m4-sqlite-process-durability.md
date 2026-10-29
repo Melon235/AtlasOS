@@ -1,6 +1,8 @@
 # M4.1 — Real SQLite Cross-Process Durability
 
-Status: verification only. No M4 redesign and no production semantic change.
+Status: **PASS**. Verification only; no M4 redesign and no production semantic change.
+Formal metrics at `a0f2f55` are in
+[`v2-m4-sqlite-process-results.md`](../../experiments/results/v2-m4-sqlite-process-results.md).
 
 ```text
 This verification uses real independent Python processes
