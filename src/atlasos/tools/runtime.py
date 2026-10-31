@@ -37,9 +37,19 @@ from atlasos.actions import (
     ActionPolicy,
     ActionReviewer,
     ActionSafetyGate,
+    infer_tool_source,
 )
+from atlasos.actions import (
+    tool_binding_digest as compute_tool_binding_digest,
+)
+from atlasos.approvals.coordinator import ApprovalCoordinator
+from atlasos.approvals.store import SQLiteApprovalStore
 from atlasos.ledger import ActionLedgerStore, DurableActionBridge
 from atlasos.sandbox.tools import SandboxWorkspaceTools
+from atlasos.suspension.batch import BatchCall, BatchPreflight
+from atlasos.suspension.coordinator import RuntimeSuspensionCoordinator
+from atlasos.suspension.metrics import M6Metrics
+from atlasos.suspension.store import SQLiteSuspensionStore
 from atlasos.tools.catalog import (
     CORE_TOOL_DISPATCH,
     CORE_TOOL_SEARCH,
@@ -121,9 +131,20 @@ class AtlasToolRuntime:
         action_ledger: ActionLedgerStore | None = None,
         runtime_instance_id: str | None = None,
         sandbox_tools: SandboxWorkspaceTools | None = None,
+        suspension_store: SQLiteSuspensionStore | None = None,
+        approval_store: SQLiteApprovalStore | None = None,
     ) -> None:
         if action_ledger is not None and action_policy is None:
             raise ValueError("action_ledger requires action_policy; M4 runs only after M3")
+        m6_enabled = suspension_store is not None or approval_store is not None
+        if m6_enabled and (suspension_store is None or approval_store is None):
+            raise ValueError("M6 requires both suspension_store and approval_store")
+        if m6_enabled and action_policy is None:
+            raise ValueError("M6 requires action_policy; M6 runs only with M3")
+        if m6_enabled and action_ledger is None:
+            raise ValueError("M6 requires action_ledger; M6 settlement requires M4")
+        if m6_enabled and action_approval_manager is not None:
+            raise ValueError("M6 replaces current-run HITL; action_approval_manager must be None")
         if max_results < 1:
             raise ValueError("max_results must be >= 1")
         self.run_id = run_id
@@ -142,17 +163,31 @@ class AtlasToolRuntime:
         self._dispatch_observations: list[ToolDispatchObservation] = []
         self._mcp_clients: dict[str, MCPClient] = {}
         self._mcp_servers: list[str] = []
+        self._sandbox_tools = sandbox_tools
+        self.suspension_store = suspension_store
+        self.approval_store = approval_store
+        self.m6_metrics = M6Metrics() if m6_enabled else None
+        self.approval_coordinator: ApprovalCoordinator | None = None
+        self.suspension_coordinator: RuntimeSuspensionCoordinator | None = None
 
+        self._tool_sources: dict[str, str] = {}
         atlas_tools = self._build_atlas_tools()
         core_defs = {tool.name: tool for tool in BUILT_IN_TOOLS}
+        self._tool_sources.update({tool.name: "anycode:builtin" for tool in BUILT_IN_TOOLS})
         if sandbox_tools is not None:
-            core_defs.update({tool.name: tool for tool in sandbox_tools.tool_definitions()})
+            sandbox_defs = sandbox_tools.tool_definitions()
+            core_defs.update({tool.name: tool for tool in sandbox_defs})
+            self._tool_sources.update({tool.name: "atlas:sandbox" for tool in sandbox_defs})
         core_defs.update({tool.name: tool for tool in atlas_tools})
+        self._tool_sources.update({tool.name: "atlas:control" for tool in atlas_tools})
         self.catalog = ToolCatalog(core_tool_names=frozenset(core_defs))
         for name in sorted(core_defs):
             self.registry.register(core_defs[name])
 
         self._register_searchable_tools(external_tools)
+        for external in external_tools:
+            if external.name not in self._tool_sources:
+                self._tool_sources[external.name] = infer_tool_source(external)
         self._index = search_index or build_search_index(
             self.registry,
             self.catalog,
@@ -183,11 +218,23 @@ class AtlasToolRuntime:
                 reviewer=action_reviewer,
                 approval_manager=action_approval_manager,
                 external_policy=action_external_policy,
+                tool_sources=self._tool_sources,
             )
             self._inner_executor = cast(Any, self.action_safety_gate)
         else:
             self._inner_executor = base_executor
         self.executor = AtlasDispatchExecutor(cast(ToolExecutor, self._inner_executor), self)
+        if m6_enabled:
+            assert suspension_store is not None and approval_store is not None
+            assert self.m6_metrics is not None
+            self.approval_coordinator = ApprovalCoordinator(approval_store, metrics=self.m6_metrics)
+            self.suspension_coordinator = RuntimeSuspensionCoordinator(
+                self,
+                suspension_store,
+                self.approval_coordinator,
+                run_id=run_id,
+                runtime_instance_id=self.runtime_instance_id,
+            )
 
     # -- tool construction --
 
@@ -275,6 +322,8 @@ class AtlasToolRuntime:
             raise
         searchable = frozenset(name for name in names if name not in self.catalog.core_tool_names)
         self.catalog = self.catalog.with_searchable(searchable)
+        for name in names:
+            self._tool_sources.setdefault(name, f"mcp:{config.name}")
         self._mcp_clients[config.name] = client
         self._mcp_servers.append(config.name)
         self._rebuild_index()
@@ -290,6 +339,62 @@ class AtlasToolRuntime:
             with contextlib.suppress(Exception):
                 await client.disconnect()
         self._mcp_clients.clear()
+
+    # -- M6 binding / suspension helpers --
+
+    def tool_source(self, logical_name: str) -> str:
+        tool = self.registry.get(logical_name)
+        if tool is None:
+            raise KeyError(f"tool {logical_name!r} is not registered")
+        return self._tool_sources.get(logical_name) or infer_tool_source(tool)
+
+    def tool_binding_digest(self, logical_name: str) -> str:
+        tool = self.registry.get(logical_name)
+        if tool is None:
+            raise KeyError(f"tool {logical_name!r} is not registered")
+        provider_name = self.registry.provider_name(logical_name)
+        return compute_tool_binding_digest(
+            tool,
+            source=self.tool_source(logical_name),
+            provider_name=provider_name,
+        )
+
+    def sandbox_binding_digest(self, task_id: str | None) -> str | None:
+        if task_id is None or self._sandbox_tools is None:
+            return None
+        manager = self._sandbox_tools.manager
+        if manager.bindings.get(task_id) is None:
+            return None
+        binding = manager.require_ready(task_id)
+        return hashlib.sha256(
+            json.dumps(
+                binding.model_dump(mode="json"),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+
+    def sandbox_required(self, task_id: str | None) -> bool:
+        if task_id is None or self._sandbox_tools is None:
+            return False
+        return (
+            self._sandbox_tools.task_id == task_id
+            or task_id in self._sandbox_tools.manager.bindings
+        )
+
+    async def preflight_batch(
+        self,
+        calls: Sequence[BatchCall],
+        context: ToolUseContext,
+    ) -> BatchPreflight:
+        if self.suspension_coordinator is None:
+            raise RuntimeError("M6 is not enabled on this AtlasToolRuntime")
+        return await self.suspension_coordinator.preflight_batch(calls, context)
+
+    def m6_metrics_snapshot(self) -> dict[str, int] | None:
+        if self.m6_metrics is None:
+            return None
+        return self.m6_metrics.snapshot()
 
     # -- native surface --
 

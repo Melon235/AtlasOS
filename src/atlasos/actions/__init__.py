@@ -1,5 +1,13 @@
 """V2 M3 global action safety gate."""
 
+from atlasos.actions.binding import (
+    action_digest,
+    canonical_digest,
+    decision_basis_digest,
+    infer_tool_source,
+    input_digest,
+    tool_binding_digest,
+)
 from atlasos.actions.catalog import (
     DEFAULT_MAPPINGS,
     ActionCatalog,
@@ -12,6 +20,7 @@ from atlasos.actions.models import (
     ActionContext,
     ActionDecision,
     ActionDecisionValue,
+    ActionEvaluation,
     ActionRequest,
     ActionReviewRequest,
     ActionReviewResult,
@@ -34,6 +43,7 @@ __all__ = [
     "ActionContext",
     "ActionDecision",
     "ActionDecisionValue",
+    "ActionEvaluation",
     "ActionMapping",
     "ActionPolicy",
     "ActionRequest",
@@ -46,6 +56,12 @@ __all__ = [
     "ActionSafetyGate",
     "AnyCodeActionReviewer",
     "PolicyLoadError",
+    "action_digest",
+    "canonical_digest",
+    "decision_basis_digest",
+    "infer_tool_source",
+    "input_digest",
+    "tool_binding_digest",
     "PolicyResult",
     "ReviewerVerdict",
     "ScopeAlignment",

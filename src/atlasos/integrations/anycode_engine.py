@@ -72,4 +72,5 @@ class AtlasContextEngine(AnyCode):
             output_validators=self._output_validators,
             output_schema=output_schema,
             conversation_store=self._tool_runtime.conversation_store,
+            tool_runtime=self._tool_runtime,
         )

@@ -586,7 +586,30 @@ Negative experimental results are acceptable. Unmeasured claims are not.
 
 ---
 
-## 19. V2 Boundary
+## 19. V2 M6 Runtime Suspension Boundary
+
+V2 M6 adds one durable pause point before tool execution when M3 requires a human decision:
+
+```text
+model response
+  -> M3 whole-response preflight (evaluate only)
+  -> if any REQUIRE_HUMAN: ExecutionSuspension (Runtime state)
+  -> durable approval challenge(s)
+  -> human decision
+  -> resume: M1/M2/M3/M5 revalidation
+  -> M4 execute/replay
+  -> durable ToolResult continuation
+  -> clear suspension
+```
+
+`ExecutionSuspension` belongs to Atlas Runtime state, not to M6 approval state. M6 owns durable
+human-decision truth; M3 remains the authorization authority; M4 remains the execution dedupe and
+replay authority; M5 remains the sandbox/project isolation authority. No second runtime, tool
+registry, executor, policy engine, idempotency engine, or workflow engine is added. The exact
+pending invocation is recovered from protected Runtime state; the model is never asked to
+reconstruct it. Details: [`docs/stages/m6-durable-approval.md`](stages/m6-durable-approval.md).
+
+## 20. V2 Boundary
 
 Only after V1 completion, consider:
 

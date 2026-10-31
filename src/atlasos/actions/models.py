@@ -83,6 +83,31 @@ class ActionDecision(BaseModel):
     external_policy_outcome: str | None = None
 
 
+class ActionEvaluation(BaseModel):
+    """Side-effect-free M3 result for one concrete tool call.
+
+    ``action_digest`` and ``decision_basis_digest`` are independent: the former binds the exact
+    action, the latter binds the security basis that produced the decision. Durable approval
+    receipts bind both.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    tool_name: str
+    call_id: str
+    outcome: ActionDecisionValue
+    canonical_arguments: dict[str, Any] = Field(default_factory=dict)
+    input_digest: str = ""
+    action_digest: str = ""
+    decision_basis_digest: str = ""
+    tool_binding_digest: str = ""
+    request: ActionRequest | None = None
+    decision: ActionDecision | None = None
+    policy: PolicyResult | None = None
+    failure_message: str | None = None
+    reason_codes: tuple[str, ...] = ()
+
+
 class ActionAudit(BaseModel):
     """In-memory/structured event metadata. M4 owns the durable ledger."""
 

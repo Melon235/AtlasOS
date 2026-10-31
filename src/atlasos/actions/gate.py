@@ -3,6 +3,11 @@
 The gate wraps only AnyCode's ToolExecutor; it never executes a tool itself. Validation, AnyCode
 hard security, policy, reviewer, external policy, and digest-bound HITL all run before the inner
 executor can claim idempotency or invoke the tool.
+
+M6 adds a reusable, side-effect-free ``evaluate`` path. It performs exactly the authorization
+work and returns an ``ActionEvaluation`` without claiming idempotency, creating ledger records,
+executing tools, touching a sandbox, or requesting any approval. The normal ``execute`` path uses
+the same evaluator and then performs the approved action.
 """
 
 from __future__ import annotations
@@ -11,7 +16,7 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import dataclass
+from collections.abc import Mapping
 from typing import Any
 
 from anycode.hitl.approval import ApprovalManager
@@ -27,28 +32,37 @@ from anycode.tools.executor import ToolExecutor
 from anycode.tools.registry import ToolRegistry
 from anycode.types import BatchToolCall, ToolResult, ToolUseContext
 
+from atlasos.actions.binding import (
+    action_digest as compute_action_digest,
+)
+from atlasos.actions.binding import (
+    canonical_digest,
+    infer_tool_source,
+)
+from atlasos.actions.binding import (
+    decision_basis_digest as compute_decision_basis_digest,
+)
+from atlasos.actions.binding import (
+    input_digest as compute_input_digest,
+)
+from atlasos.actions.binding import (
+    tool_binding_digest as compute_tool_binding_digest,
+)
 from atlasos.actions.catalog import ActionCatalog, ActionResolution
 from atlasos.actions.models import (
     ActionAudit,
     ActionContext,
     ActionDecision,
+    ActionEvaluation,
     ActionRequest,
     ActionReviewRequest,
     ActionReviewResult,
-    PolicyResult,
     ScopeAlignment,
 )
 from atlasos.actions.policy import ActionPolicy
 from atlasos.actions.reviewer import ActionReviewer
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class _Evaluation:
-    request: ActionRequest
-    policy: PolicyResult
-    decision: ActionDecision
 
 
 class ActionSafetyGate:
@@ -65,6 +79,7 @@ class ActionSafetyGate:
         approval_manager: ApprovalManager | None = None,
         external_policy: PolicyEnforcer | None = None,
         max_modified_attempts: int = 2,
+        tool_sources: Mapping[str, str] | None = None,
     ) -> None:
         self._executor = executor
         self._registry = registry
@@ -74,7 +89,88 @@ class ActionSafetyGate:
         self.approval_manager = approval_manager
         self.external_policy = external_policy
         self.max_modified_attempts = max_modified_attempts
+        self.tool_sources = dict(tool_sources or {})
+        self.policy_digest = canonical_digest(policy.model_dump(mode="json"))
         self.audits: list[ActionAudit] = []
+        self.preflight_evaluations: list[ActionEvaluation] = []
+
+    # -- side-effect-free authorization -------------------------------------
+
+    async def evaluate(
+        self,
+        tool_name: str,
+        raw_input: dict[str, Any],
+        context: ToolUseContext,
+        *,
+        call_id: str | None = None,
+        record: bool = False,
+    ) -> ActionEvaluation:
+        """Authorize one call without any execution-side effect.
+
+        This method may run the M3 scope reviewer and the external policy enforcer (both are
+        authorization authorities). It never reaches M4, AnyCode ``claim``, a ToolDefinition
+        execution, a sandbox provider, or an approval manager.
+        """
+
+        actual_call_id = call_id or uuid.uuid4().hex
+        tool = self._registry.get(tool_name)
+        if tool is None:
+            return self._deny(
+                tool_name,
+                actual_call_id,
+                "not_registered",
+                f'Tool "{tool_name}" is not registered in the current registry.',
+            )
+
+        try:
+            check_tool_access(tool_name, context.security_policy)
+        except ToolSecurityError as error:
+            return self._deny(
+                tool_name,
+                actual_call_id,
+                "hard_denied",
+                f"action_hard_denied: {safe_exception_message(error)}",
+            )
+
+        try:
+            validated = tool.input_model.model_validate(raw_input)
+        except Exception as error:
+            return self._deny(
+                tool_name,
+                actual_call_id,
+                "invalid_input",
+                f'Invalid input for tool "{tool_name}": {safe_exception_message(error)}',
+            )
+        canonical_arguments = validated.model_dump(mode="json")
+
+        try:
+            resolution = self.catalog.resolve(tool_name, canonical_arguments)
+            self._hard_precheck(tool_name, canonical_arguments, context, resolution)
+        except ToolSecurityError as error:
+            return self._deny(
+                tool_name,
+                actual_call_id,
+                "hard_denied",
+                f"action_hard_denied: {safe_exception_message(error)}",
+            )
+
+        if context.execution_context is None:
+            return self._deny(
+                tool_name,
+                actual_call_id,
+                "trusted_context_required",
+                "action_denied: trusted ExecutionContext is required",
+            )
+
+        evaluation = await self._evaluate(
+            tool_name,
+            canonical_arguments,
+            context,
+            actual_call_id,
+        )
+        if record:
+            self.preflight_evaluations.append(evaluation)
+        return evaluation
 
     async def execute(
         self,
@@ -84,56 +180,32 @@ class ActionSafetyGate:
         *,
         idempotency_key: str | None = None,
     ) -> ToolResult:
-        tool = self._registry.get(tool_name)
-        if tool is None:
-            # Let AnyCode produce its canonical unregistered-tool failure.
-            return await self._executor.execute(
-                tool_name, raw_input, context, idempotency_key=idempotency_key
-            )
-
-        try:
-            check_tool_access(tool_name, context.security_policy)
-        except ToolSecurityError as error:
-            return _failure(f"action_hard_denied: {safe_exception_message(error)}")
-
-        try:
-            validated = tool.input_model.model_validate(raw_input)
-        except Exception as error:
-            return _failure(
-                f'Invalid input for tool "{tool_name}": {safe_exception_message(error)}'
-            )
-        canonical_arguments = validated.model_dump(mode="json")
-
-        try:
-            resolution = self.catalog.resolve(tool_name, canonical_arguments)
-            self._hard_precheck(tool_name, canonical_arguments, context, resolution)
-        except ToolSecurityError as error:
-            return _failure(f"action_hard_denied: {safe_exception_message(error)}")
-
-        if context.execution_context is None:
-            return _failure("action_denied: trusted ExecutionContext is required")
-
-        current_arguments = canonical_arguments
+        current_arguments = dict(raw_input)
         for attempt in range(self.max_modified_attempts + 1):
-            call_id = uuid.uuid4().hex
-            evaluation = await self._evaluate(
+            evaluation = await self.evaluate(
                 tool_name,
                 current_arguments,
                 context,
-                call_id,
+                call_id=uuid.uuid4().hex,
             )
-            if evaluation.decision.decision == "DENY":
-                self._audit(evaluation, context, human_outcome=None, executed=False)
+            if evaluation.failure_message is not None:
+                return _failure(evaluation.failure_message)
+
+            if evaluation.outcome == "DENY":
+                self._audit(
+                    evaluation,
+                    human_outcome=None,
+                    executed=False,
+                )
                 return _failure(
-                    "action_denied: " + ", ".join(evaluation.decision.reason_codes or ("denied",))
+                    "action_denied: " + ", ".join(evaluation.reason_codes or ("denied",))
                 )
 
-            if evaluation.decision.decision == "REQUIRE_HUMAN":
+            if evaluation.outcome == "REQUIRE_HUMAN":
                 response = await self._request_approval(evaluation, context)
                 if response is None:
                     self._audit(
                         evaluation,
-                        context,
                         human_outcome="unavailable_or_rejected",
                         executed=False,
                     )
@@ -141,18 +213,19 @@ class ActionSafetyGate:
                 if not response.approved:
                     self._audit(
                         evaluation,
-                        context,
                         human_outcome="rejected",
                         executed=False,
                     )
                     return _failure("action_denied: human approval rejected")
                 if response.modified_input:
+                    tool = self._registry.get(tool_name)
+                    if tool is None:
+                        return _failure(f'Tool "{tool_name}" is not registered.')
                     try:
                         modified = tool.input_model.model_validate(response.modified_input)
                     except Exception as error:
                         self._audit(
                             evaluation,
-                            context,
                             human_outcome="modified_invalid",
                             executed=False,
                         )
@@ -163,7 +236,6 @@ class ActionSafetyGate:
                     current_arguments = modified.model_dump(mode="json")
                     self._audit(
                         evaluation,
-                        context,
                         human_outcome="modified_reauthorize",
                         executed=False,
                     )
@@ -172,27 +244,57 @@ class ActionSafetyGate:
                     continue
                 self._audit(
                     evaluation,
-                    context,
                     human_outcome="approved",
                     executed=True,
                 )
                 return await self._execute(
                     tool_name,
-                    current_arguments,
+                    evaluation.canonical_arguments,
                     context,
                     idempotency_key=idempotency_key,
                 )
 
-            # ALLOW, with optional scope reviewer already applied in _evaluate.
-            self._audit(evaluation, context, human_outcome=None, executed=True)
+            # ALLOW, with optional scope reviewer already applied in evaluate.
+            self._audit(evaluation, human_outcome=None, executed=True)
             return await self._execute(
                 tool_name,
-                current_arguments,
+                evaluation.canonical_arguments,
                 context,
                 idempotency_key=idempotency_key,
             )
 
         return _failure("action_denied: reauthorization exhausted")
+
+    async def execute_revalidated(
+        self,
+        evaluation: ActionEvaluation,
+        context: ToolUseContext,
+        *,
+        idempotency_key: str | None = None,
+        human_outcome: str | None = None,
+    ) -> ToolResult:
+        """Trusted resume seam: execute a call whose M3 revalidation already succeeded.
+
+        The caller owns the receipt check. This method still refuses a DENY evaluation and
+        re-checks the current tool binding so a registry change cannot slip between revalidation
+        and execution.
+        """
+
+        if evaluation.outcome == "DENY" or evaluation.failure_message is not None:
+            return _failure(evaluation.failure_message or "action_denied: evaluation denied")
+        tool = self._registry.get(evaluation.tool_name)
+        if tool is None:
+            return _failure(f'Tool "{evaluation.tool_name}" is not registered.')
+        current_binding = self._binding_digest(evaluation.tool_name, tool)
+        if evaluation.tool_binding_digest and current_binding != evaluation.tool_binding_digest:
+            return _failure("action_denied: tool binding changed before execution")
+        self._audit(evaluation, human_outcome=human_outcome, executed=True)
+        return await self._execute(
+            evaluation.tool_name,
+            evaluation.canonical_arguments,
+            context,
+            idempotency_key=idempotency_key,
+        )
 
     async def execute_batch(
         self, calls: list[BatchToolCall], context: ToolUseContext
@@ -210,13 +312,15 @@ class ActionSafetyGate:
         results.update(pairs)
         return results
 
+    # -- evaluation internals ------------------------------------------------
+
     async def _evaluate(
         self,
         tool_name: str,
         canonical_arguments: dict[str, Any],
         context: ToolUseContext,
         call_id: str,
-    ) -> _Evaluation:
+    ) -> ActionEvaluation:
         execution_context = context.execution_context
         assert execution_context is not None
         principal = execution_context.principal
@@ -281,7 +385,61 @@ class ActionSafetyGate:
 
         request = base.model_copy(update={"digest": _digest(base, decision)})
         decision = decision.model_copy(update={"reviewer_verdict": reviewer_verdict})
-        return _Evaluation(request=request, policy=policy, decision=decision)
+        tool = self._registry.get(tool_name)
+        assert tool is not None
+        binding = self._binding_digest(tool_name, tool)
+        action_hash = compute_action_digest(
+            principal=principal,
+            agent=agent,
+            action=request.action,
+            resource=request.resource,
+            canonical_arguments=canonical_arguments,
+            logical_tool_id=tool_name,
+        )
+        basis_hash = compute_decision_basis_digest(
+            decision=decision.decision,
+            matched_rule=decision.matched_rule,
+            policy_name=decision.policy_name,
+            policy_digest=self.policy_digest,
+            reason_codes=decision.reason_codes,
+            scope_alignment=decision.scope_alignment,
+            reviewer_verdict=decision.reviewer_verdict,
+            external_policy_outcome=decision.external_policy_outcome,
+            operating_scope=action_context.operating_scope,
+            worker_profile=action_context.worker_profile,
+            tenant=action_context.tenant,
+            classification=action_context.classification,
+            tool_binding=binding,
+        )
+        return ActionEvaluation(
+            tool_name=tool_name,
+            call_id=call_id,
+            outcome=decision.decision,
+            canonical_arguments=canonical_arguments,
+            input_digest=compute_input_digest(canonical_arguments),
+            action_digest=action_hash,
+            decision_basis_digest=basis_hash,
+            tool_binding_digest=binding,
+            request=request,
+            decision=decision,
+            policy=policy,
+            reason_codes=decision.reason_codes,
+        )
+
+    def _deny(
+        self,
+        tool_name: str,
+        call_id: str,
+        reason: str,
+        failure_message: str,
+    ) -> ActionEvaluation:
+        return ActionEvaluation(
+            tool_name=tool_name,
+            call_id=call_id,
+            outcome="DENY",
+            failure_message=failure_message,
+            reason_codes=(reason,),
+        )
 
     async def _review(
         self,
@@ -338,30 +496,31 @@ class ActionSafetyGate:
             )
         return True, "allow", ()
 
-    async def _request_approval(self, evaluation: _Evaluation, context: ToolUseContext):
+    async def _request_approval(self, evaluation: ActionEvaluation, context: ToolUseContext):
         manager = self.approval_manager
         if manager is None:
             return None
+        request = evaluation.request
+        assert request is not None
+        decision = evaluation.decision
+        assert decision is not None
         approval_context = {
-            "call_id": evaluation.request.call_id,
-            "digest": evaluation.request.digest,
-            "tool_name": evaluation.request.tool_name,
-            "agent": evaluation.request.agent,
-            "principal": evaluation.request.principal,
-            "action": evaluation.request.action,
-            "resource": evaluation.request.resource,
-            "canonical_arguments": evaluation.request.canonical_arguments,
-            "policy_decision": evaluation.decision.decision,
-            "matched_rule": evaluation.decision.matched_rule,
+            "call_id": request.call_id,
+            "digest": request.digest,
+            "tool_name": request.tool_name,
+            "agent": request.agent,
+            "principal": request.principal,
+            "action": request.action,
+            "resource": request.resource,
+            "canonical_arguments": request.canonical_arguments,
+            "policy_decision": decision.decision,
+            "matched_rule": decision.matched_rule,
         }
         try:
             response = await manager.check_and_request(
                 request_type="tool_call",
                 agent=context.agent.name,
-                description=(
-                    f"M3 approval required for {evaluation.request.action} on "
-                    f"{evaluation.request.resource}"
-                ),
+                description=(f"M3 approval required for {request.action} on {request.resource}"),
                 context=approval_context,
             )
         except Exception:
@@ -395,6 +554,18 @@ class ActionSafetyGate:
             idempotency_key=idempotency_key,
         )
 
+    def _binding_digest(self, tool_name: str, tool) -> str:
+        provider_name: str | None = None
+        provider_lookup = getattr(self._registry, "provider_name", None)
+        if callable(provider_lookup):
+            observed = provider_lookup(tool_name)
+            provider_name = str(observed) if observed is not None else None
+        return compute_tool_binding_digest(
+            tool,
+            source=self.tool_sources.get(tool_name) or infer_tool_source(tool),
+            provider_name=provider_name,
+        )
+
     def _hard_precheck(
         self,
         tool_name: str,
@@ -411,32 +582,35 @@ class ActionSafetyGate:
 
     def _audit(
         self,
-        evaluation: _Evaluation,
-        context: ToolUseContext,
+        evaluation: ActionEvaluation,
         *,
         human_outcome: str | None,
         executed: bool,
     ) -> None:
+        request = evaluation.request
+        decision = evaluation.decision
+        if request is None or decision is None:
+            return
         audit = ActionAudit(
-            call_id=evaluation.request.call_id,
-            principal=evaluation.request.principal,
-            agent=evaluation.request.agent,
-            tool_name=evaluation.request.tool_name,
-            action=evaluation.request.action,
-            resource=evaluation.request.resource,
-            digest=evaluation.request.digest,
-            decision=evaluation.decision.decision,
-            task_id=evaluation.request.context.task_id,
-            worker_id=evaluation.request.context.worker_id,
-            profile_id=evaluation.request.context.profile_id,
-            parent_agent=evaluation.request.context.parent_agent,
-            operating_scope=evaluation.request.context.operating_scope,
-            matched_rule=evaluation.decision.matched_rule,
-            reviewer_verdict=evaluation.decision.reviewer_verdict,
+            call_id=request.call_id,
+            principal=request.principal,
+            agent=request.agent,
+            tool_name=request.tool_name,
+            action=request.action,
+            resource=request.resource,
+            digest=request.digest,
+            decision=decision.decision,
+            task_id=request.context.task_id,
+            worker_id=request.context.worker_id,
+            profile_id=request.context.profile_id,
+            parent_agent=request.context.parent_agent,
+            operating_scope=request.context.operating_scope,
+            matched_rule=decision.matched_rule,
+            reviewer_verdict=decision.reviewer_verdict,
             human_outcome=human_outcome,
             executed=executed,
-            reason_codes=evaluation.decision.reason_codes,
-            policy_name=evaluation.decision.policy_name,
+            reason_codes=decision.reason_codes,
+            policy_name=decision.policy_name,
         )
         self.audits.append(audit)
         logger.info(

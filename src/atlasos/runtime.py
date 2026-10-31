@@ -27,9 +27,11 @@ from anycode import (
 )
 from anycode.plugins.registry import register_provider_factory
 from anycode.tasks.queue import TaskQueue
-from anycode.types import LLMAdapter, OrchestratorEvent, ToolDefinition
+from anycode.types import LLMAdapter, OrchestratorEvent, ToolDefinition, ToolUseContext
 from pydantic import BaseModel, ConfigDict, Field
 
+from atlasos.approvals.resume import ResumeOutcome, resume_execution_suspension
+from atlasos.approvals.store import SQLiteApprovalStore
 from atlasos.config import AtlasConfig, load_config
 from atlasos.context import (
     ContextBlock,
@@ -84,6 +86,8 @@ from atlasos.placement import (
     StaticPlacementPolicy,
     plan_workflow,
 )
+from atlasos.suspension.models import ExecutionSuspension
+from atlasos.suspension.store import SQLiteSuspensionStore
 from atlasos.tools import AtlasToolRuntime, ToolRuntimeMetrics
 from atlasos.tools.conversation import set_current_task_id
 from atlasos.workflow import (
@@ -137,6 +141,18 @@ class AtlasTaskResult(BaseModel):
     created_at: datetime
     updated_at: datetime
     duration_ms: float | None = None
+
+
+class SuspensionResumeRequired(RuntimeError):
+    """Normal checkpoint resume must not bypass an active Runtime suspension."""
+
+    def __init__(self, run_id: str, suspension_ids: tuple[str, ...]) -> None:
+        self.run_id = run_id
+        self.suspension_ids = suspension_ids
+        super().__init__(
+            f"run {run_id!r} has active execution suspension(s) {list(suspension_ids)}; "
+            "resume the suspension before normal checkpoint recovery"
+        )
 
 
 class RecoveryMetrics(BaseModel):
@@ -236,9 +252,17 @@ class AtlasRuntime:
         event_hook: Callable[[OrchestratorEvent], None] | None = None,
         tool_definitions: Sequence[ToolDefinition] = (),
         repo_root: str | Path | None = None,
+        suspension_store: SQLiteSuspensionStore | None = None,
+        approval_store: SQLiteApprovalStore | None = None,
     ) -> None:
         _validate_runtime_config(config)
+        if (suspension_store is None) != (approval_store is None):
+            raise ValueError("M6 requires both suspension_store and approval_store")
+        if suspension_store is not None and config.tools.mode != "progressive":
+            raise ValueError("M6 requires tools.mode='progressive'")
         self._config = config
+        self._suspension_store = suspension_store
+        self._approval_store = approval_store
         self._runs_root = Path(runs_root)
         self._adapter_factory = adapter_factory or _default_adapter_factory
         self._engine_factory: EngineFactory = engine_factory or (lambda options: AnyCode(options))
@@ -279,6 +303,15 @@ class AtlasRuntime:
     def tool_runtime(self) -> AtlasToolRuntime | None:
         return self._tool_runtime
 
+    @property
+    def suspension_store(self) -> SQLiteSuspensionStore | None:
+        return self._suspension_store
+
+    def active_suspensions(self, run_id: str) -> tuple[ExecutionSuspension, ...]:
+        if self._suspension_store is None:
+            return ()
+        return self._suspension_store.active_for_run(run_id)
+
     async def _setup_tool_runtime(self, run_id: str, run_dir: Path) -> None:
         self._tool_runtime = None
         self._tool_setup_errors = []
@@ -292,6 +325,8 @@ class AtlasRuntime:
             search_backend=self._config.tools.search_backend,
             embedding_model=self._config.tools.embedding_model,
             max_results=self._config.tools.max_results,
+            suspension_store=self._suspension_store,
+            approval_store=self._approval_store,
         )
         try:
             await runtime.connect_mcp_servers(self._config.tools.mcp_servers)
@@ -345,6 +380,9 @@ class AtlasRuntime:
 
         if self._running:
             raise RuntimeError("AtlasRuntime.resume is not re-entrant")
+        active = self.active_suspensions(run_id)
+        if active:
+            raise SuspensionResumeRequired(run_id, tuple(item.suspension_id for item in active))
         self._running = True
         try:
             return await self._resume(
@@ -352,6 +390,48 @@ class AtlasRuntime:
                 workflow,
                 experiment=experiment,
                 persist=persist,
+            )
+        finally:
+            self._running = False
+            await self._close_tool_runtime()
+
+    async def resume_suspension(
+        self,
+        suspension_id: str,
+        *,
+        context: ToolUseContext,
+        owner: str | None = None,
+        lease_seconds: float = 60.0,
+        commit_continuation: bool = True,
+    ) -> ResumeOutcome:
+        """Settle one durable suspension through the trusted M6 resume path.
+
+        Normal checkpoint resume never reaches this method's state: it raises
+        ``SuspensionResumeRequired`` while an active suspension exists.
+        """
+
+        if self._running:
+            raise RuntimeError("AtlasRuntime.resume_suspension is not re-entrant")
+        if self._suspension_store is None:
+            raise RuntimeError("M6 is not configured on this AtlasRuntime")
+        suspension = self._suspension_store.get(suspension_id)
+        if suspension is None:
+            raise RuntimeError(f"no execution suspension {suspension_id!r}")
+        run_dir = self._runs_root / suspension.run_id
+        self._running = True
+        try:
+            self._begin_session(suspension.run_id, run_dir)
+            await self._setup_tool_runtime(suspension.run_id, run_dir)
+            if self._tool_runtime is None or self._tool_runtime.suspension_coordinator is None:
+                raise RuntimeError("M6 tool runtime is unavailable for suspension resume")
+            return await resume_execution_suspension(
+                suspension_id,
+                runtime=self._tool_runtime,
+                coordinator=self._tool_runtime.suspension_coordinator,
+                context=context,
+                owner=owner or self._tool_runtime.runtime_instance_id,
+                lease_seconds=lease_seconds,
+                commit_continuation=commit_continuation,
             )
         finally:
             self._running = False
