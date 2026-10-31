@@ -141,11 +141,16 @@ after approval).
 
 ## Repository gates
 
+Final clean-tree verification was run at
+`87070af8933b3e0dfb1251d8722b711ca4325b0e` (implementation `62a667e`, formal record `e794162`;
+later commits are the results document and a self-contained-import fix in the evaluator, with no
+runtime behavior change):
+
 ```text
 ruff check .             PASS
 ruff format --check .    PASS
 pyright                  PASS (0 errors)
-python -m pytest         PASS (273 passed, run twice from the clean final tree)
+python -m pytest         PASS (273 passed, 1 live test deselected, run twice)
 ```
 
 The full suite includes the pre-existing M1-M5, control-plane, sandbox, MCP, context, scheduler,
