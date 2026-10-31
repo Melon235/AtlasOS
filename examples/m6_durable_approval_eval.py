@@ -21,7 +21,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from importlib import metadata
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from anycode import AgentConfig, OrchestratorConfig, TaskSpec, TeamConfig
 from anycode.identity.context import ExecutionContext
@@ -41,7 +41,6 @@ from anycode.types import (
     ToolUseContext,
 )
 from pydantic import BaseModel, ConfigDict
-from tests.helpers.m6_harness import M6World
 
 from atlasos.approvals.models import ReviewerIdentity
 from atlasos.approvals.store import SQLiteApprovalStore
@@ -55,6 +54,12 @@ from atlasos.suspension.metrics import M6Metrics
 from atlasos.suspension.models import UnsupportedSuspensionSchema
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+if TYPE_CHECKING:
+    from tests.helpers.m6_harness import M6World
+
 STORE = REPO_ROOT / "experiments" / "runs" / "v2-m6-durable-approval.jsonl"
 WORKER = REPO_ROOT / "tests" / "helpers" / "m6_approval_process_worker.py"
 TMP_PARENT = Path(os.environ.get("ATLASOS_M6_TMP", tempfile.gettempdir()))
@@ -201,6 +206,12 @@ class MetricsAccumulator:
         self.provider_effects += world.provider.effects + world.non_idempotent.effects
 
 
+def _new_world(*args: Any, **kwargs: Any) -> Any:
+    from tests.helpers.m6_harness import M6World
+
+    return M6World(*args, **kwargs)
+
+
 def _email_calls(world: M6World, body: str = "x"):
     return [world.dispatch_call(0, "call", "email.send", {"to": "ops@example.test", "body": body})]
 
@@ -214,7 +225,7 @@ async def _ready(world: M6World, *, policy=None):
 
 
 async def _agent_scenario(root: Path) -> tuple[bool, bool]:
-    world = M6World(root / "agent")
+    world = _new_world(root / "agent")
     runtime = world.runtime()
     await world.disclose(runtime, "send external email notification")
     await world.disclose(runtime, "search internal documentation")
@@ -315,7 +326,7 @@ async def _run(root: Path) -> EvalRecord:
     booleans: dict[str, bool] = {}
 
     # Batch preflight, restart, exact pending invocation, approve, ordered settlement.
-    world = M6World(root / "batch")
+    world = _new_world(root / "batch")
     runtime = await _ready(world)
     target = world.root / "workspace" / "note.txt"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -360,7 +371,7 @@ async def _run(root: Path) -> EvalRecord:
     accumulator.add_world(world)
 
     # Reject.
-    reject_world = M6World(root / "reject")
+    reject_world = _new_world(root / "reject")
     reject_runtime = await _ready(reject_world)
     reject_suspension = await reject_world.suspend(reject_runtime, _email_calls(reject_world))
     reject_world.reject(reject_runtime, reject_suspension)
@@ -376,7 +387,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # Current DENY overrides an old approval.
-    deny_world = M6World(root / "deny")
+    deny_world = _new_world(root / "deny")
     deny_runtime = await _ready(deny_world)
     deny_suspension = await deny_world.suspend(deny_runtime, _email_calls(deny_world))
     deny_world.approve(deny_runtime, deny_suspension)
@@ -406,7 +417,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # Changed security basis invalidates a receipt.
-    basis_world = M6World(root / "basis")
+    basis_world = _new_world(root / "basis")
     basis_runtime = await _ready(basis_world)
     basis_suspension = await basis_world.suspend(basis_runtime, _email_calls(basis_world))
     basis_world.approve(basis_runtime, basis_suspension)
@@ -430,7 +441,7 @@ async def _run(root: Path) -> EvalRecord:
     booleans["basis_invalidated"] = changed.status == "stale" and basis_world.provider.effects == 0
 
     # Changed tool binding fails closed.
-    binding_world = M6World(root / "binding")
+    binding_world = _new_world(root / "binding")
     binding_runtime = await _ready(binding_world)
     binding_suspension = await binding_world.suspend(binding_runtime, _email_calls(binding_world))
     binding_world.approve(binding_runtime, binding_suspension)
@@ -454,11 +465,11 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # M1 hidden/unavailable.
-    m1_world = M6World(root / "m1")
+    m1_world = _new_world(root / "m1")
     m1_runtime = await _ready(m1_world)
     m1_suspension = await m1_world.suspend(m1_runtime, _email_calls(m1_world))
     m1_world.approve(m1_runtime, m1_suspension)
-    fresh = M6World(root / "m1-fresh")
+    fresh = _new_world(root / "m1-fresh")
     fresh_runtime = fresh.runtime(
         approval_store=m1_runtime.approval_store,
         suspension_store=m1_runtime.suspension_store,
@@ -470,7 +481,7 @@ async def _run(root: Path) -> EvalRecord:
     booleans["m1_unavailable"] = m1_outcome.status == "stale" and m1_world.provider.effects == 0
 
     # M2 identity mismatch.
-    m2_world = M6World(root / "m2")
+    m2_world = _new_world(root / "m2")
     m2_runtime = await _ready(m2_world)
     m2_suspension = await m2_world.suspend(m2_runtime, _email_calls(m2_world))
     m2_world.approve(m2_runtime, m2_suspension)
@@ -482,7 +493,7 @@ async def _run(root: Path) -> EvalRecord:
 
     # M4 replay after a crash between M4 completion and durable ToolResult.
     replay_clock = MutableClock()
-    replay_world = M6World(root / "replay", clock=replay_clock)
+    replay_world = _new_world(root / "replay", clock=replay_clock)
     replay_runtime = await _ready(replay_world)
     replay_suspension = await replay_world.suspend(replay_runtime, _email_calls(replay_world))
     replay_world.approve(replay_runtime, replay_suspension)
@@ -508,7 +519,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # ToolResult durable before suspension clear.
-    durable_world = M6World(root / "durable")
+    durable_world = _new_world(root / "durable")
     durable_runtime = await _ready(durable_world)
     durable_suspension = await durable_world.suspend(durable_runtime, _email_calls(durable_world))
     durable_world.approve(durable_runtime, durable_suspension)
@@ -535,7 +546,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # Two runtime resumes.
-    race_world = M6World(root / "resume-race")
+    race_world = _new_world(root / "resume-race")
     race_runtime = await _ready(race_world)
     race_suspension = await race_world.suspend(race_runtime, _email_calls(race_world))
     race_world.approve(race_runtime, race_suspension)
@@ -553,7 +564,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # Two reviewers race.
-    reviewer_world = M6World(root / "reviewer-race")
+    reviewer_world = _new_world(root / "reviewer-race")
     reviewer_runtime = await _ready(reviewer_world)
     reviewer_suspension = await reviewer_world.suspend(
         reviewer_runtime, _email_calls(reviewer_world)
@@ -596,7 +607,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # Terminal run ignores late approval.
-    terminal_world = M6World(root / "terminal")
+    terminal_world = _new_world(root / "terminal")
     terminal_runtime = await _ready(terminal_world)
     terminal_suspension = await terminal_world.suspend(
         terminal_runtime, _email_calls(terminal_world)
@@ -613,7 +624,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # Unsupported schema.
-    schema_world = M6World(root / "schema")
+    schema_world = _new_world(root / "schema")
     schema_runtime = await _ready(schema_world)
     schema_suspension = await schema_world.suspend(schema_runtime, _email_calls(schema_world))
     payload = schema_suspension.model_dump(mode="json")
@@ -632,7 +643,7 @@ async def _run(root: Path) -> EvalRecord:
     accumulator.add_world(schema_world)
 
     # Approval DB never holds the raw secret body.
-    secret_world = M6World(root / "secret")
+    secret_world = _new_world(root / "secret")
     secret_runtime = await _ready(secret_world)
     secret = "EVAL-TOP-SECRET-BODY"
     secret_suspension = await secret_world.suspend(
@@ -648,7 +659,7 @@ async def _run(root: Path) -> EvalRecord:
     accumulator.add_world(secret_world)
 
     # Normal non-HITL path.
-    normal_world = M6World(root / "normal")
+    normal_world = _new_world(root / "normal")
     normal_runtime = await _ready(normal_world)
     normal_target = normal_world.root / "workspace" / "note.txt"
     normal_target.parent.mkdir(parents=True, exist_ok=True)
@@ -679,7 +690,7 @@ async def _run(root: Path) -> EvalRecord:
     )
 
     # Wake signal loss: approval exists, no wake event is delivered; scan still resumes.
-    wake_world = M6World(root / "wake")
+    wake_world = _new_world(root / "wake")
     wake_runtime = await _ready(wake_world)
     wake_suspension = await wake_world.suspend(wake_runtime, _email_calls(wake_world))
     tracker = wake_runtime.suspension_coordinator
@@ -835,7 +846,7 @@ async def _m5_lost_scenario(root: Path) -> bool:
             ActionRule(id="human-write", decision="REQUIRE_HUMAN", action="filesystem.write"),
         ),
     )
-    world = M6World(root / "world")
+    world = _new_world(root / "world")
     runtime = world.runtime(policy=policy, sandbox_tools=tools)
     context = ToolUseContext(
         agent=AgentInfo(name="coding_worker:worker-m6", role="worker", model="fake"),
@@ -864,7 +875,7 @@ async def _m5_lost_scenario(root: Path) -> bool:
 
 
 async def _timeout_scenario(root: Path) -> bool:
-    world = M6World(root)
+    world = _new_world(root)
     runtime = await _ready(world)
     suspension = await world.suspend(runtime, _email_calls(world))
     pending = runtime.approval_store.list_pending(suspension_id=suspension.suspension_id)
