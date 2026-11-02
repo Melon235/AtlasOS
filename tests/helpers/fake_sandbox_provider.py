@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import shlex
 import shutil
 import sys
@@ -25,8 +26,15 @@ from atlasos.sandbox.models import SandboxLostError
 
 
 class FakeSandboxProvider:
-    def __init__(self, root: Path, *, capabilities: SandboxCapabilities | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        capabilities: SandboxCapabilities | None = None,
+        shell: str = "cmd",
+    ) -> None:
         self.root = root
+        self.shell = shell
         root.mkdir(parents=True, exist_ok=True)
         self.capabilities_value = capabilities or SandboxCapabilities(
             provider="fake",
@@ -73,10 +81,27 @@ class FakeSandboxProvider:
             return base / logical.lstrip("/")
         return base / "workspace" / "project" / logical
 
+    @staticmethod
+    def _posix_path(path: Path) -> str:
+        text = path.resolve().as_posix()
+        if len(text) >= 2 and text[1] == ":":
+            return "/" + text[0].lower() + text[2:]
+        return text
+
     def _map_command(self, handle: SandboxHandle, command: str) -> str:
         base = self._base(handle)
-        mapped = command.replace("/workspace/project", str(base / "workspace" / "project")).replace(
-            "/tmp/project.bundle", str(base / "tmp" / "project.bundle")
+        project = base / "workspace" / "project"
+        tmp = base / "tmp" / "project.bundle"
+        if self.shell == "git-bash":
+            mapped = command.replace("/workspace/project", self._posix_path(project)).replace(
+                "/tmp/project.bundle", self._posix_path(tmp)
+            )
+            python = f'"{self._posix_path(Path(sys.executable))}"'
+            mapped = mapped.replace("python3", "__ATLAS_PY__")
+            mapped = re.sub(r"\bpython\b", "__ATLAS_PY__", mapped)
+            return mapped.replace("__ATLAS_PY__", python)
+        mapped = command.replace("/workspace/project", str(project)).replace(
+            "/tmp/project.bundle", str(tmp)
         )
         if mapped.startswith("python3 "):
             mapped = f'"{sys.executable}"' + mapped[len("python3") :]
@@ -116,12 +141,23 @@ class FakeSandboxProvider:
             mapped = self._map_command(handle, command.command)
             if self.fail_clone and "git clone" in mapped:
                 return SandboxCommandResult(ok=False, exit_code=1, stderr="clone failed")
-            process = await asyncio.create_subprocess_shell(
-                mapped,
-                cwd=str(cwd),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            git_bash = Path("C:/Program Files/Git/bin/bash.exe")  # noqa: ASYNC240
+            if self.shell == "git-bash" and git_bash.is_file():  # noqa: ASYNC240
+                process = await asyncio.create_subprocess_exec(
+                    str(git_bash),
+                    "-lc",
+                    mapped,
+                    cwd=str(cwd),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            else:
+                process = await asyncio.create_subprocess_shell(
+                    mapped,
+                    cwd=str(cwd),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
             try:
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(), timeout=command.timeout_seconds or 30

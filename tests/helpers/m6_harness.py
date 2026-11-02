@@ -233,6 +233,12 @@ class M6World:
             DEFAULT_MAPPINGS
             + (
                 ActionMapping("docs.search", "docs.search", "docs", frozenset({"research"})),
+                ActionMapping(
+                    "payment.charge",
+                    "payment.charge",
+                    "tool",
+                    frozenset({"coding", "research"}),
+                ),
                 ActionMapping("counter.read", "counter.read", "counter", frozenset({"research"})),
                 ActionMapping("unsafe.mutate", "unsafe.mutate", "tool", frozenset({"research"})),
                 ActionMapping("crash.mutate", "crash.mutate", "tool", frozenset({"research"})),
