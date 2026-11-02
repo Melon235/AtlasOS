@@ -116,6 +116,7 @@ class RuntimeSuspensionCoordinator:
                     call_id=call.call_id,
                     tool_id=None,
                     execution_scope=execution_scope,
+                    occurrence_id=model_response_id,
                 )
             )
             try:

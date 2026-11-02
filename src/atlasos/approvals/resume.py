@@ -429,6 +429,16 @@ def _record_suspension_cleared(
         pass
 
 
+def _settlement_occurrence_id(suspension: ExecutionSuspension) -> str:
+    """Stable identity of one real resume/settlement attempt.
+
+    M6 advances ``revision`` at every ``begin_settlement`` transition. A retry after lease expiry
+    advances it again, so the same suspension revision cannot represent two real attempts.
+    """
+
+    return f"settlement:{suspension.suspension_id}:{suspension.revision}"
+
+
 async def _evaluate_with_trajectory_context(
     gate: Any,
     tool_name: str,
@@ -446,6 +456,7 @@ async def _evaluate_with_trajectory_context(
             call_id=invocation.call_id,
             tool_id=None,
             execution_scope=suspension.execution_scope,
+            occurrence_id=_settlement_occurrence_id(suspension),
         )
     )
     try:
@@ -719,6 +730,7 @@ async def _execute_batch(
                 call_id=invocation.call_id,
                 tool_id=invocation.effective_tool_id,
                 execution_scope=suspension.execution_scope,
+                occurrence_id=_settlement_occurrence_id(suspension),
             )
         )
         try:

@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextvars
 import json
 import os
+import uuid
 from contextvars import ContextVar, Token
 from pathlib import Path
 from typing import Any
@@ -296,6 +297,7 @@ class AtlasAgentRunner(AgentRunner):
                 call_id=block.id,
                 tool_id=logical,
                 execution_scope=(batch_context.execution_scope if batch_context else None),
+                occurrence_id=f"execution:{idempotency_key}:{uuid.uuid4().hex}",
             )
         )
         try:

@@ -113,6 +113,7 @@ class TrajectoryCorrelation(BaseModel):
     worker_id: str | None = None
     profile_id: str | None = None
     model_response_id: str | None = None
+    occurrence_id: str | None = None
     ordinal: int | None = Field(default=None, ge=0)
     call_id: str | None = None
     tool_id: str | None = None

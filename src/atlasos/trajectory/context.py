@@ -18,6 +18,7 @@ class CallTrajectoryContext:
     call_id: str | None
     tool_id: str | None
     execution_scope: str | None
+    occurrence_id: str | None = None
 
 
 CURRENT_CALL_TRAJECTORY: ContextVar[CallTrajectoryContext | None] = contextvars.ContextVar(

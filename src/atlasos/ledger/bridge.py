@@ -100,11 +100,7 @@ class DurableActionBridge:
             tool_name=tool_name,
             canonical_action=resolution.action,
             resource=resolution.resource,
-            m3_call_id=(
-                call_context.call_id
-                if call_context is not None and self.trajectory_recorder is not None
-                else None
-            ),
+            m3_call_id=call_context.call_id if call_context is not None else None,
             request_digest=request_digest,
             digest_version="1",
             idempotency_key_hash=identity.idempotency_key_hash,

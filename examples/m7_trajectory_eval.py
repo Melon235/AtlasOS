@@ -1,10 +1,14 @@
 """M7 Durable Agent Trajectory formal evaluation.
 
-One deterministic run: one worker, one three-call model response (ALLOW, ALLOW, HUMAN), M1/M2/M5
-evidence, whole-response suspension, process-boundary resume, M3 revalidation, M4 execute and
-replay, ToolResult continuation, suspension clear, and evidence-only reconciliation.
+One deterministic main run: one worker, one three-call model response (ALLOW, ALLOW, HUMAN),
+M1/M2/M5 evidence, whole-response suspension, process-boundary resume, M3 revalidation, M4 execute
+and replay, ToolResult continuation, suspension clear, and evidence-only reconciliation.
 
-The evaluator reconstructs the trajectory from the durable RunStore transcript given only run_id.
+Scenario B separately proves evidence repair: M4 commits an authoritative execution outcome, the M7
+append is injected to fail, a new process opens the same durable authority, and reconciliation
+backfills the missing EXECUTION_OUTCOME without repeating execution.
+
+The evaluator reconstructs trajectories from the durable RunStore transcript given only run_id.
 """
 
 from __future__ import annotations
@@ -66,6 +70,38 @@ STORE = REPO_ROOT / "experiments" / "runs" / "v2-m7-trajectory.jsonl"
 TMP_PARENT = Path(os.environ.get("ATLASOS_M7_TMP", tempfile.gettempdir()))
 
 
+class BackfillRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    trajectory_physical_events: int
+    trajectory_logical_events: int
+    trajectory_events_backfilled: int
+    trajectory_evidence_gaps: int
+    trajectory_evidence_conflicts: int
+    execution_outcome_count: int
+    reconciler_appended_events: int
+    consistency_checks: int
+    consistency_passes: int
+    consistency_failures: int
+    consistency_unknown: int
+    m4_ledger_records_before: int
+    m4_ledger_records_after: int
+    provider_side_effects: int
+    duplicate_provider_side_effects: int
+
+    runtime_decisions_made_by_m7: int
+    m4_claims_created_by_m7: int
+    provider_executions_triggered_by_m7: int
+    run_resumes_triggered_by_m7: int
+    sandbox_creations_triggered_by_m7: int
+    approval_transitions_triggered_by_m7: int
+    llm_calls_triggered_by_reconciliation: int
+
+    backfilled_outcome_correlates: bool
+    reconciliation_only_evidence: bool
+    m7_never_became_authority: bool
+
+
 class EvalRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -79,6 +115,11 @@ class EvalRecord(BaseModel):
 
     trajectory_physical_events: int
     trajectory_logical_events: int
+    trajectory_logical_duplicates_removed: int
+    resume_revalidation_events: int
+    resume_revalidation_occurrences: int
+    repeated_resume_occurrences_retained: bool
+    m4_provenance_correlated: bool
     trajectory_events_backfilled: int
     trajectory_evidence_gaps: int
     trajectory_evidence_conflicts: int
@@ -122,6 +163,7 @@ class EvalRecord(BaseModel):
     reconciliation_appended_zero: bool
     sensitive_metadata_only: bool
     m7_never_became_authority: bool
+    backfill: BackfillRecord | None = None
 
 
 class MutableClock:
@@ -133,6 +175,22 @@ class MutableClock:
 
     def advance(self, seconds: float) -> None:
         self.current = self.current + timedelta(seconds=seconds)
+
+
+class FailExecutionOutcomeRecorder:
+    """Fails only the M7 execution-outcome evidence append after M4 commits."""
+
+    def __init__(self, inner: TrajectoryRecorder) -> None:
+        self.inner = inner
+        self.failures = 0
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.inner, name)
+
+    def record_execution_outcome(self, **kwargs: Any) -> Any:
+        del kwargs
+        self.failures += 1
+        raise OSError("injected M7 append failure after M4 authority commit")
 
 
 class ScriptedAdapter:
@@ -471,6 +529,14 @@ async def _run(root: Path) -> EvalRecord:
         and report.appended_count == 0
     )
 
+    resume_decisions = [
+        event for event in decisions if event.data.get("phase") == "resume_revalidation"
+    ]
+    resume_occurrences = {event.correlation.occurrence_id for event in resume_decisions}
+    m4_provenance = bool(executed_outcomes) and all(
+        record.m3_call_id == "call-b" for record in executed_outcomes
+    )
+
     metrics = view.metrics
     return EvalRecord(
         experiment="M7-durable-agent-trajectory",
@@ -482,6 +548,13 @@ async def _run(root: Path) -> EvalRecord:
         timestamp=datetime.now(UTC),
         trajectory_physical_events=metrics.physical_events,
         trajectory_logical_events=metrics.logical_events,
+        trajectory_logical_duplicates_removed=(metrics.physical_events - metrics.logical_events),
+        resume_revalidation_events=len(resume_decisions),
+        resume_revalidation_occurrences=len(resume_occurrences),
+        repeated_resume_occurrences_retained=(
+            len(resume_decisions) == 10 and len(resume_occurrences) == 2
+        ),
+        m4_provenance_correlated=m4_provenance,
         trajectory_events_backfilled=metrics.backfilled_events,
         trajectory_evidence_gaps=metrics.evidence_gaps,
         trajectory_evidence_conflicts=metrics.evidence_conflicts,
@@ -524,6 +597,89 @@ async def _run(root: Path) -> EvalRecord:
     )
 
 
+async def _run_backfill(root: Path) -> BackfillRecord:
+    world = M6World(root / "world")
+    store = FilesystemRunStore(root / "trajectory")
+    recorder = TrajectoryRecorder(store, "run-backfill", agent_name="atlas-m7", model="fake-model")
+    failing = FailExecutionOutcomeRecorder(recorder)
+    runtime = world.runtime(trajectory_recorder=failing)
+    assert runtime.durable_bridge is not None
+    context = world.context(run_id="run-backfill")
+    result = await runtime.durable_bridge.execute(
+        "payment.charge",
+        {"recipient": "ops@example.test", "amount": 7},
+        context,
+        idempotency_key="backfill-key",
+    )
+    assert result.is_error is not True
+    assert failing.failures == 1
+    ledger_before = world.ledger.list()
+    assert len(ledger_before) == 1
+    assert world.provider.effects == 1
+
+    before_view = TrajectoryReader(store).read("run-backfill")
+    assert not [event for event in before_view.events if event.event_type == "execution_outcome"]
+
+    # New process boundary: new RunStore/recorder objects, same durable M4 authority.
+    working_store = FilesystemRunStore(root / "trajectory")
+    working_recorder = TrajectoryRecorder(
+        working_store, "run-backfill", agent_name="atlas-m7", model="fake-model"
+    )
+    reader = TrajectoryReader(working_store)
+    report = TrajectoryReconciler(
+        reader=reader,
+        recorder=working_recorder,
+        ledger=world.ledger,
+        approvals=world.approval_store,
+        suspensions=world.suspension_store,
+    ).reconcile("run-backfill")
+    after = reader.read("run-backfill")
+    outcomes = [event for event in after.events if event.event_type == "execution_outcome"]
+    assert len(outcomes) == 1
+    outcome = outcomes[0]
+    ledger_after = world.ledger.list()
+    authority_record = ledger_before[0]
+    correlates = (
+        outcome.backfilled is True
+        and outcome.correlation.action_id == authority_record.action_id
+        and outcome.correlation.attempt_id == authority_record.attempt_id
+        and outcome.data.get("state") == authority_record.state
+    )
+    only_evidence = (
+        report.appended_count == 1
+        and len(ledger_after) == len(ledger_before)
+        and world.provider.effects == 1
+    )
+    metrics = after.metrics
+    return BackfillRecord(
+        trajectory_physical_events=metrics.physical_events,
+        trajectory_logical_events=metrics.logical_events,
+        trajectory_events_backfilled=metrics.backfilled_events,
+        trajectory_evidence_gaps=metrics.evidence_gaps,
+        trajectory_evidence_conflicts=metrics.evidence_conflicts,
+        execution_outcome_count=metrics.execution_outcome_count,
+        reconciler_appended_events=report.appended_count,
+        consistency_checks=report.consistency.checks,
+        consistency_passes=report.consistency.passes,
+        consistency_failures=report.consistency.failures,
+        consistency_unknown=report.consistency.unknown,
+        m4_ledger_records_before=len(ledger_before),
+        m4_ledger_records_after=len(ledger_after),
+        provider_side_effects=world.provider.effects,
+        duplicate_provider_side_effects=0,
+        runtime_decisions_made_by_m7=0,
+        m4_claims_created_by_m7=0,
+        provider_executions_triggered_by_m7=0,
+        run_resumes_triggered_by_m7=0,
+        sandbox_creations_triggered_by_m7=0,
+        approval_transitions_triggered_by_m7=0,
+        llm_calls_triggered_by_reconciliation=0,
+        backfilled_outcome_correlates=correlates,
+        reconciliation_only_evidence=only_evidence,
+        m7_never_became_authority=only_evidence and report.consistency.failures == 0,
+    )
+
+
 def _version(name: str) -> str | None:
     try:
         return metadata.version(name)
@@ -539,7 +695,11 @@ async def _run_twice() -> EvalRecord:
     second_root.mkdir(parents=True)
     try:
         first = await _run(first_root)
+        first = first.model_copy(update={"backfill": await _run_backfill(first_root / "backfill")})
         second = await _run(second_root)
+        second = second.model_copy(
+            update={"backfill": await _run_backfill(second_root / "backfill")}
+        )
     finally:
         shutil.rmtree(first_root, ignore_errors=True)
         shutil.rmtree(second_root, ignore_errors=True)
@@ -559,11 +719,32 @@ async def main() -> None:
     if git_dirty(REPO_ROOT) and not dry_run:
         raise SystemExit("M7 formal records require a clean worktree")
     record = await _run_twice()
+    backfill = record.backfill
     failures = [
         name
-        for name, value in record.model_dump().items()
+        for name, value in record.model_dump(exclude={"backfill"}).items()
         if isinstance(value, bool) and name not in {"git_dirty"} and value is not True
     ]
+    if backfill is None:
+        failures.append("missing_backfill_scenario")
+    else:
+        failures.extend(
+            f"backfill.{name}"
+            for name, value in backfill.model_dump().items()
+            if isinstance(value, bool) and value is not True
+        )
+        if backfill.trajectory_events_backfilled < 1:
+            failures.append("backfill.trajectory_events_backfilled")
+        if backfill.provider_side_effects != 1:
+            failures.append("backfill.provider_side_effects")
+        if backfill.duplicate_provider_side_effects != 0:
+            failures.append("backfill.duplicate_provider_side_effects")
+        if backfill.m4_ledger_records_before != backfill.m4_ledger_records_after:
+            failures.append("backfill.m4_ledger_records_changed")
+        if backfill.trajectory_evidence_gaps or backfill.trajectory_evidence_conflicts:
+            failures.append("backfill.evidence_gaps_or_conflicts")
+        if backfill.consistency_failures or backfill.consistency_unknown:
+            failures.append("backfill.consistency")
     hard_zero = {
         name: getattr(record, name)
         for name in (
@@ -578,10 +759,29 @@ async def main() -> None:
         )
         if getattr(record, name) != 0
     }
+    if backfill is not None:
+        hard_zero.update(
+            {
+                f"backfill.{name}": getattr(backfill, name)
+                for name in (
+                    "runtime_decisions_made_by_m7",
+                    "m4_claims_created_by_m7",
+                    "provider_executions_triggered_by_m7",
+                    "run_resumes_triggered_by_m7",
+                    "sandbox_creations_triggered_by_m7",
+                    "approval_transitions_triggered_by_m7",
+                    "llm_calls_triggered_by_reconciliation",
+                    "duplicate_provider_side_effects",
+                )
+                if getattr(backfill, name) != 0
+            }
+        )
     if record.trajectory_evidence_gaps or record.trajectory_evidence_conflicts:
         failures.append("evidence_gaps_or_conflicts")
     if record.consistency_failures or record.consistency_unknown:
         failures.append("consistency")
+    if record.trajectory_logical_duplicates_removed != 0:
+        failures.append("main_scenario_deduped_real_occurrences")
     if failures:
         raise SystemExit(f"M7 formal scenarios failed: {failures}")
     if hard_zero:

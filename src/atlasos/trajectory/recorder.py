@@ -215,6 +215,7 @@ class TrajectoryRecorder:
         decision_source: str,
         tool_id: str,
         call_id: str | None,
+        occurrence_id: str,
         policy_rule_id: str | None,
         decision_basis_digest: str,
         action_digest: str,
@@ -230,6 +231,7 @@ class TrajectoryRecorder:
         identity = {
             "call_id": call_id or tool_id,
             "phase": phase,
+            "occurrence_id": occurrence_id,
             "decision": decision,
             "decision_source": decision_source,
             "decision_basis_digest": decision_basis_digest,
@@ -243,7 +245,12 @@ class TrajectoryRecorder:
             event_type="action_decision",
             source="m3",
             occurred_at=occurred_at,
-            correlation=_merge_correlation(correlation, call_id=call_id, tool_id=tool_id),
+            correlation=_merge_correlation(
+                correlation,
+                call_id=call_id,
+                tool_id=tool_id,
+                occurrence_id=occurrence_id,
+            ),
             data=ActionDecisionData(
                 phase=phase,  # type: ignore[arg-type]
                 decision=decision,  # type: ignore[arg-type]

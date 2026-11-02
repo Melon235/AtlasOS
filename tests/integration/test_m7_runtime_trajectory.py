@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
 from anycode import AgentConfig, OrchestratorConfig, TaskSpec, TeamConfig
 from anycode.identity.context import ExecutionContext
 from anycode.plugins.registry import register_provider_factory
@@ -28,6 +29,7 @@ from tests.helpers.m6_harness import M6World
 from atlasos.approvals.models import ReviewerIdentity
 from atlasos.approvals.resume import resume_execution_suspension
 from atlasos.config import AtlasConfig, ToolsConfig, TrajectoryConfig
+from atlasos.durability.faults import InjectedCrash
 from atlasos.experiments import semantic_config_hash
 from atlasos.integrations.anycode_engine import AtlasContextEngine
 from atlasos.sandbox import (
@@ -48,6 +50,17 @@ from atlasos.trajectory.reader import TrajectoryReader
 from atlasos.trajectory.reconcile import TrajectoryReconciler
 from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerStore
+
+
+class MutableClock:
+    def __init__(self) -> None:
+        self.current = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    def __call__(self) -> datetime:
+        return self.current
+
+    def advance(self, seconds: float) -> None:
+        self.current = self.current + timedelta(seconds=seconds)
 
 
 class ScriptedAdapter:
@@ -523,3 +536,101 @@ async def test_m7_m4_uncertainty_authority_beats_fake_trajectory(tmp_path: Path)
         suspensions=runtime.suspension_store,
     ).reconcile("run-m6")
     assert report.consistency.failures >= 1
+
+
+async def test_m7_real_repeated_resume_occurrences_are_preserved(tmp_path: Path) -> None:
+    clock = MutableClock()
+    world = M6World(tmp_path / "world", clock=clock)
+    store = FilesystemRunStore(tmp_path / "trajectory")
+    recorder = TrajectoryRecorder(store, "run-m6")
+    runtime = world.runtime(trajectory_recorder=recorder)
+    await world.disclose(runtime, "send external email notification")
+    suspension = await world.suspend(
+        runtime,
+        [
+            world.call(
+                0,
+                "call-email",
+                "email.send",
+                {"to": "ops@example.test", "body": "x"},
+            )
+        ],
+        model_response_id="resp-1",
+    )
+    world.approve(runtime, suspension)
+
+    def crash_after_revalidation(point: str) -> None:
+        if point == "resume_after_revalidate":
+            raise InjectedCrash("retry after revalidation")
+
+    with pytest.raises(InjectedCrash):
+        await world.resume(runtime, suspension, fault_hook=crash_after_revalidation)
+    clock.advance(61)
+    outcome = await world.resume(runtime, suspension, owner="retry")
+    assert outcome.status == "settled"
+    assert world.provider.effects == 1
+
+    view = TrajectoryReader(store).read("run-m6")
+    decisions = [
+        event
+        for event in view.events
+        if event.event_type == "action_decision" and event.data["phase"] == "resume_revalidation"
+    ]
+    assert len(decisions) == 2
+    assert len({event.correlation.occurrence_id for event in decisions}) == 2
+    assert {event.correlation.call_id for event in decisions} == {"call-email"}
+    assert sum(len(event.physical_refs) for event in decisions) == 2
+    assert all(len(event.physical_refs) == 1 for event in decisions)
+    assert view.metrics.evidence_conflicts == 0
+
+
+async def test_m7_flag_does_not_change_m4_m3_provenance(tmp_path: Path) -> None:
+    results: list[tuple[str | None, str, str | None, int]] = []
+    for enabled in (False, True):
+        world = M6World(tmp_path / f"world-{enabled}")
+        recorder = (
+            TrajectoryRecorder(
+                FilesystemRunStore(world.root / "trajectory"),
+                "run-m6",
+            )
+            if enabled
+            else None
+        )
+        runtime = world.runtime(trajectory_recorder=recorder)
+        await world.disclose(runtime, "send external email notification")
+        suspension = await world.suspend(
+            runtime,
+            [
+                world.call(
+                    0,
+                    "call-email",
+                    "email.send",
+                    {"to": "ops@example.test", "body": "x"},
+                )
+            ],
+        )
+        world.approve(runtime, suspension)
+        outcome = await world.resume(runtime, suspension)
+        assert outcome.status == "settled"
+        record = world.ledger.list()[0]
+        results.append(
+            (
+                record.m3_call_id,
+                record.state,
+                record.completion_kind,
+                world.provider.effects,
+            )
+        )
+        if not enabled:
+            assert not (world.root / "trajectory").exists()
+
+    assert (
+        results[0]
+        == results[1]
+        == (
+            "call-email",
+            "COMPLETED",
+            "EXECUTED_SUCCESS",
+            1,
+        )
+    )

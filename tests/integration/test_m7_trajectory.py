@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from anycode.runstore.store import FilesystemRunStore
@@ -23,6 +24,19 @@ from atlasos.trajectory.models import (
 from atlasos.trajectory.reader import TrajectoryReader
 from atlasos.trajectory.reconcile import TrajectoryReconciler
 from atlasos.trajectory.recorder import NoopTrajectoryRecorder, TrajectoryRecorder
+
+
+class _DuplicateAppendStore(FilesystemRunStore):
+    """Simulates a transport that writes the same evidence payload twice."""
+
+    def append_event(
+        self,
+        run_id: str,
+        kind: Any,
+        payload: dict[str, object] | None = None,
+    ) -> Any:
+        super().append_event(run_id, kind, payload)
+        return super().append_event(run_id, kind, payload)
 
 
 def _proposed(
@@ -105,6 +119,42 @@ def test_m7_reader_reports_unknown_schema_without_raising(tmp_path: Path) -> Non
     assert view.metrics.decode_failures == 1
     assert view.decode_failures[0].seq == 2
     assert [event.seq for event in view.events] == [1]
+
+
+def test_m7_same_occurrence_duplicate_write_dedupes(tmp_path: Path) -> None:
+    store = _DuplicateAppendStore(tmp_path / "trajectory")
+    recorder = TrajectoryRecorder(store, "run-m6")
+    occurrence_id = "settlement:sus-1:9"
+    recorder.record_action_decision(
+        phase="resume_revalidation",
+        decision="ALLOW",
+        decision_source="policy",
+        tool_id="email.send",
+        call_id="call-1",
+        occurrence_id=occurrence_id,
+        policy_rule_id="allow-communication",
+        decision_basis_digest="b" * 64,
+        action_digest="a" * 64,
+        input_digest="i" * 64,
+        tool_binding_digest="t" * 64,
+        reason_codes=(),
+        scope_alignment="within_scope",
+        reviewer_verdict=None,
+        external_policy_outcome=None,
+        correlation=TrajectoryCorrelation(
+            call_id="call-1",
+            tool_id="email.send",
+            occurrence_id=occurrence_id,
+        ),
+    )
+    view = TrajectoryReader(store).read("run-m6")
+    decisions = [event for event in view.events if event.event_type == "action_decision"]
+    assert view.metrics.physical_events == 2
+    assert view.metrics.logical_events == 1
+    assert view.metrics.evidence_conflicts == 0
+    assert len(decisions) == 1
+    assert decisions[0].correlation.occurrence_id == occurrence_id
+    assert decisions[0].physical_refs == (1, 2)
 
 
 def test_m7_reader_projects_native_observation_and_suppresses_atlas_duplicate(

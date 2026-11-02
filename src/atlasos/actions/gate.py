@@ -366,6 +366,13 @@ class ActionSafetyGate:
                     "reason_codes": list(evaluation.reason_codes),
                 }
             )
+        occurrence_id = call_context.occurrence_id if call_context is not None else None
+        if not occurrence_id and call_context is not None and phase == "preflight":
+            occurrence_id = call_context.model_response_id
+        if not occurrence_id:
+            # A real M3 evaluation is a runtime occurrence. The gate is the runtime seam that
+            # observed it, so it supplies the identity when no caller-provided occurrence exists.
+            occurrence_id = uuid.uuid4().hex
         try:
             recorder.record_action_decision(
                 phase=phase,
@@ -373,6 +380,7 @@ class ActionSafetyGate:
                 decision_source=self._decision_source(evaluation),
                 tool_id=tool_id,
                 call_id=call_id,
+                occurrence_id=occurrence_id,
                 policy_rule_id=decision.matched_rule if decision is not None else None,
                 decision_basis_digest=basis,
                 action_digest=evaluation.action_digest,
@@ -389,6 +397,7 @@ class ActionSafetyGate:
                     model_response_id=(
                         call_context.model_response_id if call_context is not None else None
                     ),
+                    occurrence_id=occurrence_id,
                     ordinal=(call_context.ordinal if call_context is not None else None),
                     call_id=call_id,
                     tool_id=tool_id,
