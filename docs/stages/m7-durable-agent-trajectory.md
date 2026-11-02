@@ -365,5 +365,6 @@ Quality gates: `ruff check .`, `ruff format --check .`, `pyright`, and the full 
 ## 19. Formal results
 
 The formal evaluator is
-[`examples/m7_trajectory_eval.py`](../../examples/m7_trajectory_eval.py). Results are recorded in
+[`examples/m7_trajectory_eval.py`](../../examples/m7_trajectory_eval.py). It runs the main M1–M7
+chain and a separate evidence-repair scenario; results are recorded in
 [`experiments/results/v2-m7-results.md`](../../experiments/results/v2-m7-results.md).
