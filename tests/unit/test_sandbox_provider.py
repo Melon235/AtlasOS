@@ -106,7 +106,7 @@ def test_daytona_adapter_maps_network_none_to_block_all() -> None:
         persistent=True,
         labels={"atlas_m5": "1"},
     )
-    params = getattr(provider, "_creation_params")(spec)  # adapter contract check
+    params = getattr(provider, "_creation_params")(spec)  # noqa: B009 - adapter contract check
     assert params is not None
     assert params.network_block_all is True
     assert params.ephemeral is False
