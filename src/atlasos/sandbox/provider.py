@@ -17,10 +17,11 @@ from typing import Any
 from anycode.sandbox import SandboxCapabilities, SandboxProvider, create_sandbox_provider
 
 from atlasos.sandbox.models import SandboxCapabilityError, SandboxCredentialError
+from atlasos.sandbox.opensandbox_provider import OpenSandboxOptions, OpenSandboxProvider
 
 # A real Atlas Sandbox must be remotely isolated. The fake provider used by deterministic
 # regression tests is deliberately excluded from this set.
-REAL_SANDBOX_PROVIDERS: frozenset[str] = frozenset({"daytona"})
+REAL_SANDBOX_PROVIDERS: frozenset[str] = frozenset({"opensandbox", "daytona"})
 
 # AnyCode reports ``allowlist`` for providers that can enforce both a CIDR/domain allowlist and a
 # complete block. ``none`` is the subset Atlas M5 requires; ``unrestricted`` cannot satisfy it.
@@ -32,13 +33,21 @@ def build_sandbox_provider(
     name: str,
     *,
     environ: Mapping[str, str] | None = None,
+    opensandbox_options: OpenSandboxOptions | None = None,
 ) -> SandboxProvider:
     """Construct a provider selected by trusted host configuration.
 
-    Credentials stay in the SDK's environment/configuration. They are checked for presence only;
-    their values are never read into Atlas state, labels, commands, or evidence.
+    OpenSandbox is self-hosted and needs no external cloud credential. An optional local service
+    API key is read from ``OPEN_SANDBOX_API_KEY``. Daytona remains available as an optional
+    non-default backend and retains its own credential preflight.
     """
 
+    if name == "opensandbox":
+        env = os.environ if environ is None else environ
+        return OpenSandboxProvider(
+            opensandbox_options or OpenSandboxOptions(),
+            api_key=env.get("OPEN_SANDBOX_API_KEY") or None,
+        )
     if name not in REAL_SANDBOX_PROVIDERS:
         raise SandboxCredentialError(
             f"sandbox provider {name!r} is not a configured real Atlas Sandbox provider; "

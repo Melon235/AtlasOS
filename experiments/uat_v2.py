@@ -71,6 +71,10 @@ class UATRecord(BaseModel):
 
     provider_name: str
     provider_is_real: bool
+    provider_is_external_cloud: bool
+    provider_is_self_hosted: bool
+    opensandbox_server_health: str
+    runtime_backend: str
     provider_capabilities: dict[str, Any] | None
     capabilities_digest: str | None
     sandbox_created: bool
@@ -84,6 +88,7 @@ class UATRecord(BaseModel):
     files_read: int
     files_written: int
     network_policy_requested: str
+    network_policy_accepted: bool
     network_policy_verified: str
     host_only_sentinel_visible: bool | None
     sandbox_only_sentinel_visible_on_host: bool | None
@@ -180,7 +185,7 @@ def _run_cli(
     if scripted:
         command.append("--scripted")
     else:
-        command.extend(["--sandbox-provider", "daytona", "--require-real-sandbox"])
+        command.extend(["--sandbox-provider", "opensandbox", "--require-real-sandbox"])
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join([str(REPO_ROOT / "src"), str(REPO_ROOT)])
     result = subprocess.run(
@@ -189,6 +194,8 @@ def _run_cli(
         env=env,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=1200,
         check=False,
     )
@@ -312,6 +319,7 @@ def _sandbox_ok(sandbox: dict[str, Any], evidence: dict[str, Any]) -> bool:
         and sandbox.get("sandbox_only_sentinel_visible_on_host") is False
         and sandbox.get("sandbox_only_sentinel_read") is True
         and sandbox.get("network_policy_requested") == "none"
+        and sandbox.get("network_policy_accepted") is True
         and sandbox.get("network_policy_verified") != "FAIL"
         and evidence.get("ready_count") == 1
         and evidence.get("closed_count") == 1
@@ -322,6 +330,10 @@ def _sandbox_ok(sandbox: dict[str, Any], evidence: dict[str, Any]) -> bool:
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="atlas-uat-v2")
     parser.add_argument("--task", default=TASK)
     parser.add_argument("--scripted", action="store_true")
@@ -454,6 +466,9 @@ def main() -> None:
     elif (
         real_llm
         and real_sandbox
+        and provider_name == "opensandbox"
+        and sandbox.get("provider_is_self_hosted") is True
+        and sandbox.get("opensandbox_server_health") == "healthy"
         and failure_class is None
         and acceptance
         and host_unchanged
@@ -490,6 +505,10 @@ def main() -> None:
         acceptance_failures=acceptance_failures,
         provider_name=provider_name,
         provider_is_real=provider_is_real,
+        provider_is_external_cloud=bool(sandbox.get("provider_is_external_cloud")),
+        provider_is_self_hosted=bool(sandbox.get("provider_is_self_hosted")),
+        opensandbox_server_health=str(sandbox.get("opensandbox_server_health", "UNKNOWN")),
+        runtime_backend=str(sandbox.get("runtime_backend", "unknown")),
         provider_capabilities=capabilities if isinstance(capabilities, dict) else None,
         capabilities_digest=sandbox.get("capabilities_digest"),
         sandbox_created=bool(sandbox.get("sandbox_created")),
@@ -503,6 +522,7 @@ def main() -> None:
         files_read=int(sandbox.get("files_read", 0)),
         files_written=int(sandbox.get("files_written", 0)),
         network_policy_requested=str(sandbox.get("network_policy_requested", "none")),
+        network_policy_accepted=bool(sandbox.get("network_policy_accepted")),
         network_policy_verified=str(sandbox.get("network_policy_verified", "UNKNOWN")),
         host_only_sentinel_visible=sandbox.get("host_only_sentinel_visible"),
         sandbox_only_sentinel_visible_on_host=sandbox.get("sandbox_only_sentinel_visible_on_host"),

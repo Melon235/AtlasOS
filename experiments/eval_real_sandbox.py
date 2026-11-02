@@ -24,12 +24,14 @@ from dotenv import load_dotenv
 from atlasos.config import load_config
 from atlasos.sandbox import (
     REAL_SANDBOX_PROVIDERS,
+    OpenSandboxOptions,
     SandboxCapabilityError,
     SandboxCredentialError,
     SandboxProjectConfig,
     build_sandbox_provider,
     capability_digest,
     capability_summary,
+    export_workspace,
     require_capabilities,
     require_real_sandbox_provider,
     trusted_sandbox_spec,
@@ -51,12 +53,18 @@ class RealSandboxRecord:
     timestamp: str
     provider_name: str
     provider_is_real: bool
+    provider_is_external_cloud: bool
+    provider_is_self_hosted: bool
+    opensandbox_server_health: str
+    runtime_backend: str
     provider_capabilities: dict[str, Any] | None
     capabilities_digest: str | None
     sandbox_created: bool
     sandbox_ready: bool
     sandbox_logical_id: str | None
     workspace_path: str
+    workspace_export: str | None
+    export_file_count: int
     file_upload_ok: bool
     file_read_ok: bool
     python_version_stdout: str
@@ -64,6 +72,7 @@ class RealSandboxRecord:
     script_stdout: str
     script_exit_code: int | None
     network_policy_requested: str
+    network_policy_accepted: bool
     network_policy_verified: str
     host_only_sentinel_visible: bool | None
     sandbox_only_sentinel_visible_on_host: bool | None
@@ -103,12 +112,18 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
         timestamp=datetime.now(UTC).isoformat(),
         provider_name=provider_name,
         provider_is_real=False,
+        provider_is_external_cloud=False,
+        provider_is_self_hosted=provider_name == "opensandbox",
+        opensandbox_server_health="UNKNOWN",
+        runtime_backend="unknown",
         provider_capabilities=None,
         capabilities_digest=None,
         sandbox_created=False,
         sandbox_ready=False,
         sandbox_logical_id=None,
         workspace_path=config.sandbox.workspace_root,
+        workspace_export=None,
+        export_file_count=0,
         file_upload_ok=False,
         file_read_ok=False,
         python_version_stdout="",
@@ -116,6 +131,7 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
         script_stdout="",
         script_exit_code=None,
         network_policy_requested=config.sandbox.network,
+        network_policy_accepted=False,
         network_policy_verified="UNKNOWN",
         host_only_sentinel_visible=None,
         sandbox_only_sentinel_visible_on_host=None,
@@ -140,14 +156,26 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
         return record, 1
 
     try:
-        provider = build_sandbox_provider(provider_name)
+        sandbox_config = config.sandbox
+        options = OpenSandboxOptions(
+            endpoint=sandbox_config.endpoint,
+            protocol=sandbox_config.protocol,
+            timeout_minutes=sandbox_config.timeout_minutes,
+            ready_timeout_seconds=sandbox_config.ready_timeout_seconds,
+            cpu=sandbox_config.cpu,
+            memory=sandbox_config.memory,
+            use_server_proxy=sandbox_config.use_server_proxy,
+        )
+        provider = build_sandbox_provider(provider_name, opensandbox_options=options)
         capabilities = provider.capabilities()
         record.provider_capabilities = capability_summary(capabilities)
         record.capabilities_digest = capability_digest(capabilities)
         require_real_sandbox_provider(provider, expected_name=provider_name)
         record.provider_is_real = True
+        record.runtime_backend = "docker" if provider_name == "opensandbox" else "external"
         require_capabilities(capabilities)
         health = await provider.health()
+        record.opensandbox_server_health = health.status
         if health.status == "unavailable":
             raise SandboxCapabilityError(f"sandbox provider unavailable: {health.message}")
 
@@ -173,6 +201,7 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
         record.sandbox_created = True
         record.sandbox_ready = True
         record.sandbox_logical_id = handle.id
+        record.network_policy_accepted = True
 
         prepare = await provider.execute(
             handle,
@@ -227,6 +256,18 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
         record.sandbox_only_sentinel_visible_on_host = separation.sandbox_only_visible_on_host
         record.sandbox_only_sentinel_read = separation.sandbox_only_read_back
         require_host_separation(separation)
+
+        export_destination = run_dir / "workspace"
+        exported = await export_workspace(
+            provider,
+            handle,
+            destination=export_destination,
+            workspace_root=config.sandbox.workspace_root,
+        )
+        record.workspace_export = str(export_destination)
+        record.export_file_count = exported.file_count
+        if not (export_destination / "smoke.txt").is_file():
+            raise SandboxBindingError("explicit workspace export did not contain smoke.txt")
     except SandboxCredentialError as error:
         failure_class = "CREDENTIAL_BLOCKED"
         failure_message = safe_exception_message(error)

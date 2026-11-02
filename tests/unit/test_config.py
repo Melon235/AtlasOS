@@ -90,10 +90,14 @@ def test_historical_optimizer_config_is_rejected() -> None:
 def test_loads_real_sandbox_uat_configuration() -> None:
     config = load_config(UAT)
     assert config.sandbox.enabled is True
-    assert config.sandbox.provider == "daytona"
+    assert config.sandbox.provider == "opensandbox"
+    assert config.sandbox.endpoint == "localhost:8080"
+    assert config.sandbox.protocol == "http"
     assert config.sandbox.network == "none"
     assert config.sandbox.workspace_root == "/workspace/project"
     assert config.sandbox.image is not None
+    assert config.sandbox.timeout_minutes > 0
+    assert config.sandbox.memory
 
 
 def test_sandbox_configuration_cannot_be_weakened() -> None:
@@ -109,6 +113,10 @@ def test_sandbox_configuration_cannot_be_weakened() -> None:
         )
     with pytest.raises(ValidationError, match="exactly one"):
         AtlasConfig.model_validate({"sandbox": {"provider": "daytona", "image": None}})
+    with pytest.raises(ValidationError, match="endpoint"):
+        AtlasConfig.model_validate(
+            {"sandbox": {"provider": "opensandbox", "endpoint": "http://localhost:8080"}}
+        )
 
 
 def test_model_facing_configuration_has_no_sandbox_selection() -> None:

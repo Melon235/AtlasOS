@@ -5,9 +5,9 @@ the trusted Atlas Sandbox provider selected by Host configuration, stages the fi
 one-task M5 binding, runs one engine task, and exports the remote workspace for external
 acceptance. It owns no scheduling, policy, execution, approval, or recovery logic.
 
-Live coding UAT requires a real AnyCode-compatible provider (Daytona). The deterministic local
-provider is reachable only through the explicitly scripted smoke path; it is never selected as a
-fallback when the real provider or its credentials are unavailable.
+Live coding UAT requires a real AnyCode-compatible provider (self-hosted OpenSandbox by default).
+The deterministic local provider is reachable only through the explicitly scripted smoke path; it is
+never selected as a fallback when the real provider or its server is unavailable.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -53,6 +54,7 @@ from atlasos.integrations.deepseek import DeepSeekAdapter
 from atlasos.ledger import SQLiteActionLedgerStore
 from atlasos.sandbox import (
     REAL_SANDBOX_PROVIDERS,
+    OpenSandboxOptions,
     ProjectSandboxManager,
     SandboxCapabilityError,
     SandboxCredentialError,
@@ -103,6 +105,10 @@ class _UATFailure(RuntimeError):
 class _SandboxMetrics:
     provider_name: str = ""
     provider_is_real: bool = False
+    provider_is_external_cloud: bool = False
+    provider_is_self_hosted: bool = False
+    opensandbox_server_health: str = "UNKNOWN"
+    runtime_backend: str = "unknown"
     provider_capabilities: dict[str, Any] | None = None
     capabilities_digest: str | None = None
     sandbox_created: bool = False
@@ -112,6 +118,7 @@ class _SandboxMetrics:
     sandbox_destroyed: bool = False
     workspace_root: str = "/workspace/project"
     network_policy_requested: str = "none"
+    network_policy_accepted: bool = False
     network_policy_verified: str = "UNKNOWN"
     same_binding_all_project_tools: bool = False
     commands_executed: int = 0
@@ -135,6 +142,10 @@ class _SandboxMetrics:
         value = {
             "provider_name": self.provider_name,
             "provider_is_real": self.provider_is_real,
+            "provider_is_external_cloud": self.provider_is_external_cloud,
+            "provider_is_self_hosted": self.provider_is_self_hosted,
+            "opensandbox_server_health": self.opensandbox_server_health,
+            "runtime_backend": self.runtime_backend,
             "provider_capabilities": self.provider_capabilities,
             "capabilities_digest": self.capabilities_digest,
             "sandbox_created": self.sandbox_created,
@@ -144,6 +155,7 @@ class _SandboxMetrics:
             "sandbox_destroyed": self.sandbox_destroyed,
             "workspace_root": self.workspace_root,
             "network_policy_requested": self.network_policy_requested,
+            "network_policy_accepted": self.network_policy_accepted,
             "network_policy_verified": self.network_policy_verified,
             "same_binding_all_project_tools": self.same_binding_all_project_tools,
             "commands_executed": self.commands_executed,
@@ -364,7 +376,12 @@ def _project_config(
     )
 
 
-def _build_provider(args: argparse.Namespace, provider_name: str, run_dir: Path) -> Any:
+def _build_provider(
+    args: argparse.Namespace,
+    provider_name: str,
+    run_dir: Path,
+    config: AtlasConfig,
+) -> Any:
     if provider_name == "fake":
         # The deterministic provider exists only for the explicit scripted smoke path. Importing it
         # lazily keeps the live path free of test-only sandbox code.
@@ -372,7 +389,17 @@ def _build_provider(args: argparse.Namespace, provider_name: str, run_dir: Path)
 
         shell = "git-bash" if os.name == "nt" else "cmd"
         return FakeSandboxProvider(run_dir / "sandbox", shell=shell)
-    return build_sandbox_provider(provider_name)
+    sandbox = config.sandbox
+    options = OpenSandboxOptions(
+        endpoint=sandbox.endpoint,
+        protocol=sandbox.protocol,
+        timeout_minutes=sandbox.timeout_minutes,
+        ready_timeout_seconds=sandbox.ready_timeout_seconds,
+        cpu=sandbox.cpu,
+        memory=sandbox.memory,
+        use_server_proxy=sandbox.use_server_proxy,
+    )
+    return build_sandbox_provider(provider_name, opensandbox_options=options)
 
 
 def _classify_exception(error: BaseException) -> str:
@@ -468,15 +495,19 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             )
         provider_name = _select_provider(args, config)
         metrics.provider_name = provider_name
-        provider = _build_provider(args, provider_name, run_dir)
+        provider = _build_provider(args, provider_name, run_dir, config)
         capabilities = provider.capabilities()
         metrics.provider_capabilities = capability_summary(capabilities)
         metrics.capabilities_digest = capability_digest(capabilities)
         metrics.provider_is_real = is_real_sandbox_provider(provider, expected_name=provider_name)
+        metrics.provider_is_external_cloud = False
+        metrics.provider_is_self_hosted = provider_name == "opensandbox"
+        metrics.runtime_backend = "docker" if provider_name == "opensandbox" else "external"
         if provider_name != "fake":
             require_real_sandbox_provider(provider, expected_name=provider_name)
         require_capabilities(capabilities)
         health = await provider.health()
+        metrics.opensandbox_server_health = health.status
         if health.status == "unavailable":
             raise SandboxProviderError(f"sandbox provider is unavailable: {health.message}")
 
@@ -541,6 +572,7 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         metrics.sandbox_created = manager.create_count > 0
         metrics.sandbox_ready = binding.state == "READY"
         metrics.sandbox_logical_id = binding.sandbox_handle.id
+        metrics.network_policy_accepted = True
         metrics.binding_id = derive_sandbox_binding_id(
             run_id=run_id,
             task_id=task_id,
@@ -717,6 +749,10 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="atlas-uat")
     parser.add_argument("task", help="natural-language task for the UAT coding session")
     parser.add_argument("--fixture", type=Path, required=True)

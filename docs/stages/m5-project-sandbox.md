@@ -1,8 +1,8 @@
 # V2 M5 — Project Sandbox Binding
 
-Status: deterministic M5 verification PASS at baseline M4.1 final `51e2b7d`; real Atlas Sandbox
-provider integration implemented in the V2 real-sandbox stage. Live sandbox execution requires Host
-Daytona credentials and is reported separately, never inferred from the fake-provider PASS.
+Status: deterministic M5 verification PASS at baseline M4.1 final `51e2b7d`; real self-hosted Atlas
+Sandbox execution PASS on local OpenSandbox/Docker in the V2 OpenSandbox stage. The fake-provider
+deterministic PASS is never presented as real isolation evidence.
 
 > Atlas does not implement a second sandbox runtime; M5 binds one project task to one
 > AnyCode-managed sandbox so all workspace-bound tools operate on the same isolated project copy,
@@ -174,43 +174,50 @@ the only sandbox-bound surface. No alternate `filesystem.*`, `shell.*`, `python.
 
 **Atlas Sandbox** is the product capability. M5 owns trusted provider selection, binding lifecycle,
 workspace policy, and fail-closed behavior. The AnyCode-compatible `SandboxProvider` owns the actual
-remote resource, process execution, remote filesystem, network enforcement, and resource
-destruction. Atlas does not import the Daytona SDK or implement a second sandbox runtime.
+sandbox resource, process execution, remote filesystem, network enforcement, and resource
+destruction. Atlas does not talk to Docker directly and does not implement a second sandbox runtime.
 
-The current implementation is:
+The default real implementation is:
 
 ```text
 Atlas Runtime
   -> M3 -> M4 -> M5 ProjectSandboxBinding
   -> AnyCode SandboxProvider protocol
-  -> create_sandbox_provider("daytona")
-  -> DaytonaSandboxProvider
-  -> remote isolated sandbox
+  -> OpenSandboxProvider (thin adapter)
+  -> self-hosted OpenSandbox Python SDK
+  -> local OpenSandbox server
+  -> Docker Engine
+  -> isolated sandbox
   -> /workspace/project
 ```
+
+Optional non-default: AnyCode's Daytona adapter remains available under the same protocol, but it is
+not the default UAT backend and is not required.
 
 Trusted configuration is [`experiments/configs/v2-uat.yaml`](../../experiments/configs/v2-uat.yaml):
 
 ```yaml
 sandbox:
-  provider: daytona
-  image: python:3.12@sha256:...   # full image: includes Git for M5 bundle provisioning
+  provider: opensandbox
+  endpoint: localhost:8080
+  image: atlas-uat-python:3.12   # Python + Git + pytest
   workspace_root: /workspace/project
   network: none
+  timeout_minutes: 20
+  cpu: "1"
+  memory: "1Gi"
 ```
 
-Provider, image/snapshot, workspace, and network policy never come from model output, tool
-arguments, worker-profile text, or the task prompt. Daytona credentials come only from the SDK's
-Host environment (`DAYTONA_API_KEY`, or `DAYTONA_JWT_TOKEN` + `DAYTONA_ORGANIZATION_ID`); Atlas
-checks presence and never reads, logs, or persists the value. Missing credentials fail closed with
-`CREDENTIAL_BLOCKED`; there is no fake-provider fallback.
+Provider, endpoint, image, workspace, network, resource limits, and TTL never come from model output,
+tool arguments, worker-profile text, or the task prompt. OpenSandbox is self-hosted and needs no
+external cloud credential. An optional local service key can be supplied through
+`OPEN_SANDBOX_API_KEY`; it is never persisted in Atlas state or evidence.
 
-Capability negotiation before create requires remote/isolated execution, persistent filesystem, file
-transfer, and a network policy compatible with `none`. AnyCode reports `networking="allowlist"` for
-Daytona because the adapter can enforce an allowlist or a complete block; the adapter maps
-`network="none"` to `network_block_all=True`. Atlas accepts that report only as a network-none
-capability, and the UAT/evaluator additionally performs an empirical egress probe. Unsupported
-capabilities fail before sandbox creation.
+Capability negotiation before create requires isolated execution, persistent filesystem, file
+transfer, and a network policy compatible with `none`. The adapter reports `networking="allowlist"`
+and maps `network="none"` to an OpenSandbox `NetworkPolicy(defaultAction="deny")`. The local server
+runs the egress sidecar in `dns+nft` mode; Atlas records policy requested, accepted, and empirically
+verified outcomes separately. An observed egress success fails closed.
 
 Provisioning uploads a clean Git bundle with `provider.write_file`, creates the workspace directory,
 clones inside the sandbox, and verifies the source commit. The Host fixture is never mounted.
@@ -222,14 +229,18 @@ The lifecycle is `CREATE -> READY -> READ/WRITE/EXECUTE -> CLOSED/DESTROYED`. A 
 `LOST`, is never recreated, and is never replaced by Host execution. Normal completion and failure
 cleanup call `provider.destroy`; `sandbox.retain_on_failure` is an operator-only debug switch.
 
+Local setup and the verified Windows/WSL2/Docker topology are documented in
+[`opensandbox-local.md`](opensandbox-local.md).
+
 ## Known limitations
 
-- Deterministic regression tests use the in-repository `FakeSandboxProvider`. Live UAT requires a
-  real provider and Host Daytona credentials; without them the formal status is
-  `BLOCKED_NO_CREDENTIALS`, not PASS.
-- The UAT image is a generic pinned Python image. External acceptance runs on the Host export; the
-  model-side sandbox may not contain the same test tooling as the Host venv.
+- Deterministic regression tests use the in-repository `FakeSandboxProvider`. Live UAT requires the
+  self-hosted OpenSandbox server and Docker; an unavailable server is
+  `SANDBOX_ENVIRONMENT_BLOCKED`, never a fake-provider PASS.
+- The sandbox image is the local UAT image described in [`opensandbox-local.md`](opensandbox-local.md);
+  it includes Git and pytest so both M5 provisioning and model-side tests work.
 - Network is fixed to `none`; domain allowlists and secret injection are out of scope.
+- No snapshot restore or secure-runtime (gVisor/Kata) hardening in this stage.
 - No automatic resume/snapshot/workspace replay after runtime restart. Binding metadata is
   runtime-scoped in v1; a restarted runtime cannot prove it still owns the same sandbox and fails
   closed rather than recreating.

@@ -23,6 +23,7 @@ from atlasos.sandbox.models import (
     SandboxProvisionError,
     trusted_sandbox_spec,
 )
+from atlasos.sandbox.opensandbox_provider import OpenSandboxOptions, OpenSandboxProvider
 from atlasos.sandbox.provider import (
     REAL_SANDBOX_PROVIDERS,
     build_sandbox_provider,
@@ -42,6 +43,8 @@ __all__ = [
     "ExecutionMode",
     "GitProjectProvisioner",
     "GitProjectSource",
+    "OpenSandboxOptions",
+    "OpenSandboxProvider",
     "ProjectSandboxBinding",
     "ProjectSandboxManager",
     "SandboxBindingError",

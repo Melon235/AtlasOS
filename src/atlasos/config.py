@@ -184,12 +184,19 @@ class SandboxConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     enabled: bool = False
-    provider: Literal["fake", "daytona"] = "fake"
+    provider: Literal["fake", "daytona", "opensandbox"] = "fake"
+    endpoint: str = "localhost:8080"
+    protocol: Literal["http", "https"] = "http"
     image: str | None = "python:3.12"
     snapshot: str | None = None
     workspace_root: str = "/workspace/project"
     network: Literal["none"] = "none"
     max_bundle_bytes: int = Field(default=64 * 1024 * 1024, ge=1024)
+    timeout_minutes: int = Field(default=20, ge=1, le=120)
+    ready_timeout_seconds: int = Field(default=180, ge=30, le=900)
+    cpu: str = "1"
+    memory: str = "1Gi"
+    use_server_proxy: bool = True
     # Operator-only debug switch. Normal completion and failure both destroy the remote sandbox.
     retain_on_failure: bool = False
 
@@ -204,6 +211,11 @@ class SandboxConfig(BaseModel):
         selected = (self.image or self.snapshot or "").strip()
         if not selected or selected.lower() in {"latest", "stable", "lts"}:
             raise ValueError("sandbox requires a pinned image or snapshot")
+        endpoint = self.endpoint.strip()
+        if not endpoint or "://" in endpoint or "/" in endpoint:
+            raise ValueError("sandbox.endpoint must be a host:port value without a scheme or path")
+        if not self.cpu.strip() or not self.memory.strip():
+            raise ValueError("sandbox CPU and memory limits must not be empty")
         return self
 
 
