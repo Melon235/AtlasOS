@@ -130,7 +130,8 @@ Therefore the coding UAT runs through the thin CLI using the repository's determ
 sandbox provider for infrastructure validation, but it is **not** counted as a real-isolation PASS.
 
 ```text
-REAL USER ACCEPTANCE = BLOCKED_NO_REAL_SANDBOX_PROVIDER
+REAL USER ACCEPTANCE = FAIL (MODEL_FAILURE in the clean run)
+SANDBOX ISOLATION   = BLOCKED_NO_REAL_SANDBOX_PROVIDER
 ```
 
 A production UAT must install/configure one AnyCode sandbox provider, then run:
