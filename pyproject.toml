@@ -26,6 +26,8 @@ tools = [
     "sentence-transformers>=3.0",
     "faiss-cpu>=1.8",
 ]
+# Real Atlas Sandbox (V2 real-sandbox integration): AnyCode's Daytona adapter.
+sandbox = ["daytona>=0.197,<1"]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",

@@ -85,14 +85,24 @@ class SandboxWorkspaceTools:
         self.task_id = task_id
         self.provider = provider
         self.lock = asyncio.Lock()
+        self.operation_count = 0
+        self.command_count = 0
+        self.file_read_count = 0
+        self.file_write_count = 0
+        self.file_edit_count = 0
+        self.grep_count = 0
+        self.list_files_count = 0
+        self.used_handle_ids: set[str] = set()
 
     def _binding(self):
         try:
-            return self.manager.require_ready(self.task_id)
+            binding = self.manager.require_ready(self.task_id)
         except SandboxLostError:
             raise
         except Exception as error:
             raise SandboxLostError(str(error)) from error
+        self.used_handle_ids.add(binding.sandbox_handle.id)
+        return binding
 
     def _logical(self, raw: str | None, *, default_workspace: bool = False) -> str:
         workspace = self._binding().workspace_root
@@ -113,6 +123,7 @@ class SandboxWorkspaceTools:
 
     async def _execute(self, command: str, *, cwd: str, timeout_seconds: int = 60):
         binding = self._binding()
+        self.command_count += 1
         async with self.lock:
             try:
                 result = await self.provider.execute(
@@ -126,6 +137,8 @@ class SandboxWorkspaceTools:
 
     async def file_read(self, validated, context: ToolUseContext) -> ToolResult:
         del context
+        self.operation_count += 1
+        self.file_read_count += 1
         try:
             logical = self._logical(validated.path)
             binding = self._binding()
@@ -160,6 +173,8 @@ class SandboxWorkspaceTools:
 
     async def file_write(self, validated, context: ToolUseContext) -> ToolResult:
         del context
+        self.operation_count += 1
+        self.file_write_count += 1
         try:
             logical = self._logical(validated.path)
             binding = self._binding()
@@ -201,6 +216,8 @@ class SandboxWorkspaceTools:
 
     async def file_edit(self, validated, context: ToolUseContext) -> ToolResult:
         del context
+        self.operation_count += 1
+        self.file_edit_count += 1
         try:
             logical = self._logical(validated.path)
             binding = self._binding()
@@ -253,6 +270,8 @@ class SandboxWorkspaceTools:
 
     async def grep(self, validated, context: ToolUseContext) -> ToolResult:
         del context
+        self.operation_count += 1
+        self.grep_count += 1
         try:
             logical = self._logical(validated.path, default_workspace=True)
             relative = self._relative(logical) or "."
@@ -280,6 +299,8 @@ class SandboxWorkspaceTools:
 
     async def list_files(self, validated, context: ToolUseContext) -> ToolResult:
         del context
+        self.operation_count += 1
+        self.list_files_count += 1
         try:
             logical = self._logical(validated.path, default_workspace=True)
             relative = self._relative(logical) or "."
@@ -309,6 +330,7 @@ class SandboxWorkspaceTools:
 
     async def bash(self, validated, context: ToolUseContext) -> ToolResult:
         del context
+        self.operation_count += 1
         try:
             cwd = self._logical(validated.cwd, default_workspace=True)
             timeout = int(validated.timeout or BASH_TIMEOUT_LIMIT_S)

@@ -380,6 +380,10 @@ class TrajectoryRecorder:
         provider_name: str,
         state: str,
         source_commit: str | None,
+        sandbox_id: str | None = None,
+        capabilities_digest: str | None = None,
+        capabilities: dict[str, Any] | None = None,
+        network: str | None = None,
         occurred_at: datetime | None = None,
         correlation: TrajectoryCorrelation | None = None,
     ) -> TrajectoryEnvelope | None:
@@ -403,6 +407,10 @@ class TrajectoryRecorder:
                 provider_name=provider_name,
                 state=state,  # type: ignore[arg-type]
                 source_commit=source_commit,
+                sandbox_id=sandbox_id,
+                capabilities_digest=capabilities_digest,
+                capabilities=capabilities,
+                network=network,
             ).model_dump(mode="json"),
         )
         return self._append(envelope)

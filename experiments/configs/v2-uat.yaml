@@ -1,0 +1,14 @@
+# Atlas V2 real coding UAT: trusted Atlas Sandbox selection.
+#
+# Provider, image, workspace, and network policy come from Host configuration only. Model output,
+# tool arguments, and worker-profile text cannot change them.
+sandbox:
+  enabled: true
+  provider: daytona
+  # Pinned multi-arch manifest for python:3.12 (Docker Hub, amd64 runner). The full image includes
+  # Git for M5 bundle provisioning; python:3.12-slim does not.
+  image: python:3.12@sha256:17b9724493d916f56565c131f389faff2597f46dec6ce09516f95125bc9f519f
+  workspace_root: /workspace/project
+  network: none
+  max_bundle_bytes: 67108864
+  retain_on_failure: false

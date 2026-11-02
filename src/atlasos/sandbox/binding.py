@@ -13,10 +13,15 @@ from anycode.sandbox import SandboxProvider
 from atlasos.sandbox.models import (
     ProjectSandboxBinding,
     SandboxBindingError,
-    SandboxCapabilityError,
     SandboxLostError,
     SandboxProjectConfig,
+    SandboxProviderError,
     trusted_sandbox_spec,
+)
+from atlasos.sandbox.provider import (
+    capability_digest,
+    capability_summary,
+    require_capabilities,
 )
 from atlasos.sandbox.provision import GitProjectProvisioner
 from atlasos.trajectory.models import (
@@ -45,6 +50,10 @@ class ProjectSandboxManager:
         self.bindings: dict[str, ProjectSandboxBinding] = {}
         self._task_locks: dict[str, asyncio.Lock] = {}
         self.create_count = 0
+        self.destroy_count = 0
+        self.destroyed_count = 0
+        self.provision_commands = 0
+        self.provision_uploads = 0
 
     async def ensure_binding(
         self,
@@ -64,7 +73,13 @@ class ProjectSandboxManager:
                     f"task {task_id!r} is terminal ({existing.state}); M5 never recreates a sandbox"
                 )
 
-            GitProjectProvisioner.require_capabilities(self.provider)
+            capabilities = self.provider.capabilities()
+            if capabilities.provider != self.config.provider_name:
+                raise SandboxProviderError(
+                    "provider identity mismatch: trusted config selects "
+                    f"{self.config.provider_name!r}, provider reports {capabilities.provider!r}"
+                )
+            require_capabilities(capabilities)
             provisioner = GitProjectProvisioner(
                 max_bundle_bytes=self.config.max_bundle_bytes,
                 workspace_root=self.config.workspace_root,
@@ -79,38 +94,43 @@ class ProjectSandboxManager:
             )
             created = await self.provider.create(spec)
             if not created.ok or created.handle is None:
-                raise SandboxBindingError(
+                raise SandboxProviderError(
                     f"sandbox create failed; sandbox task fails closed: {created.error}"
                 )
             self.create_count += 1
             handle = created.handle
             try:
-                await provisioner.provision(self.provider, handle, source)
+                report = await provisioner.provision(self.provider, handle, source)
+                self.provision_commands += report.commands
+                self.provision_uploads += report.uploads
+                binding = ProjectSandboxBinding(
+                    run_id=self.run_id,
+                    task_id=task_id,
+                    worker_id=worker_id,
+                    provider_name=self.config.provider_name,
+                    sandbox_handle=handle,
+                    workspace_root=self.config.workspace_root,
+                    source_commit=source.source_commit,
+                    source_digest=source.bundle_digest,
+                    bundle_digest=source.bundle_digest,
+                    state="READY",
+                    created_at=datetime.now(UTC),
+                )
             except BaseException:
                 await self._best_effort_destroy(handle)
                 raise
             finally:
                 source.bundle_path.unlink(missing_ok=True)
-            binding = ProjectSandboxBinding(
-                run_id=self.run_id,
-                task_id=task_id,
-                worker_id=worker_id,
-                provider_name=self.config.provider_name,
-                sandbox_handle=handle,
-                workspace_root=self.config.workspace_root,
-                source_commit=source.source_commit,
-                source_digest=source.bundle_digest,
-                bundle_digest=source.bundle_digest,
-                state="READY",
-                created_at=datetime.now(UTC),
-            )
             self.bindings[task_id] = binding
             self._record_lifecycle(binding, "READY", occurred_at=binding.created_at)
             return binding
 
     async def _best_effort_destroy(self, handle) -> None:
+        self.destroy_count += 1
         with contextlib.suppress(Exception):
-            await self.provider.destroy(handle)
+            result = await self.provider.destroy(handle)
+            if result.ok:
+                self.destroyed_count += 1
 
     def binding(self, task_id: str) -> ProjectSandboxBinding:
         binding = self.bindings.get(task_id)
@@ -136,15 +156,19 @@ class ProjectSandboxManager:
         self.bindings[task_id] = updated
         self._record_lifecycle(updated, "LOST", occurred_at=None)
 
-    async def close(self, task_id: str) -> None:
+    async def close(self, task_id: str) -> bool:
         binding = self.binding(task_id)
         if binding.state in ("LOST", "CLOSED"):
-            return
+            return binding.state == "CLOSED"
+        self.destroy_count += 1
         result = await self.provider.destroy(binding.sandbox_handle)
+        if result.ok:
+            self.destroyed_count += 1
         state = "CLOSED" if result.ok else "LOST"
         updated = binding.model_copy(update={"state": state})
         self.bindings[task_id] = updated
         self._record_lifecycle(updated, state, occurred_at=None)
+        return result.ok
 
     async def cancel(self, task_id: str) -> None:
         binding = self.binding(task_id)
@@ -171,6 +195,7 @@ class ProjectSandboxManager:
             sandbox_handle_id=binding.sandbox_handle.id,
         )
         try:  # noqa: SIM105
+            capabilities = self.provider.capabilities()
             recorder.record_sandbox_lifecycle(
                 binding_id=binding_id,
                 task_id=binding.task_id,
@@ -178,6 +203,10 @@ class ProjectSandboxManager:
                 provider_name=binding.provider_name,
                 state=state,
                 source_commit=binding.source_commit,
+                sandbox_id=binding.sandbox_handle.id,
+                capabilities_digest=capability_digest(capabilities),
+                capabilities=capability_summary(capabilities),
+                network=self.config.network,
                 occurred_at=occurred_at,
                 correlation=TrajectoryCorrelation(
                     sandbox_binding_id=binding_id,
@@ -189,8 +218,4 @@ class ProjectSandboxManager:
 
 
 def require_sandbox_capabilities(provider: SandboxProvider) -> None:
-    capabilities = provider.capabilities()
-    if capabilities.isolation == "process" or capabilities.networking != "none":
-        raise SandboxCapabilityError(
-            "sandbox provider cannot prove M5 v1 isolation/network requirements"
-        )
+    require_capabilities(provider.capabilities())

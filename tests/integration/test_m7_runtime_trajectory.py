@@ -454,6 +454,10 @@ async def test_m7_m1_m2_m5_seams(tmp_path: Path) -> None:
     ]
     sandbox = [event for event in view.events if event.event_type == "sandbox_lifecycle"]
     assert [event.data["state"] for event in sandbox] == ["READY", "LOST"]
+    assert {event.data["sandbox_id"] for event in sandbox} == {created.handle.id}
+    assert all(event.data["capabilities_digest"].startswith("sha256:") for event in sandbox)
+    assert all(event.data["capabilities"]["provider"] == "fake" for event in sandbox)
+    assert all(event.data["network"] == "none" for event in sandbox)
     disclosed = [event for event in view.events if event.event_type == "tool_disclosed"]
     assert disclosed
     assert all(event.data["query_digest"] for event in disclosed)

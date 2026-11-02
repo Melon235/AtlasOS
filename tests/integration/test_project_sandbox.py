@@ -23,9 +23,11 @@ from atlasos.sandbox import (
     SandboxCapabilityError,
     SandboxLostError,
     SandboxProjectConfig,
+    SandboxProviderError,
     SandboxProvisionError,
     SandboxWorkspaceTools,
     export_patch,
+    export_workspace,
 )
 from atlasos.tools import AtlasToolRuntime
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerStore
@@ -580,3 +582,83 @@ async def test_m5_different_bindings_can_run_concurrently(tmp_path: Path) -> Non
         tools_b.bash(command, context()),
     )
     assert provider.max_active_operations >= 2
+
+
+async def test_m5_allowlist_capability_can_enforce_network_none(tmp_path: Path) -> None:
+    from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
+
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(
+        tmp_path / "provider",
+        capabilities=SandboxCapabilities(
+            provider="fake",
+            isolation="remote",
+            networking="allowlist",
+            persistent_filesystem=True,
+            snapshots=False,
+            command_streaming=True,
+            cancellation=True,
+            file_transfer=True,
+            evidence=True,
+        ),
+    )
+    manager = ProjectSandboxManager(
+        provider,
+        SandboxProjectConfig(provider_name="fake", image="fake@sha256:fixed"),
+        run_id="run-allowlist",
+    )
+    binding = await manager.ensure_binding(
+        task_id="task-allowlist", source_repo=str(repo), context=exec_context()
+    )
+    assert binding.state == "READY"
+    assert provider.specs[0].network == "none"
+    assert provider.create_count == 1
+
+
+async def test_m5_provider_identity_mismatch_fails_closed(tmp_path: Path) -> None:
+    from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
+
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = ProjectSandboxManager(
+        provider,
+        SandboxProjectConfig(provider_name="daytona", image="python:3.12"),
+        run_id="run-mismatch",
+    )
+    with pytest.raises(SandboxProviderError, match="provider identity mismatch"):
+        await manager.ensure_binding(
+            task_id="task-mismatch", source_repo=str(repo), context=exec_context()
+        )
+    assert provider.create_count == 0
+
+
+async def test_m5_workspace_export_is_explicit_and_host_unchanged(tmp_path: Path) -> None:
+    repo, provider, manager, binding, tools, runtime = await setup_stack(tmp_path)
+    before = repo_digest(repo)
+    await runtime.executor.execute(
+        "file_write",
+        {"path": "/workspace/project/new.py", "content": "new\n"},
+        context(),
+        idempotency_key="export-new",
+    )
+    await runtime.executor.execute(
+        "file_edit",
+        {
+            "path": "/workspace/project/app.py",
+            "old_string": "return a - b",
+            "new_string": "return a + b",
+        },
+        context(),
+        idempotency_key="export-edit",
+    )
+    exported = await export_workspace(
+        provider,
+        binding.sandbox_handle,
+        destination=tmp_path / "exported",
+    )
+    assert exported.file_count == 3
+    assert (tmp_path / "exported" / "new.py").read_text() == "new\n"
+    assert "return a + b" in (tmp_path / "exported" / "app.py").read_text()
+    assert not (tmp_path / "exported" / ".git").exists()
+    assert repo_digest(repo) == before
+    assert not (repo / "new.py").exists()

@@ -91,18 +91,21 @@ class FakeSandboxProvider:
     def _map_command(self, handle: SandboxHandle, command: str) -> str:
         base = self._base(handle)
         project = base / "workspace" / "project"
-        tmp = base / "tmp" / "project.bundle"
+        tmp_root = base / "tmp"
+
+        def map_tmp(match: re.Match[str]) -> str:
+            target = tmp_root / match.group(1)
+            return self._posix_path(target) if self.shell == "git-bash" else str(target)
+
         if self.shell == "git-bash":
-            mapped = command.replace("/workspace/project", self._posix_path(project)).replace(
-                "/tmp/project.bundle", self._posix_path(tmp)
-            )
+            mapped = command.replace("/workspace/project", self._posix_path(project))
+            mapped = re.sub(r"/tmp/([A-Za-z0-9._-]+)", map_tmp, mapped)
             python = f'"{self._posix_path(Path(sys.executable))}"'
             mapped = mapped.replace("python3", "__ATLAS_PY__")
             mapped = re.sub(r"\bpython\b", "__ATLAS_PY__", mapped)
             return mapped.replace("__ATLAS_PY__", python)
-        mapped = command.replace("/workspace/project", str(project)).replace(
-            "/tmp/project.bundle", str(tmp)
-        )
+        mapped = command.replace("/workspace/project", str(project))
+        mapped = re.sub(r"/tmp/([A-Za-z0-9._-]+)", map_tmp, mapped)
         if mapped.startswith("python3 "):
             mapped = f'"{sys.executable}"' + mapped[len("python3") :]
         return mapped

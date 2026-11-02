@@ -240,6 +240,10 @@ class SandboxLifecycleData(BaseModel):
     provider_name: str
     state: Literal["READY", "LOST", "CLOSED"]
     source_commit: str | None = None
+    sandbox_id: str | None = None
+    capabilities_digest: str | None = None
+    capabilities: dict[str, Any] | None = None
+    network: str | None = None
 
 
 class SuspensionPendingRef(BaseModel):

@@ -11,7 +11,11 @@ from pathlib import Path
 
 from anycode.sandbox import SandboxCommand, SandboxHandle, SandboxProvider
 
-from atlasos.sandbox.models import SandboxCapabilityError, SandboxProvisionError
+from atlasos.sandbox.models import (
+    SandboxFileTransferError,
+    SandboxProvisionError,
+)
+from atlasos.sandbox.provider import require_capabilities
 
 
 @dataclass(frozen=True)
@@ -21,6 +25,16 @@ class GitProjectSource:
     bundle_path: Path
     bundle_digest: str
     bundle_size: int
+
+
+@dataclass(frozen=True)
+class ProvisionReport:
+    commands: int
+    uploads: int
+
+
+_PROVISION_COMMANDS = 4
+_PROVISION_UPLOADS = 1
 
 
 class GitProjectProvisioner:
@@ -83,7 +97,7 @@ class GitProjectProvisioner:
 
     async def provision(
         self, provider: SandboxProvider, handle: SandboxHandle, source: GitProjectSource
-    ) -> None:
+    ) -> ProvisionReport:
         version = await provider.execute(
             handle, SandboxCommand(command="git --version", timeout_seconds=30)
         )
@@ -95,12 +109,27 @@ class GitProjectProvisioner:
         bundle_bytes = source.bundle_path.read_bytes()
         upload = await provider.write_file(handle, "/tmp/project.bundle", bundle_bytes)
         if not upload.ok:
-            raise SandboxProvisionError(f"sandbox bundle upload failed: {upload.error}")
+            raise SandboxFileTransferError(f"sandbox bundle upload failed: {upload.error}")
         workspace = self.workspace_root
+        prepare = await provider.execute(
+            handle,
+            SandboxCommand(
+                command=(
+                    'python3 -c "import os, sys; '
+                    f'os.makedirs(sys.argv[1], exist_ok=True)" {workspace}'
+                ),
+                cwd="/",
+                timeout_seconds=30,
+            ),
+        )
+        if not prepare.ok or prepare.exit_code != 0:
+            raise SandboxProvisionError(
+                f"sandbox workspace preparation failed: {prepare.stderr or prepare.error}"
+            )
         clone = await provider.execute(
             handle,
             SandboxCommand(
-                command=(f"git clone /tmp/project.bundle {workspace}"),
+                command=(f"git -c core.autocrlf=false clone /tmp/project.bundle {workspace}"),
                 cwd="/",
                 timeout_seconds=120,
             ),
@@ -123,18 +152,8 @@ class GitProjectProvisioner:
             raise SandboxProvisionError(
                 f"sandbox HEAD {verify.stdout.strip()!r} != source commit {source.source_commit!r}"
             )
+        return ProvisionReport(commands=_PROVISION_COMMANDS, uploads=_PROVISION_UPLOADS)
 
     @staticmethod
     def require_capabilities(provider: SandboxProvider) -> None:
-        capabilities = provider.capabilities()
-        if not capabilities.file_transfer:
-            raise SandboxCapabilityError("sandbox provider lacks file_transfer capability")
-        if not capabilities.persistent_filesystem:
-            raise SandboxCapabilityError("sandbox provider lacks persistent_filesystem capability")
-        if capabilities.networking != "none":
-            raise SandboxCapabilityError(
-                "M5 v1 requires a provider that can enforce network='none'; "
-                f"capabilities report {capabilities.networking!r}"
-            )
-        if capabilities.isolation not in ("container", "microvm", "vm", "remote"):
-            raise SandboxCapabilityError(f"M5 v1 refuses isolation={capabilities.isolation!r}")
+        require_capabilities(provider.capabilities())

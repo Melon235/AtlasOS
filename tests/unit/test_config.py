@@ -7,7 +7,9 @@ from pydantic import ValidationError
 
 from atlasos.config import AtlasConfig, load_config
 
-BASELINE = Path(__file__).resolve().parents[2] / "experiments" / "configs" / "baseline.yaml"
+CONFIGS = Path(__file__).resolve().parents[2] / "experiments" / "configs"
+BASELINE = CONFIGS / "baseline.yaml"
+UAT = CONFIGS / "v2-uat.yaml"
 
 
 def test_loads_baseline_configuration() -> None:
@@ -83,3 +85,36 @@ def test_historical_optimizer_config_is_rejected() -> None:
         AtlasConfig.model_validate(
             {"context": {"optimizer": {"name": "contextpilot", "reorder": True}}}
         )
+
+
+def test_loads_real_sandbox_uat_configuration() -> None:
+    config = load_config(UAT)
+    assert config.sandbox.enabled is True
+    assert config.sandbox.provider == "daytona"
+    assert config.sandbox.network == "none"
+    assert config.sandbox.workspace_root == "/workspace/project"
+    assert config.sandbox.image is not None
+
+
+def test_sandbox_configuration_cannot_be_weakened() -> None:
+    with pytest.raises(ValidationError, match="Input should be 'none'"):
+        AtlasConfig.model_validate({"sandbox": {"provider": "daytona", "network": "unrestricted"}})
+    with pytest.raises(ValidationError, match="workspace_root"):
+        AtlasConfig.model_validate({"sandbox": {"provider": "daytona", "workspace_root": "/"}})
+    with pytest.raises(ValidationError, match="pinned"):
+        AtlasConfig.model_validate({"sandbox": {"provider": "daytona", "image": "latest"}})
+    with pytest.raises(ValidationError, match="exactly one"):
+        AtlasConfig.model_validate(
+            {"sandbox": {"provider": "daytona", "image": "python:3.12", "snapshot": "s"}}
+        )
+    with pytest.raises(ValidationError, match="exactly one"):
+        AtlasConfig.model_validate({"sandbox": {"provider": "daytona", "image": None}})
+
+
+def test_model_facing_configuration_has_no_sandbox_selection() -> None:
+    config = AtlasConfig()
+    assert config.sandbox.provider == "fake"
+    assert config.sandbox.enabled is False
+    # There is no model/task/tool input path to changed sandbox fields in AtlasConfig.
+    with pytest.raises(ValidationError):
+        AtlasConfig.model_validate({"sandbox": {"provider": "model-choice"}})

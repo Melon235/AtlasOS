@@ -1,15 +1,15 @@
 """AtlasOS V2 Real User Acceptance harness.
 
 The harness is not a runtime. It:
-- snapshots the host fixture,
-- launches the user-facing ``experiments/uat_cli.py`` subprocess,
+- snapshots the Host fixture and Host-only sentinel observations,
+- launches the user-facing ``experiments/uat_cli.py`` subprocess against the trusted real provider,
 - runs independent external acceptance checks against the exported sandbox workspace,
-- verifies host isolation and the M7 trajectory by run_id,
+- verifies Host isolation and the M7 trajectory by run_id,
 - classifies failures and emits a UAT report.
 
-A real UAT PASS additionally requires a production AnyCode sandbox provider. The current
-environment has none, so the coding run uses the repository's deterministic local provider and is
-reported as BLOCKED for the real-sandbox criterion rather than silently counted as PASS.
+A live coding UAT PASS requires the real Daytona provider, a remote sandbox lifecycle, same-binding
+project tools, an unchanged Host fixture, clean cleanup, and independent external acceptance. A
+fake provider result is never presented as a real-isolation PASS.
 """
 
 from __future__ import annotations
@@ -29,11 +29,17 @@ from anycode.runstore.store import FilesystemRunStore
 from pydantic import BaseModel, ConfigDict
 
 from atlasos.experiments import git_dirty
+from atlasos.sandbox import REAL_SANDBOX_PROVIDERS
 from atlasos.trajectory.reader import TrajectoryReader
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = REPO_ROOT / "experiments" / "fixtures" / "uat_repo"
 ACCEPTANCE = REPO_ROOT / "experiments" / "fixtures" / "uat_acceptance.py"
+UAT_CONFIG = REPO_ROOT / "experiments" / "configs" / "v2-uat.yaml"
+TASK = (
+    "This project has a CSV parsing bug. Find the bug, fix it, add the necessary regression "
+    "tests, and run the tests to confirm. Do not change unrelated code."
+)
 
 
 class UATRecord(BaseModel):
@@ -52,6 +58,7 @@ class UATRecord(BaseModel):
     user_entrypoint: str
     user_entrypoint_exit_code: int | None
     host_unchanged: bool
+    host_fixture_digest_after: str
     changed_files: tuple[str, ...]
     unexpected_files: tuple[str, ...]
     removed_files: tuple[str, ...]
@@ -61,6 +68,29 @@ class UATRecord(BaseModel):
     test_exit_code: int | None
     acceptance_passed: bool
     acceptance_failures: tuple[str, ...]
+
+    provider_name: str
+    provider_is_real: bool
+    provider_capabilities: dict[str, Any] | None
+    capabilities_digest: str | None
+    sandbox_created: bool
+    sandbox_ready: bool
+    sandbox_logical_id: str | None
+    binding_id: str | None
+    sandbox_destroyed: bool
+    same_binding_all_project_tools: bool
+    commands_executed: int
+    files_uploaded: int
+    files_read: int
+    files_written: int
+    network_policy_requested: str
+    network_policy_verified: str
+    host_only_sentinel_visible: bool | None
+    sandbox_only_sentinel_visible_on_host: bool | None
+    sandbox_only_sentinel_read: bool
+    sandbox_lifecycle_states: tuple[str, ...]
+    sandbox_lifecycle_binding_ids: tuple[str, ...]
+    sandbox_lifecycle_sandbox_ids: tuple[str, ...]
 
     worker_events: int
     tools_disclosed: int
@@ -77,7 +107,16 @@ class UATRecord(BaseModel):
     real_llm: bool
     real_sandbox_provider: bool
     failure_class: str | None
+    failure_stage: str | None
     final_status: str
+
+    host_workspace_fallbacks: int
+    unexpected_host_writes: int
+    sandbox_recreations_after_lost: int
+    model_selected_provider: int
+    model_selected_workspace: int
+    credentials_persisted: int
+    fake_provider_used_in_real_uat: int
 
 
 def _digest(path: Path) -> str:
@@ -135,9 +174,13 @@ def _run_cli(
         "deepseek",
         "--model",
         "deepseek-chat",
+        "--config",
+        str(UAT_CONFIG),
     ]
     if scripted:
         command.append("--scripted")
+    else:
+        command.extend(["--sandbox-provider", "daytona", "--require-real-sandbox"])
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join([str(REPO_ROOT / "src"), str(REPO_ROOT)])
     result = subprocess.run(
@@ -146,7 +189,7 @@ def _run_cli(
         env=env,
         capture_output=True,
         text=True,
-        timeout=900,
+        timeout=1200,
         check=False,
     )
     parsed: dict[str, Any] | None = None
@@ -163,7 +206,13 @@ def _run_cli(
     return result.returncode, parsed, result.stderr
 
 
-def _run_acceptance(export: Path, *, scripted: bool) -> tuple[bool, tuple[str, ...], int | None]:
+def _run_acceptance(
+    export: Path | None, *, scripted: bool
+) -> tuple[bool, tuple[str, ...], int | None]:
+    if scripted:
+        return False, ("scripted smoke run does not claim coding acceptance",), None
+    if export is None or not export.exists():
+        return False, ("no exported sandbox workspace",), None
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("uat_acceptance", ACCEPTANCE)
@@ -173,8 +222,6 @@ def _run_acceptance(export: Path, *, scripted: bool) -> tuple[bool, tuple[str, .
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     result = module.validate(export)
-    if scripted:
-        return False, ("scripted smoke run does not claim coding acceptance",), None
     test = subprocess.run(
         [sys.executable, "-m", "pytest", "-q"],
         cwd=export,
@@ -189,7 +236,9 @@ def _run_acceptance(export: Path, *, scripted: bool) -> tuple[bool, tuple[str, .
     return result.passed and test.returncode == 0, tuple(failures), test.returncode
 
 
-def _trajectory(run_dir: Path, run_id: str) -> tuple[dict[str, int], bool, tuple[str, ...]]:
+def _trajectory(
+    run_dir: Path, run_id: str
+) -> tuple[dict[str, int], bool, tuple[str, ...], dict[str, Any]]:
     store = FilesystemRunStore(run_dir / "trajectory")
     view = TrajectoryReader(store).read(run_id)
     counts = {
@@ -204,6 +253,26 @@ def _trajectory(run_dir: Path, run_id: str) -> tuple[dict[str, int], bool, tuple
         "evidence_gaps": view.metrics.evidence_gaps,
         "evidence_conflicts": view.metrics.evidence_conflicts,
     }
+    sandbox_events = [event for event in view.events if event.event_type == "sandbox_lifecycle"]
+    states = tuple(str(event.data.get("state")) for event in sandbox_events)
+    binding_ids = tuple(
+        sorted(
+            {
+                str(event.data["binding_id"])
+                for event in sandbox_events
+                if event.data.get("binding_id")
+            }
+        )
+    )
+    sandbox_ids = tuple(
+        sorted(
+            {
+                str(event.data["sandbox_id"])
+                for event in sandbox_events
+                if event.data.get("sandbox_id")
+            }
+        )
+    )
     required = {
         "worker_lifecycle",
         "action_proposed",
@@ -215,22 +284,46 @@ def _trajectory(run_dir: Path, run_id: str) -> tuple[dict[str, int], bool, tuple
     }
     present = {event.event_type for event in view.events}
     missing = required - present
+    evidence = {
+        "states": states,
+        "binding_ids": binding_ids,
+        "sandbox_ids": sandbox_ids,
+        "ready_count": states.count("READY"),
+        "closed_count": states.count("CLOSED"),
+        "lost_count": states.count("LOST"),
+    }
     return (
         counts,
         not missing and view.metrics.evidence_gaps == 0 and view.metrics.evidence_conflicts == 0,
         tuple(sorted(missing)),
+        evidence,
+    )
+
+
+def _sandbox_ok(sandbox: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    return bool(
+        sandbox.get("sandbox_created")
+        and sandbox.get("sandbox_ready")
+        and sandbox.get("sandbox_destroyed")
+        and sandbox.get("same_binding_all_project_tools")
+        and sandbox.get("host_workspace_fallbacks", 0) == 0
+        and sandbox.get("sandbox_recreations", 0) == 0
+        and sandbox.get("host_only_sentinel_visible") is False
+        and sandbox.get("sandbox_only_sentinel_visible_on_host") is False
+        and sandbox.get("sandbox_only_sentinel_read") is True
+        and sandbox.get("network_policy_requested") == "none"
+        and sandbox.get("network_policy_verified") != "FAIL"
+        and evidence.get("ready_count") == 1
+        and evidence.get("closed_count") == 1
+        and evidence.get("lost_count") == 0
+        and len(evidence.get("binding_ids", ())) == 1
+        and len(evidence.get("sandbox_ids", ())) == 1
     )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="atlas-uat-v2")
-    parser.add_argument(
-        "--task",
-        default=(
-            "This project has a CSV parsing bug. Find the bug, fix it, add the necessary "
-            "regression tests, and run the tests to confirm. Do not change unrelated code."
-        ),
-    )
+    parser.add_argument("--task", default=TASK)
     parser.add_argument("--scripted", action="store_true")
     parser.add_argument("--runs-root", type=Path, default=None)
     args = parser.parse_args()
@@ -246,7 +339,14 @@ def main() -> None:
     )
     host_after = _fixture_files(FIXTURE)
     host_digest_after = _digest(FIXTURE)
-    host_unchanged = host_before == host_after
+    host_unchanged = host_before == host_after and host_digest_before == host_digest_after
+
+    sandbox: dict[str, Any] = session.get("sandbox", {}) if session else {}
+    provider_name = str(
+        sandbox.get("provider_name") or (session or {}).get("sandbox_provider") or ""
+    )
+    provider_is_real = bool(sandbox.get("provider_is_real"))
+    capabilities = sandbox.get("provider_capabilities")
 
     changed: tuple[str, ...] = ()
     unexpected: tuple[str, ...] = ()
@@ -269,17 +369,24 @@ def main() -> None:
     }
     trajectory_ok = False
     missing_events: tuple[str, ...] = ()
+    evidence: dict[str, Any] = {
+        "states": (),
+        "binding_ids": (),
+        "sandbox_ids": (),
+        "ready_count": 0,
+        "closed_count": 0,
+        "lost_count": 0,
+    }
     run_id = session.get("run_id") if session else None
     export = (
         Path(session["workspace_export"]) if session and session.get("workspace_export") else None
     )
     if export is not None and export.exists():
+        exported = _fixture_files(export)
         changed_map = {
-            path: digest
-            for path, digest in _fixture_files(export).items()
-            if host_before.get(path) != digest
+            path: digest for path, digest in exported.items() if host_before.get(path) != digest
         }
-        removed = tuple(sorted(set(host_before) - set(_fixture_files(export))))
+        removed = tuple(sorted(set(host_before) - set(exported)))
         changed = tuple(sorted(changed_map))
         unexpected = tuple(
             path
@@ -293,43 +400,69 @@ def main() -> None:
         if removed:
             acceptance = False
             acceptance_failures = (*acceptance_failures, f"removed files: {removed}")
-        if "tests/test_csv_parser.py" not in _fixture_files(export):
+        if "tests/test_csv_parser.py" not in exported:
             acceptance = False
-            acceptance_failures = (
-                *acceptance_failures,
-                "existing test file was removed",
-            )
+            acceptance_failures = (*acceptance_failures, "existing test file was removed")
     if session and run_id:
-        counts, trajectory_ok, missing_events = _trajectory(Path(session["run_dir"]), run_id)
+        counts, trajectory_ok, missing_events, evidence = _trajectory(
+            Path(session["run_dir"]), run_id
+        )
 
     live_key = _has_live_key()
     real_llm = live_key and not args.scripted
-    real_sandbox = False  # no production AnyCode sandbox provider is installed/configured
-    failure_class: str | None = None
-    if exit_code != 0 or session is None:
+    real_sandbox = provider_is_real and provider_name in REAL_SANDBOX_PROVIDERS
+    sandbox_ok = _sandbox_ok(sandbox, evidence)
+    session_failure = session.get("failure_class") if session else None
+    session_stage = session.get("failure_stage") if session else None
+
+    failure_class: str | None
+    if exit_code != 0 and session is None:
         failure_class = "RUNTIME_FAILURE"
+    elif session_failure is not None:
+        failure_class = str(session_failure)
     elif not live_key and not args.scripted:
         failure_class = "CREDENTIAL_BLOCKED"
     elif args.scripted:
         failure_class = "SCRIPTED_SMOKE"
-    elif not host_unchanged or unexpected or removed:
+    elif not real_sandbox or provider_name not in REAL_SANDBOX_PROVIDERS:
+        failure_class = "SANDBOX_PROVIDER_FAILURE"
+    elif (
+        not host_unchanged
+        or sandbox.get("network_policy_verified") == "FAIL"
+        or sandbox.get("host_only_sentinel_visible") is True
+        or sandbox.get("sandbox_only_sentinel_visible_on_host") is True
+    ):
+        failure_class = "SANDBOX_ISOLATION_FAILURE"
+    elif not (
+        sandbox.get("sandbox_created")
+        and sandbox.get("sandbox_ready")
+        and sandbox.get("sandbox_destroyed")
+    ):
+        failure_class = "SANDBOX_PROVISION_FAILURE"
+    elif not sandbox_ok:
         failure_class = "RUNTIME_FAILURE"
-    elif not acceptance or not trajectory_ok:
+    elif unexpected or removed or not acceptance or not trajectory_ok:
         failure_class = "MODEL_FAILURE"
     else:
         failure_class = None
 
-    if (
+    fake_used = int(not args.scripted and provider_name == "fake")
+    if args.scripted:
+        final_status = "SCRIPTED_SMOKE"
+    elif failure_class == "CREDENTIAL_BLOCKED":
+        final_status = "BLOCKED_NO_CREDENTIALS"
+    elif (
         real_llm
         and real_sandbox
+        and failure_class is None
         and acceptance
         and host_unchanged
         and trajectory_ok
+        and sandbox_ok
         and not unexpected
+        and not removed
     ):
         final_status = "PASS"
-    elif failure_class in (None, "CREDENTIAL_BLOCKED", "SCRIPTED_SMOKE"):
-        final_status = "BLOCKED_NO_REAL_SANDBOX_PROVIDER"
     else:
         final_status = "FAIL"
 
@@ -345,7 +478,8 @@ def main() -> None:
         workspace_export=str(export) if export else None,
         user_entrypoint="experiments/uat_cli.py",
         user_entrypoint_exit_code=exit_code,
-        host_unchanged=host_unchanged and host_digest_before == host_digest_after,
+        host_unchanged=host_unchanged,
+        host_fixture_digest_after=host_digest_after,
         changed_files=changed,
         unexpected_files=unexpected,
         removed_files=removed,
@@ -354,12 +488,42 @@ def main() -> None:
         test_exit_code=test_exit,
         acceptance_passed=acceptance,
         acceptance_failures=acceptance_failures,
+        provider_name=provider_name,
+        provider_is_real=provider_is_real,
+        provider_capabilities=capabilities if isinstance(capabilities, dict) else None,
+        capabilities_digest=sandbox.get("capabilities_digest"),
+        sandbox_created=bool(sandbox.get("sandbox_created")),
+        sandbox_ready=bool(sandbox.get("sandbox_ready")),
+        sandbox_logical_id=sandbox.get("sandbox_logical_id"),
+        binding_id=sandbox.get("binding_id"),
+        sandbox_destroyed=bool(sandbox.get("sandbox_destroyed")),
+        same_binding_all_project_tools=bool(sandbox.get("same_binding_all_project_tools")),
+        commands_executed=int(sandbox.get("commands_executed", 0)),
+        files_uploaded=int(sandbox.get("files_uploaded", 0)),
+        files_read=int(sandbox.get("files_read", 0)),
+        files_written=int(sandbox.get("files_written", 0)),
+        network_policy_requested=str(sandbox.get("network_policy_requested", "none")),
+        network_policy_verified=str(sandbox.get("network_policy_verified", "UNKNOWN")),
+        host_only_sentinel_visible=sandbox.get("host_only_sentinel_visible"),
+        sandbox_only_sentinel_visible_on_host=sandbox.get("sandbox_only_sentinel_visible_on_host"),
+        sandbox_only_sentinel_read=bool(sandbox.get("sandbox_only_sentinel_read")),
+        sandbox_lifecycle_states=tuple(evidence.get("states", ())),
+        sandbox_lifecycle_binding_ids=tuple(evidence.get("binding_ids", ())),
+        sandbox_lifecycle_sandbox_ids=tuple(evidence.get("sandbox_ids", ())),
         **counts,
         trajectory_ok=trajectory_ok and not missing_events,
         real_llm=real_llm,
         real_sandbox_provider=real_sandbox,
         failure_class=failure_class,
+        failure_stage=session_stage,
         final_status=final_status,
+        host_workspace_fallbacks=int(sandbox.get("host_workspace_fallbacks", 0)),
+        unexpected_host_writes=0 if host_unchanged else 1,
+        sandbox_recreations_after_lost=int(sandbox.get("sandbox_recreations", 0)),
+        model_selected_provider=0,
+        model_selected_workspace=0,
+        credentials_persisted=0,
+        fake_provider_used_in_real_uat=fake_used,
     )
     print(record.model_dump_json(indent=2))
     if stderr.strip():

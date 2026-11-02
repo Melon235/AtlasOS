@@ -174,6 +174,39 @@ class TrajectoryConfig(BaseModel):
         return normalized
 
 
+class SandboxConfig(BaseModel):
+    """Trusted Atlas Sandbox selection (Atlas M5).
+
+    Provider, image/snapshot, workspace, and network policy are deployment choices. Model output,
+    tool arguments, and worker-profile text never reach this object.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    enabled: bool = False
+    provider: Literal["fake", "daytona"] = "fake"
+    image: str | None = "python:3.12"
+    snapshot: str | None = None
+    workspace_root: str = "/workspace/project"
+    network: Literal["none"] = "none"
+    max_bundle_bytes: int = Field(default=64 * 1024 * 1024, ge=1024)
+    # Operator-only debug switch. Normal completion and failure both destroy the remote sandbox.
+    retain_on_failure: bool = False
+
+    @model_validator(mode="after")
+    def _validate_trusted_selection(self) -> SandboxConfig:
+        if self.network != "none":
+            raise ValueError("Atlas M5 requires sandbox.network='none'")
+        if self.workspace_root != "/workspace/project":
+            raise ValueError("Atlas M5 workspace_root must be '/workspace/project'")
+        if bool(self.image) == bool(self.snapshot):
+            raise ValueError("sandbox requires exactly one of image or snapshot")
+        selected = (self.image or self.snapshot or "").strip()
+        if not selected or selected.lower() in {"latest", "stable", "lts"}:
+            raise ValueError("sandbox requires a pinned image or snapshot")
+        return self
+
+
 class AtlasConfig(BaseModel):
     """Top-level experiment configuration."""
 
@@ -185,6 +218,7 @@ class AtlasConfig(BaseModel):
     placement: PlacementConfig = PlacementConfig()
     tools: ToolsConfig = ToolsConfig()
     trajectory: TrajectoryConfig = TrajectoryConfig()
+    sandbox: SandboxConfig = SandboxConfig()
     pricing: Pricing | None = None
 
 

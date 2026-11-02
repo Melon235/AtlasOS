@@ -32,7 +32,8 @@ class SandboxProjectConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     provider_name: str
-    image: str
+    image: str | None = None
+    snapshot: str | None = None
     workspace_root: str = "/workspace/project"
     max_bundle_bytes: int = Field(default=64 * 1024 * 1024, ge=1024)
     network: Literal["none"] = "none"
@@ -45,8 +46,11 @@ class SandboxProjectConfig(BaseModel):
             raise ValueError("M5 v1 requires secret_references={}")
         if self.workspace_root != "/workspace/project":
             raise ValueError("M5 v1 workspace_root must be '/workspace/project'")
-        if not self.image.strip() or self.image == "latest":
-            raise ValueError("M5 v1 requires a pinned sandbox image")
+        if bool(self.image) == bool(self.snapshot):
+            raise ValueError("M5 v1 requires exactly one of image or snapshot")
+        selected = (self.image or self.snapshot or "").strip()
+        if not selected or selected.lower() in {"latest", "stable", "lts"}:
+            raise ValueError("M5 v1 requires a pinned sandbox image or snapshot")
 
 
 class SandboxBindingError(RuntimeError):
@@ -57,11 +61,31 @@ class SandboxLostError(SandboxBindingError):
     pass
 
 
+class SandboxProviderError(SandboxBindingError):
+    """The selected provider failed before/while creating a sandbox."""
+
+
 class SandboxProvisionError(SandboxBindingError):
     pass
 
 
 class SandboxCapabilityError(SandboxBindingError):
+    pass
+
+
+class SandboxCredentialError(SandboxCapabilityError):
+    """Trusted host credentials are missing; Atlas must not fall back to a fake provider."""
+
+
+class SandboxFileTransferError(SandboxBindingError):
+    pass
+
+
+class SandboxExecutionError(SandboxBindingError):
+    pass
+
+
+class SandboxIsolationError(SandboxBindingError):
     pass
 
 
@@ -85,6 +109,7 @@ def trusted_sandbox_spec(
         correlation_id=f"{run_id}:{task_id}",
         context=context,
         image=config.image,
+        snapshot=config.snapshot,
         network="none",
         persistent=True,
         secret_references=dict(config.secret_references),

@@ -1,6 +1,8 @@
 # V2 M5 — Project Sandbox Binding
 
-Status: PASS. Baseline M4.1 final `51e2b7d`.
+Status: deterministic M5 verification PASS at baseline M4.1 final `51e2b7d`; real Atlas Sandbox
+provider integration implemented in the V2 real-sandbox stage. Live sandbox execution requires Host
+Daytona credentials and is reported separately, never inferred from the fake-provider PASS.
 
 > Atlas does not implement a second sandbox runtime; M5 binds one project task to one
 > AnyCode-managed sandbox so all workspace-bound tools operate on the same isolated project copy,
@@ -168,15 +170,73 @@ exist. External API tools remain Host control-plane operations; the local worksp
 the only sandbox-bound surface. No alternate `filesystem.*`, `shell.*`, `python.exec`, or
 `code.run` bypass is registered.
 
+## Atlas Sandbox provider (real integration)
+
+**Atlas Sandbox** is the product capability. M5 owns trusted provider selection, binding lifecycle,
+workspace policy, and fail-closed behavior. The AnyCode-compatible `SandboxProvider` owns the actual
+remote resource, process execution, remote filesystem, network enforcement, and resource
+destruction. Atlas does not import the Daytona SDK or implement a second sandbox runtime.
+
+The current implementation is:
+
+```text
+Atlas Runtime
+  -> M3 -> M4 -> M5 ProjectSandboxBinding
+  -> AnyCode SandboxProvider protocol
+  -> create_sandbox_provider("daytona")
+  -> DaytonaSandboxProvider
+  -> remote isolated sandbox
+  -> /workspace/project
+```
+
+Trusted configuration is [`experiments/configs/v2-uat.yaml`](../../experiments/configs/v2-uat.yaml):
+
+```yaml
+sandbox:
+  provider: daytona
+  image: python:3.12@sha256:...   # full image: includes Git for M5 bundle provisioning
+  workspace_root: /workspace/project
+  network: none
+```
+
+Provider, image/snapshot, workspace, and network policy never come from model output, tool
+arguments, worker-profile text, or the task prompt. Daytona credentials come only from the SDK's
+Host environment (`DAYTONA_API_KEY`, or `DAYTONA_JWT_TOKEN` + `DAYTONA_ORGANIZATION_ID`); Atlas
+checks presence and never reads, logs, or persists the value. Missing credentials fail closed with
+`CREDENTIAL_BLOCKED`; there is no fake-provider fallback.
+
+Capability negotiation before create requires remote/isolated execution, persistent filesystem, file
+transfer, and a network policy compatible with `none`. AnyCode reports `networking="allowlist"` for
+Daytona because the adapter can enforce an allowlist or a complete block; the adapter maps
+`network="none"` to `network_block_all=True`. Atlas accepts that report only as a network-none
+capability, and the UAT/evaluator additionally performs an empirical egress probe. Unsupported
+capabilities fail before sandbox creation.
+
+Provisioning uploads a clean Git bundle with `provider.write_file`, creates the workspace directory,
+clones inside the sandbox, and verifies the source commit. The Host fixture is never mounted.
+Task-end export downloads an uncompressed tar archive created inside the sandbox with
+`provider.read_file`; the Host extracts it with path-traversal checks and never applies it to the
+Host fixture. A separate patch export remains available for provenance.
+
+The lifecycle is `CREATE -> READY -> READ/WRITE/EXECUTE -> CLOSED/DESTROYED`. A lost sandbox becomes
+`LOST`, is never recreated, and is never replaced by Host execution. Normal completion and failure
+cleanup call `provider.destroy`; `sandbox.retain_on_failure` is an operator-only debug switch.
+
 ## Known limitations
 
-- M5 v1 uses a deterministic local FakeSandboxProvider for formal PASS; no real cloud provider is
-  required.
+- Deterministic regression tests use the in-repository `FakeSandboxProvider`. Live UAT requires a
+  real provider and Host Daytona credentials; without them the formal status is
+  `BLOCKED_NO_CREDENTIALS`, not PASS.
+- The UAT image is a generic pinned Python image. External acceptance runs on the Host export; the
+  model-side sandbox may not contain the same test tooling as the Host venv.
 - Network is fixed to `none`; domain allowlists and secret injection are out of scope.
-- No automatic resume/snapshot/workspace replay after runtime restart. Binding metadata is runtime-scoped in v1; a restarted runtime cannot prove it still owns the same sandbox and fails closed rather than recreating.
+- No automatic resume/snapshot/workspace replay after runtime restart. Binding metadata is
+  runtime-scoped in v1; a restarted runtime cannot prove it still owns the same sandbox and fails
+  closed rather than recreating.
+- OS-process sandbox reattachment is **not implemented in this stage**.
 - No patch apply.
 - Orphan remote resources after a crash between provider create and durable handle recording are
-  documented operational debt.
+  documented operational debt; UAT failure cleanup is best effort and recorded.
 - Bash commands can access other paths inside the sandbox; only `cwd` is constrained to the
   logical workspace. Host isolation is the provider's responsibility.
 
