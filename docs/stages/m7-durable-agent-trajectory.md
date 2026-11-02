@@ -1,6 +1,7 @@
 # V2 M7 — Durable Agent Trajectory
 
-Status: **IMPLEMENTED** (formal clean-tree record: [`v2-m7-results.md`](../../experiments/results/v2-m7-results.md)).
+Status: **PASS / FROZEN** (formal clean-tree record:
+[`v2-m7-results.md`](../../experiments/results/v2-m7-results.md)).
 
 ```text
 MODEL ACTION       != AUTHORIZED ACTION
