@@ -27,6 +27,12 @@ rendering), Stage 3 (ContextPilot dedup transform + reorder characterization), S
 deterministic context reconstruction), and Stage 6 (final evaluation and ablation) are complete.
 **AtlasOS V1 is frozen at Stage 6.** No Stage 7 has been started.
 
+V2 real-sandbox update: Atlas Sandbox defaults to a free, self-hosted **OpenSandbox** backend on
+local Docker. The verified run created real Docker sandboxes, enforced network-none, kept the Host
+fixture unchanged, and passed real coding UAT in 2 of 3 runs (Run 1 was a retained model failure).
+See [the OpenSandbox setup](docs/stages/opensandbox-local.md) and
+[formal results](experiments/results/v2-real-sandbox-results.md).
+
 V1 delivers a working integrated runtime and an honest evaluation: stable rendering removes
 layout dependence on completion order; ContextPilot dedup reduces prompt size at millisecond CPU
 cost but does not produce proportional warm cache-miss reduction; context-locality placement

@@ -1,16 +1,17 @@
 # V2 Integrated System Verification
 
-Status: **INTEGRATED SYSTEM VERIFICATION PASS; REAL ATLAS SANDBOX PROVIDER IMPLEMENTED;
-LIVE SANDBOX UAT BLOCKED_NO_CREDENTIALS**
+Status: **REAL ATLAS SANDBOX ISOLATION PASS; REAL CODING UAT PASS 2/3;
+SELF-HOSTED OPENSANDBOX PROVIDER PASS**
 
 ```text
 V2 INTEGRATED SYSTEM VERIFICATION = PASS
 V2 RELIABILITY DRILL              = PASS (controlled runtime-boundary drills)
-REAL ATLAS SANDBOX PROVIDER       = IMPLEMENTED (Daytona through AnyCode SandboxProvider)
-REAL SANDBOX ISOLATION            = NOT CLAIMED (no credential-backed real run yet)
-V2 REAL USER ACCEPTANCE           = BLOCKED_NO_CREDENTIALS at evaluated HEAD 7c34f22;
-                                    previous clean-run MODEL_FAILURE retained
-V2 OVERALL ACCEPTANCE             = NOT CLAIMED
+SELF-HOSTED OPEN SOURCE PROVIDER  = PASS (OpenSandbox 1.2.0 + local Docker 29.6.0)
+REAL ATLAS SANDBOX ISOLATION      = PASS (real evaluator + 3 live UAT sandboxes)
+NETWORK-NONE ENFORCEMENT          = PASS (empirical; OpenSandbox egress sidecar)
+REAL CODING UAT                   = PASS 2/3 (Run 1 MODEL_FAILURE; Runs 2–3 PASS)
+OS-PROCESS REATTACHMENT           = NOT IN SCOPE
+V2 OVERALL ACCEPTANCE             = NOT CLAIMED (coding UAT is 2/3)
 ```
 
 This stage is not M8. It adds no runtime authority. It drives the frozen M1–M7 stack through
@@ -120,55 +121,64 @@ Final numbers are recorded in
 
 The UAT fixture is a small Python CSV parser with a seeded quoted-comma/escaped-quote bug. The
 external acceptance oracle is not mounted into the sandbox; it checks behavior the agent was not
-given as visible tests, and the harness also runs the fixture test suite and compares the Host
-fixture digest.
+given as visible tests, and the harness also runs the fixture test suite, checks
+changed/unexpected/removed files, and compares the Host fixture digest.
 
-The current environment has a live DeepSeek credential. At the evaluated HEAD `7c34f22`, the Host
-had **no Daytona credential**, so the real-provider path failed closed before creating a sandbox:
+Three independent live runs were executed on the clean OpenSandbox implementation HEAD
+`4b8afa7` (`git_dirty=false`). Runs are recorded in order; no sample was discarded.
+
+| Run | Run ID | Result | Classification | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | `uat-fd65019b7d8c4a21a9050d75fa392173` | FAIL | `MODEL_FAILURE` | Agent explored but made no edits; sandbox lifecycle, isolation, cleanup, and M7 were valid |
+| 2 | `uat-09ad802b361b4e88a15147cec0c8c597` | PASS | none | Changed `csv_parser.py` and `tests/test_csv_parser.py`; external oracle + pytest PASS |
+| 3 | `uat-10449880cf68480c9479c1f3e29ac2cc` | PASS | none | Same expected files; external oracle + pytest PASS |
+
+Per-run sandbox evidence:
 
 ```text
-REAL ATLAS SANDBOX PROVIDER = IMPLEMENTED
-REAL SANDBOX ISOLATION      = NOT CLAIMED
-REAL CODING UAT             = BLOCKED_NO_CREDENTIALS
+Run 1: OpenSandbox created/destroyed, network-none PASS, host sentinels safe,
+       Host fixture unchanged, M7 READY+CLOSED, 0 gaps/conflicts
+Run 2: same lifecycle/isolation evidence; 9 tool observations, 9 execution outcomes,
+       external acceptance PASS, test exit 0, M7 PASS
+Run 3: same lifecycle/isolation evidence; 9 tool observations, 8 execution outcomes,
+       external acceptance PASS, test exit 0, M7 PASS
 ```
 
-The deterministic scripted path still exercises the same CLI, M1–M7 stack, real M5 binding,
-single-flight provisioning, sandbox file/command tools, M7 evidence, export, and cleanup through
-the in-repository fake provider. It is reported as `SCRIPTED_SMOKE`, never as a real-isolation PASS.
+The real-sandbox evaluator also passed at `4b8afa7`:
 
-A production UAT must install the optional Daytona integration and configure Host credentials, then
-run:
-
-```powershell
-uv sync --extra sandbox   # or: pip install -e ".[sandbox]"
-$env:DAYTONA_API_KEY = "<Host secret>"
-$env:PYTHONPATH = "src;."
-.\.venv\Scripts\python.exe experiments\eval_real_sandbox.py
-.\.venv\Scripts\python.exe experiments\uat_v2.py --runs-root experiments\runs\uat
+```text
+provider: OpenSandbox (self-hosted)
+server: healthy
+sandbox: created, ready, id 0436c794-2047-4032-83b6-a7d5c618d134
+file transfer: PASS
+commands: python 3.12.16, small script stdout 45
+network_policy: requested none, accepted, empirically PASS
+host/sandbox sentinels: safe; Host fixture digest unchanged
+explicit workspace export: PASS
+sandbox destroyed: true
+status: PASS
 ```
 
-with no `--scripted` flag. `experiments/uat_cli.py` refuses the fake provider on the live path.
-
-The previous clean live run at `674cbdc` fixed the parser (external oracle PASS) but authored a test
-with an import error, so `python -m pytest -q` failed; the UAT harness correctly classified it
-`MODEL_FAILURE`/FAIL. That result is retained, not repaired by changing the fixture or ignoring
-pytest. The live LLM result, failure classification, changed files, Host isolation, test exit code,
-patch digest, and M7 trajectory cross-check are recorded in
+Run 1 is a genuine model failure, not a runtime or sandbox failure. The harness did not ignore it or
+change the fixture; the two later runs demonstrate the real coding path can pass external acceptance.
+The detailed record is in
 [`experiments/results/v2-user-acceptance.md`](../../experiments/results/v2-user-acceptance.md).
 
-## 7. Real Atlas Sandbox provider integration
+## 7. Self-hosted OpenSandbox integration
 
 **Atlas Sandbox** is the product capability. M5 owns binding, trusted configuration, lifecycle, and
-fail-closed behavior. The AnyCode-compatible `SandboxProvider` owns the real remote resource,
-process execution, remote filesystem, network enforcement, and destruction. Atlas does not import
-the Daytona SDK directly and does not implement a second sandbox runtime.
+fail-closed behavior. The AnyCode-compatible `SandboxProvider` owns the real sandbox resource,
+process execution, remote filesystem, network enforcement, and destruction. Atlas does not talk to
+Docker directly and does not implement a second sandbox runtime.
 
 ```text
 Atlas Runtime -> M3 -> M4 -> M5 ProjectSandboxBinding
   -> AnyCode SandboxProvider protocol
-  -> create_sandbox_provider("daytona")
-  -> DaytonaSandboxProvider
-  -> remote isolated sandbox
+  -> OpenSandboxProvider adapter
+  -> OpenSandbox Python SDK
+  -> local OpenSandbox server
+  -> Docker Engine
+  -> isolated Atlas Sandbox
   -> /workspace/project
 ```
 
@@ -177,51 +187,58 @@ Trusted configuration lives in
 
 ```yaml
 sandbox:
-  provider: daytona
-  image: python:3.12@sha256:...
+  provider: opensandbox
+  endpoint: localhost:8080
+  image: atlas-uat-python:3.12
   workspace_root: /workspace/project
   network: none
+  timeout_minutes: 20
+  cpu: "1"
+  memory: "1Gi"
 ```
 
-Provider and workspace cannot be selected by the model, task text, tool arguments, or worker
-profile. Credentials come only from the Host environment/SDK configuration
-(`DAYTONA_API_KEY`, or `DAYTONA_JWT_TOKEN` + `DAYTONA_ORGANIZATION_ID`); Atlas checks presence and
-never stores the value in specs, labels, commands, trajectory, ledgers, sessions, or reports.
+Provider, endpoint, image, workspace, network, CPU/memory, and TTL cannot be selected by the model,
+task text, tool arguments, or worker profile. OpenSandbox needs no external cloud credential. The
+local service can optionally use `OPEN_SANDBOX_API_KEY`; the verified run used a loopback-only
+server with no cloud credential.
 
-Before create, Atlas requires remote/isolated execution, persistent filesystem, file transfer, and a
-network policy compatible with `none`. AnyCode reports `networking="allowlist"` for Daytona because
-the adapter can enforce an allowlist or a complete block; the adapter maps `network="none"` to
-`network_block_all=True`. The UAT/evaluator also runs an empirical egress probe. Missing capability
-or an unexpected egress success fails closed; there is no silent downgrade.
+Before create, Atlas requires isolated execution, persistent filesystem, file transfer, and a
+network policy compatible with `none`. The adapter maps `network="none"` to OpenSandbox
+`NetworkPolicy(defaultAction="deny")`. The server used the OpenSandbox egress sidecar in `dns+nft`
+mode; a real `opensandbox/egress:v1.1.7` sidecar was observed attached to the sandbox. Atlas records
+policy requested, accepted, and empirically verified separately. An unexpected egress success fails
+closed.
 
 Provisioning uploads a clean Git bundle with `provider.write_file`, creates `/workspace/project`,
 clones inside the sandbox, and verifies the source commit. Task-end export downloads a tar archive
 created inside the sandbox with `provider.read_file`; the Host extracts it with traversal checks and
 runs external acceptance on that copy. The Host fixture is never mounted or mutated. Normal
-completion and failure cleanup call `provider.destroy`; a LOST sandbox is terminal and is never
-recreated or replaced by Host execution.
+completion and failure cleanup call `provider.destroy`; all evaluated runs left no sandbox or egress
+containers running. A LOST sandbox is terminal and is never recreated or replaced by Host execution.
 
-At `7c34f22`, the deterministic tests, integrated verifier, and scripted smoke passed. The real
-evaluator and live UAT recorded `BLOCKED_NO_CREDENTIALS` with `fake_provider_used_in_real_uat=0`,
-`host_workspace_fallbacks=0`, and an unchanged Host fixture digest. Real isolation is **not
-claimed** until a credential-backed run produces the full evidence set.
+The verified local topology — Windows Atlas client, WSL2 OpenSandbox server, Docker Engine, and the
+UAT image build — is documented in
+[`docs/stages/opensandbox-local.md`](opensandbox-local.md).
 
 ## 8. Known limitations
 
-- **M5 binding metadata is runtime-scoped in v1.** A fresh OS process cannot prove it still owns a
-  sandbox handle; it fails closed rather than recreating. Real HITL restart with a sandbox is
-  therefore blocked until M5 owns durable handle continuity. The external-only approval path can
-  restart safely, but the coding UAT cannot claim that.
-- **OS-process sandbox reattachment is not implemented in this stage.** A restarted process cannot
-  attach to the old remote sandbox, and Atlas does not create a replacement.
-- Live credential-backed UAT requires Host Daytona credentials; without them the formal status is
-  `BLOCKED_NO_CREDENTIALS`.
-- The local fake provider is deterministic test infrastructure; it is not a production isolation
-  boundary and is never used on the live UAT path.
-- The UAT image is a generic pinned Python image; external acceptance runs on the Host export, so
-  model-side test tooling may differ from the Host venv.
-- Live LLM behavior is nondeterministic. UAT acceptance is external outcome-based, not token-level
-  reproduction.
+- **OS-process sandbox reattachment is not implemented in this stage.** OpenSandbox itself can
+  reconnect by id, but Atlas does not treat provider reconnect as proof of trusted handle
+  continuity. A fresh Atlas process fails closed; it does not call `Sandbox.connect()` in the M5
+  restart path and does not create a replacement.
+- **M5 binding metadata is runtime-scoped in v1.** Real HITL restart with the same live sandbox is
+  therefore still blocked.
+- Live coding UAT passed 2 of 3 runs. Run 1 was `MODEL_FAILURE` (no edits); this is retained as
+  model nondeterminism, not hidden or repaired.
+- Network-none enforcement depends on the local OpenSandbox egress sidecar and its `dns+nft`
+  configuration. The verified run passed an empirical egress probe; this is not a claim of
+  cryptographically proven or kernel-verified network isolation.
+- The local OpenSandbox server is development infrastructure, bound to loopback. It is not hardened
+  for multi-tenant or public deployment; use server API keys and a reviewed topology before exposing
+  it.
+- The sandbox image is a local UAT image built from `python:3.12` plus pytest. It includes Git for M5
+  bundle provisioning. It is not a general-purpose hardened image.
+- No snapshot restore, secure-runtime (gVisor/Kata/Firecracker), or patch apply in this stage.
 - The integrated S2/S6 “restart” is a controlled runtime-boundary restart, not an OS process kill;
   OS-process durability remains covered by the existing M4.1/M6 process tests and the M7 evidence
   repair scenario.

@@ -1,46 +1,44 @@
-# V2 Real User Acceptance 鈥?Results
+# V2 Real User Acceptance — Results
 
-Status: **REAL ATLAS SANDBOX PROVIDER = IMPLEMENTED; LIVE SANDBOX UAT =
-BLOCKED_NO_CREDENTIALS; PREVIOUS CLEAN RUN = MODEL_FAILURE (retained)**
+Status: **REAL ATLAS SANDBOX ISOLATION = PASS; REAL CODING UAT = PASS 2/3
+(Run 1 MODEL_FAILURE retained)**
 
-The real coding task and external acceptance were exercised with a live DeepSeek provider and the
-thin CLI entrypoint. The real Atlas Sandbox path now uses the AnyCode-compatible Daytona provider;
-there is no fake-provider fallback on the live path. At the evaluated implementation HEAD the Host
-had no Daytona credential, so the real evaluator and live UAT failed closed with
-`BLOCKED_NO_CREDENTIALS`. Real isolation is not claimed from a fake or scripted run.
+The real coding task and external acceptance were exercised with a live DeepSeek provider, the thin
+CLI entrypoint, the frozen M1–M7 Atlas runtime, and a self-hosted OpenSandbox Docker sandbox. No fake
+provider was used on the live path and no external cloud sandbox credential was required.
 
-## Real Atlas Sandbox stage (current)
+## OpenSandbox real-sandbox stage (current)
 
 ### Provenance
 
 ```text
-implementation HEAD:      7c34f22ed8339c54b08c54862d3e8d9f43591e7a
-real-sandbox eval HEAD:   7c34f22 (git_dirty false)
-live UAT eval HEAD:       7c34f22 (git_dirty false)
-provider:                 daytona (AnyCode create_sandbox_provider)
-provider SDK:             daytona 0.227.0, anycode-py 0.9.0
-image:                    python:3.12@sha256:17b972... (full image, includes Git)
+implementation HEAD:      4b8afa768267938a2dd13ee53dc4ebefcb020e22
+real-sandbox eval HEAD:   4b8afa7 (git_dirty false)
+live UAT eval HEAD:       4b8afa7 (git_dirty false)
+provider:                 opensandbox (Atlas OpenSandboxProvider adapter)
+OpenSandbox server:       1.2.0
+OpenSandbox Python SDK:   1.2.0
+Docker:                   29.6.0 (WSL2 Ubuntu engine)
+image:                    atlas-uat-python:3.12 (Python 3.12.16 + Git 2.47.3 + pytest 9.1.1)
 workspace:                /workspace/project
-network:                  none
-credential source:        Host environment / Daytona SDK only
+network:                  none (OpenSandbox egress sidecar, dns+nft)
+credential source:        no external cloud credential; optional local OPEN_SANDBOX_API_KEY
 fixture digest:           30ec285bbdfcc53338c8b3ee67ed2a10f87078ed3f901abcfb8158587e4403f5
 ```
 
 ### Configuration and routing
 
-- Provider, image, workspace, and network come only from
+- Provider, endpoint, image, workspace, network, CPU/memory, and TTL come only from
   [`experiments/configs/v2-uat.yaml`](../configs/v2-uat.yaml); model output, task text, tool
   arguments, and worker-profile text cannot change them.
-- `experiments/uat_cli.py` constructs the real provider through
-  `create_sandbox_provider("daytona")`, checks capabilities before create, binds one task to one M5
-  sandbox, routes all six project tools through the same handle, and refuses the fake provider on the
-  live path.
-- Credentials are read only from the Daytona SDK's Host configuration. They are never written to
-  the spec, labels, commands, phase/run stores, M4 ledger, M5 binding, trajectory, CLI output, or
-  this report.
-- M5 accepts AnyCode's `networking="allowlist"` report only as a network-none-capable provider; the
-  Daytona adapter maps `network="none"` to `network_block_all=True`, and the evaluator/UAT performs
-  an empirical egress probe. Any capability mismatch or observed egress succeeds fails closed.
+- `experiments/uat_cli.py` constructs the thin `OpenSandboxProvider` adapter, checks capabilities
+  before create, binds one task to one M5 sandbox, and routes all six project tools through that same
+  handle and `/workspace/project`.
+- OpenSandbox is execution infrastructure only. Atlas remains the runtime, M3 authorization, M4
+  execution authority, M5 binding authority, M6 approval authority, and M7 evidence authority.
+- The adapter maps `network="none"` to OpenSandbox `NetworkPolicy(defaultAction="deny")`. The local
+  server used `[egress] mode="dns+nft"`; an `opensandbox/egress:v1.1.7` sidecar was observed attached
+  to the sandbox and the empirical egress probe passed.
 
 ### Evaluation commands
 
@@ -50,30 +48,61 @@ $env:PYTHONPATH = "src;."
 .\.venv\Scripts\python.exe experiments\uat_v2.py --runs-root experiments\runs\uat
 ```
 
-### Results at `7c34f22`
+The real evaluator at `4b8afa7` passed:
 
 ```text
-real sandbox evaluator:    BLOCKED_NO_CREDENTIALS
-  sandbox_created:         false
-  fake_provider_used:      0
-  host fixture unchanged:  true
-
-live coding UAT:           BLOCKED_NO_CREDENTIALS
-  user_entrypoint_exit:    1
-  provider_name:           daytona
-  provider_is_real:        false
-  sandbox_created:         false
-  host fixture unchanged:  true
-  fake_provider_used_in_real_uat: 0
-
-scripted smoke (fake):     SCRIPTED_SMOKE (not real acceptance)
+provider:                 opensandbox
+provider_is_real:         true
+provider_is_self_hosted:  true
+server health:            healthy
+sandbox:                  created / ready / destroyed
+sandbox id:               0436c794-2047-4032-83b6-a7d5c618d134
+file upload/read:         PASS
+python --version:         Python 3.12.16 (exit 0)
+small script:             stdout 45 (exit 0)
+network policy:           requested none / accepted / empirically PASS
+host-only sentinel:       not visible in sandbox
+sandbox-only sentinel:    not visible on Host; read-back PASS
+host fixture digest:      unchanged
+explicit export:          PASS (1 file)
+status:                   PASS
 ```
 
-The credential failure is classified as `CREDENTIAL_BLOCKED`; no fallback provider is selected and
-no PASS is claimed. A credential-backed rerun must produce the full real-sandbox evidence set
-(remote create, file transfer, command execution, same-binding tools, empirical Host/sandbox
-separation, network-none probe, clean destroy, exported workspace, external acceptance) before
-`REAL ATLAS SANDBOX ISOLATION = PASS` can be reported.
+### Three-run live coding batch at `4b8afa7`
+
+| Run | Run ID | Result | Classification | External acceptance |
+| --- | --- | --- | --- | --- |
+| 1 | `uat-fd65019b7d8c4a21a9050d75fa392173` | FAIL | `MODEL_FAILURE` | No files changed; oracle failed; test suite passed vacuously |
+| 2 | `uat-09ad802b361b4e88a15147cec0c8c597` | PASS | none | Changed `csv_parser.py`, `tests/test_csv_parser.py`; oracle + pytest PASS |
+| 3 | `uat-10449880cf68480c9479c1f3e29ac2cc` | PASS | none | Same expected files; oracle + pytest PASS |
+
+Run 1's agent explored the project but made no edits before the run ended; sandbox lifecycle,
+isolation, cleanup, and M7 evidence were all valid. It is recorded as a genuine model failure, not
+hidden or repaired. Runs 2 and 3 passed independent external acceptance.
+
+### Per-run sandbox evidence
+
+```text
+Run 1: sandbox 376afa4a-8361-47d8-bc20-60aef532d58a
+       created/ready/destroyed, same binding, network-none PASS,
+       host sentinels safe, Host digest unchanged, M7 READY+CLOSED,
+       0 gaps/conflicts, 11 commands, 3 uploads, 2 reads, 0 writes
+Run 2: sandbox 88863482-6dbf-4f31-bc53-e89bb197a4ed
+       created/ready/destroyed, same binding, network-none PASS,
+       host sentinels safe, Host digest unchanged, M7 READY+CLOSED,
+       0 gaps/conflicts, 13 commands, 3 uploads, 2 reads, 2 writes
+Run 3: sandbox 380017e9-0b9a-4a52-ab9f-17d2023e460a
+       created/ready/destroyed, same binding, network-none PASS,
+       host sentinels safe, Host digest unchanged, M7 READY+CLOSED,
+       0 gaps/conflicts, 14 commands, 3 uploads, 2 reads, 1 write
+```
+
+External acceptance for Runs 2 and 3 ran on the explicit exported workspace, not on the Host
+fixture. It included `python -m pytest -q`, the hidden oracle, changed/unexpected/removed-file
+inspection, and Host digest comparison. Agent self-report was not used as PASS authority.
+
+The sandbox cleanup check after all runs found no `sandbox-*` or `sandbox-egress-*` containers
+remaining.
 
 ## Previous acceptance results (pre-real-provider)
 

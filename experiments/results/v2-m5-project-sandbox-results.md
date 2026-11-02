@@ -1,8 +1,8 @@
 # V2 M5 Project Sandbox Formal Results
 
 Status: deterministic M5 verification PASS. This record proves M5 binding semantics with the
-in-repository `FakeSandboxProvider`; it is not real-isolation evidence. The real Atlas Sandbox
-provider integration and its credential-backed status are recorded separately in
+in-repository `FakeSandboxProvider`; it is not real-isolation evidence. The real self-hosted
+OpenSandbox/Docker evidence is recorded separately in
 [`v2-real-sandbox-results.md`](v2-real-sandbox-results.md).
 
 ## Provenance
