@@ -1,6 +1,6 @@
 # V2 Real User Acceptance — Results
 
-Status: **REAL USER ACCEPTANCE = BLOCKED_NO_REAL_SANDBOX_PROVIDER**
+Status: **REAL USER ACCEPTANCE = FAIL (MODEL_FAILURE); SANDBOX ISOLATION = BLOCKED**
 
 The real coding task and external acceptance were exercised with a live DeepSeek provider and the
 thin CLI entrypoint. The current environment has no production AnyCode sandbox provider installed or
@@ -10,8 +10,9 @@ as real user acceptance.
 ## Provenance
 
 ```text
-Atlas HEAD:       3006f235c2053f841e29a04230171588842af0d3
-worktree:         dirty during the exploratory three-run batch (results artifact untracked)
+landing commit:   674cbdc8841c08bb7bf83b528eb422dfa57f6608
+clean-run HEAD:   674cbdc (git_dirty false)
+exploratory HEAD: 3006f23 (dirty: results artifact untracked)
 provider:         deepseek
 model:            deepseek-chat
 fixture digest:   30ec285bbdfcc53338c8b3ee67ed2a10f87078ed3f901abcfb8158587e4403f5
@@ -48,6 +49,28 @@ The UAT harness also runs `python -m pytest -q` in the exported workspace.
 The first run did not reach a coding verdict because the harness export failed; the defect was in the
 UAT harness, not M1–M7. The second run is an honest model failure, not an Atlas runtime failure. The
 third run is an external-acceptance PASS in the local deterministic sandbox.
+
+### Clean formal run
+
+After fixing the export defect and committing the harness, a clean live run was executed at
+`674cbdc` (`git_dirty=false`):
+
+```text
+run_id:                     uat-f95cb139228f43d088170d635ac0e75a
+changed files:              csv_parser.py, tests/test_csv_parser.py
+external oracle:            PASS (quoted comma, escaped quote, unknown row)
+test command:               python -m pytest -q
+test exit code:             1
+failure class:              MODEL_FAILURE
+acceptance result:          FAIL
+host fixture unchanged:     true
+trajectory:                 PASS (1 worker, 10 proposed, 20 decisions, 6 execution outcomes,
+                                  10 observations, 1 sandbox READY, 1 run terminal, 0 gaps/conflicts)
+```
+
+The external parser oracle passed, but the agent's own test file failed to import `csv_parser`
+under pytest from the repository root. That is a model/test-authoring failure, not an M1–M7 runtime
+failure. The UAT harness correctly rejected the self-report and marked the run FAIL.
 
 Run 3 details:
 
@@ -97,17 +120,18 @@ sandbox continuity limitation for a coding run.
 
 ```text
 USER ENTRY POINT            PASS (thin CLI adapter)
-REAL LLM                    PASS (DeepSeek live coding run)
-TOOL DISCOVERY              PARTIAL (M1 core runtime active; no tool.search call in this run)
+REAL LLM                    PASS (DeepSeek live coding runs)
+TOOL DISCOVERY              PARTIAL (M1 core runtime active; no tool.search call in these runs)
 WORKER CONSTRUCTION         PASS (M2 coding worker)
 POLICY ENFORCEMENT          PASS (M3 decisions present)
 SANDBOX ISOLATION           BLOCKED_NO_REAL_SANDBOX_PROVIDER
-CODING TASK                 PASS in run 3 (1/3 exploratory runs; 0/2 before the export fix/model failure)
-EXTERNAL VERIFICATION       PASS in run 3
+CODING TASK                 FAIL in clean formal run (MODEL_FAILURE);
+                            one exploratory run passed external acceptance
+EXTERNAL VERIFICATION       PASS in exploratory run 3; FAIL in clean run (pytest import error)
 HOST ISOLATION              PASS
-TRAJECTORY                  PASS in run 3
+TRAJECTORY                  PASS (all runs; clean run complete and conflict-free)
 REAL HITL / RESTART         BLOCKED (M5 v1 runtime-scoped binding)
-REAL USER ACCEPTANCE        BLOCKED
+REAL USER ACCEPTANCE        FAIL / NOT CLAIMED
 ```
 
 A production operator should install/configure an AnyCode sandbox provider, run the CLI without

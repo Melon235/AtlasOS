@@ -1,11 +1,12 @@
 # V2 Integrated System Verification
 
-Status: **INTEGRATED SYSTEM VERIFICATION PASS; REAL USER ACCEPTANCE BLOCKED BY ENVIRONMENT**
+Status: **INTEGRATED SYSTEM VERIFICATION PASS; REAL USER ACCEPTANCE FAIL/BLOCKED**
 
 ```text
 V2 INTEGRATED SYSTEM VERIFICATION = PASS
 V2 RELIABILITY DRILL              = PASS (controlled runtime-boundary drills)
-V2 REAL USER ACCEPTANCE           = BLOCKED_NO_REAL_SANDBOX_PROVIDER
+V2 REAL USER ACCEPTANCE           = FAIL (MODEL_FAILURE in clean run;
+                                    sandbox isolation BLOCKED_NO_REAL_SANDBOX_PROVIDER)
 V2 OVERALL ACCEPTANCE             = NOT CLAIMED
 ```
 
@@ -145,9 +146,11 @@ The live LLM result, failure classification, changed files, host isolation, test
 digest, and M7 trajectory cross-check are recorded in
 [`experiments/results/v2-user-acceptance.md`](../../experiments/results/v2-user-acceptance.md).
 In the three exploratory live runs, one run fixed the bug and passed all external checks, one run
-was a model failure, and one run hit a harness export defect (fixed). The coding run did not call
-`tool.search`, so M1 progressive discovery was only partially exercised in live UAT; the integrated
-S1 scenario exercises it deterministically.
+was a model failure, and one run hit a harness export defect (fixed). A subsequent clean live run at
+`674cbdc` fixed the parser (external oracle PASS) but authored a test with an import error, so
+`python -m pytest -q` failed; the UAT harness classified it `MODEL_FAILURE`/FAIL. The coding runs did
+not call `tool.search`, so M1 progressive discovery was only partially exercised in live UAT; the
+integrated S1 scenario exercises it deterministically.
 
 Real HITL restart with a live sandbox is blocked by the M5 v1 runtime-scoped binding limitation.
 The controlled integrated S2 scenario is not presented as an OS-process live-sandbox substitute.
