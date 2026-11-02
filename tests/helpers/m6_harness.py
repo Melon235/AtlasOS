@@ -283,6 +283,7 @@ class M6World:
         runtime_instance_id: str = "runtime-m6",
         sandbox_tools: Any | None = None,
         fault_hook: Callable[[str], None] | None = None,
+        trajectory_recorder: Any | None = None,
     ) -> AtlasToolRuntime:
         runtime = AtlasToolRuntime(
             "run-m6",
@@ -297,6 +298,7 @@ class M6World:
             approval_store=approval_store or self.approval_store,
             runtime_instance_id=runtime_instance_id,
             sandbox_tools=sandbox_tools,
+            trajectory_recorder=trajectory_recorder,
         )
         if fault_hook is not None and runtime.suspension_coordinator is not None:
             runtime.suspension_coordinator._fault_hook = fault_hook  # noqa: SLF001
@@ -388,10 +390,16 @@ class M6World:
         scope: str = "scope",
         sandbox_binding_digest: str | None = None,
         sandbox_required: bool = False,
+        model_response_id: str | None = None,
     ) -> ExecutionSuspension:
         assert runtime.suspension_coordinator is not None
         actual_context = context or self.context()
-        plan = await runtime.preflight_batch(calls, actual_context)
+        plan = await runtime.preflight_batch(
+            calls,
+            actual_context,
+            model_response_id=model_response_id,
+            execution_scope=scope,
+        )
         if not plan.requires_human:
             raise AssertionError("expected at least one REQUIRE_HUMAN call")
         execution_context = actual_context.execution_context
@@ -411,6 +419,7 @@ class M6World:
             execution_scope=scope,
             sandbox_binding_digest=sandbox_binding_digest,
             sandbox_required=sandbox_required,
+            model_response_id=model_response_id,
         )
 
     def approve(

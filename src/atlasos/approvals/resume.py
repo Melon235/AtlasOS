@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from anycode.types import LLMMessage, ToolResult, ToolResultBlock, ToolUseContext
 
@@ -35,6 +35,12 @@ from atlasos.suspension.models import (
     canonical_digest as suspension_digest,
 )
 from atlasos.tools.catalog import CORE_TOOL_DISPATCH
+from atlasos.trajectory.context import (
+    CallTrajectoryContext,
+    reset_current_call_trajectory,
+    set_current_call_trajectory,
+)
+from atlasos.trajectory.models import TrajectoryCorrelation
 
 if TYPE_CHECKING:
     from atlasos.suspension.coordinator import RuntimeSuspensionCoordinator
@@ -199,6 +205,7 @@ async def resume_execution_suspension(
         )
 
     _fault("resume_after_begin_settlement")
+    _record_resume_started(runtime, settling, owner)
     _fault("resume_before_revalidate")
     try:
         revalidated = await _revalidate(
@@ -236,6 +243,7 @@ async def resume_execution_suspension(
         coordinator=coordinator,
         context=context,
         revalidated=revalidated,
+        suspension=settling,
     )
     _fault("resume_after_execute")
     settlement = _build_settlement(settling, results)
@@ -254,6 +262,7 @@ async def resume_execution_suspension(
             suspension=store.get(suspension_id),
         )
     _fault("resume_after_settlement")
+    _record_observations(runtime, settled, settlement, backfilled=False)
     applied = False
     if commit_continuation:
         applied = _commit_continuation(
@@ -266,6 +275,7 @@ async def resume_execution_suspension(
         coordinator.metrics.tool_results_committed += len(settlement.results)
     cleared = store.clear(suspension_id, settled.revision)
     coordinator.metrics.suspensions_cleared += 1
+    _record_suspension_cleared(runtime, cleared, settlement)
     _fault("resume_after_clear")
     store.mark_run(cleared.run_id, "ACTIVE")
     if cleared.task_id is not None:
@@ -316,10 +326,12 @@ async def _apply_existing_settlement(
     if commit_continuation:
         applied = _commit_continuation(runtime.conversation_store, suspension, settlement)
     _fault("resume_after_continuation")
+    _record_observations(runtime, suspension, settlement, backfilled=True)
     if applied:
         coordinator.metrics.tool_results_committed += len(settlement.results)
     cleared = coordinator.suspension_store.clear(suspension.suspension_id, suspension.revision)
     coordinator.metrics.suspensions_cleared += 1
+    _record_suspension_cleared(runtime, cleared, settlement)
     coordinator.suspension_store.mark_run(cleared.run_id, "ACTIVE")
     if cleared.task_id is not None:
         coordinator.suspension_store.mark_task(cleared.run_id, cleared.task_id, "ACTIVE")
@@ -330,6 +342,123 @@ async def _apply_existing_settlement(
         settlement=settlement,
         continuation=tuple(_continuation_messages(cleared, settlement)),
     )
+
+
+def _recorder(runtime: AtlasToolRuntime) -> Any | None:
+    return getattr(runtime, "trajectory_recorder", None)
+
+
+def _record_resume_started(
+    runtime: AtlasToolRuntime,
+    suspension: ExecutionSuspension,
+    owner: str,
+) -> None:
+    recorder = _recorder(runtime)
+    if recorder is None:
+        return
+    try:  # noqa: SIM105
+        recorder.record_resume_started(
+            suspension_id=suspension.suspension_id,
+            revision=suspension.revision,
+            owner=owner,
+            occurred_at=suspension.updated_at,
+            correlation=TrajectoryCorrelation(
+                suspension_id=suspension.suspension_id,
+                model_response_id=suspension.model_response_id,
+            ),
+        )
+    except Exception:  # noqa: BLE001 - evidence is optional
+        pass
+
+
+def _record_observations(
+    runtime: AtlasToolRuntime,
+    suspension: ExecutionSuspension,
+    settlement: SuspensionSettlement,
+    *,
+    backfilled: bool,
+) -> None:
+    recorder = _recorder(runtime)
+    if recorder is None:
+        return
+    for result in settlement.results:
+        try:  # noqa: SIM105
+            recorder.record_tool_observation(
+                call_id=result.call_id,
+                tool_id=result.logical_tool_id,
+                is_error=result.is_error,
+                result_digest=canonical_digest(result.content),
+                result_size=len(str(result.content).encode("utf-8")),
+                outcome=result.outcome,
+                occurred_at=settlement.created_at,
+                backfilled=backfilled,
+                correlation=TrajectoryCorrelation(
+                    model_response_id=suspension.model_response_id,
+                    ordinal=result.ordinal,
+                    call_id=result.call_id,
+                    tool_id=result.logical_tool_id,
+                    suspension_id=suspension.suspension_id,
+                    approval_id=result.approval_id,
+                ),
+            )
+        except Exception:  # noqa: BLE001 - evidence is optional
+            pass
+
+
+def _record_suspension_cleared(
+    runtime: AtlasToolRuntime,
+    suspension: ExecutionSuspension,
+    settlement: SuspensionSettlement,
+) -> None:
+    recorder = _recorder(runtime)
+    if recorder is None:
+        return
+    try:  # noqa: SIM105
+        recorder.record_suspension_cleared(
+            suspension_id=suspension.suspension_id,
+            revision=suspension.revision,
+            result_batch_digest=settlement.result_batch_digest,
+            result_count=len(settlement.results),
+            occurred_at=suspension.updated_at,
+            correlation=TrajectoryCorrelation(
+                suspension_id=suspension.suspension_id,
+                model_response_id=suspension.model_response_id,
+            ),
+        )
+    except Exception:  # noqa: BLE001 - evidence is optional
+        pass
+
+
+async def _evaluate_with_trajectory_context(
+    gate: Any,
+    tool_name: str,
+    raw_input: dict[str, Any],
+    context: ToolUseContext,
+    suspension: ExecutionSuspension,
+    invocation: PendingInvocation,
+    *,
+    phase: str,
+) -> ActionEvaluation:
+    token = set_current_call_trajectory(
+        CallTrajectoryContext(
+            model_response_id=suspension.model_response_id,
+            ordinal=invocation.ordinal,
+            call_id=invocation.call_id,
+            tool_id=None,
+            execution_scope=suspension.execution_scope,
+        )
+    )
+    try:
+        return await gate.evaluate(
+            tool_name,
+            raw_input,
+            context,
+            call_id=invocation.call_id,
+            record=True,
+            trajectory_phase=phase,
+        )
+    finally:
+        reset_current_call_trajectory(token)
 
 
 async def _revalidate(
@@ -425,12 +554,14 @@ async def _revalidate_invocation(
         if not runtime.registry.has(invocation.dispatch_target):
             metrics.m1_resume_violations += 1
             raise _Refusal("stale", "M1 target tool is no longer available")
-        outer = await gate.evaluate(
+        outer = await _evaluate_with_trajectory_context(
+            gate,
             CORE_TOOL_DISPATCH,
             invocation.dispatch_input,
             context,
-            call_id=invocation.call_id,
-            record=True,
+            suspension,
+            invocation,
+            phase="resume_revalidation",
         )
         if outer.failure_message is not None or outer.outcome != "ALLOW":
             return _Revalidated(
@@ -443,12 +574,14 @@ async def _revalidate_invocation(
         if not runtime.registry.has(target):
             metrics.m1_resume_violations += 1
             raise _Refusal("stale", "M1 tool is no longer available")
-    evaluation = await gate.evaluate(
+    evaluation = await _evaluate_with_trajectory_context(
+        gate,
         target,
         invocation.canonical_input,
         context,
-        call_id=invocation.call_id,
-        record=True,
+        suspension,
+        invocation,
+        phase="resume_revalidation",
     )
     metrics.m3_revalidations += 1
     if evaluation.failure_message is not None:
@@ -556,6 +689,7 @@ async def _execute_batch(
     coordinator: RuntimeSuspensionCoordinator,
     context: ToolUseContext,
     revalidated: tuple[_Revalidated, ...],
+    suspension: ExecutionSuspension,
 ) -> tuple[tuple[ToolResult, SettlementOutcome], ...]:
     gate = runtime.action_safety_gate
     assert gate is not None
@@ -578,16 +712,28 @@ async def _execute_batch(
         assert item.evaluation is not None
         if invocation.preflight_outcome == "REQUIRE_HUMAN":
             coordinator.metrics.m4_attempts_after_approval += 1
-        result = await gate.execute_revalidated(
-            item.evaluation,
-            context,
-            idempotency_key=invocation.execution_key,
-            human_outcome=(
-                "approved_receipt"
-                if item.receipt is not None and item.receipt.decision == "APPROVED"
-                else None
-            ),
+        token = set_current_call_trajectory(
+            CallTrajectoryContext(
+                model_response_id=suspension.model_response_id,
+                ordinal=invocation.ordinal,
+                call_id=invocation.call_id,
+                tool_id=invocation.effective_tool_id,
+                execution_scope=suspension.execution_scope,
+            )
         )
+        try:
+            result = await gate.execute_revalidated(
+                item.evaluation,
+                context,
+                idempotency_key=invocation.execution_key,
+                human_outcome=(
+                    "approved_receipt"
+                    if item.receipt is not None and item.receipt.decision == "APPROVED"
+                    else None
+                ),
+            )
+        finally:
+            reset_current_call_trajectory(token)
         outcome = _classify_m4(runtime, coordinator, invocation, result)
         results.append((result, outcome))
     return tuple(results)

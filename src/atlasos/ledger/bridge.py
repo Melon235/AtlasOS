@@ -7,7 +7,7 @@ import json
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from anycode.tools.executor import ToolExecutor
 from anycode.tools.registry import ToolRegistry
@@ -21,6 +21,11 @@ from atlasos.ledger.models import (
     CompletionKind,
     LedgerState,
 )
+from atlasos.trajectory.context import current_call_trajectory
+from atlasos.trajectory.models import TrajectoryCorrelation, canonical_digest
+
+if TYPE_CHECKING:
+    from atlasos.trajectory.recorder import TrajectoryRecorder
 
 
 class DurableActionBridge:
@@ -38,6 +43,7 @@ class DurableActionBridge:
         before_record: Callable[[], None] | None = None,
         after_record: Callable[[], None] | None = None,
         after_execute: Callable[[], None] | None = None,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         self._executor = executor
         self._registry = registry
@@ -48,6 +54,7 @@ class DurableActionBridge:
         self._before_record = before_record
         self._after_record = after_record
         self._after_execute = after_execute
+        self.trajectory_recorder = trajectory_recorder
 
     async def execute(
         self,
@@ -81,6 +88,7 @@ class DurableActionBridge:
         request_digest = _digest(trusted_input)
         prior = self.ledger.latest_for_key_hash(identity.idempotency_key_hash)
         now = datetime.now(UTC)
+        call_context = current_call_trajectory()
         record = ActionLedgerRecord(
             action_id=identity.action_id,
             attempt_id=str(uuid.uuid4()),
@@ -92,6 +100,7 @@ class DurableActionBridge:
             tool_name=tool_name,
             canonical_action=resolution.action,
             resource=resolution.resource,
+            m3_call_id=call_context.call_id if call_context is not None else None,
             request_digest=request_digest,
             digest_version="1",
             idempotency_key_hash=identity.idempotency_key_hash,
@@ -113,19 +122,20 @@ class DurableActionBridge:
                 idempotency_key=identity.idempotency_key,
             )
         except BaseException:
-            self._finish(
+            finished = self._finish(
                 record,
                 state="UNCERTAIN",
                 completion_kind=None,
                 result=None,
                 prior=prior,
             )
+            self._record_outcome(finished, result=None)
             raise
         if self._after_execute is not None:
             self._after_execute()
 
         state, kind, retry_safe = _classify_result(result, prior, request_digest)
-        self._finish(
+        finished = self._finish(
             record,
             state=state,
             completion_kind=kind,
@@ -133,7 +143,38 @@ class DurableActionBridge:
             prior=prior,
             retry_safe=retry_safe,
         )
+        self._record_outcome(finished, result=result)
         return result
+
+    def _record_outcome(self, record: ActionLedgerRecord, *, result: ToolResult | None) -> None:
+        recorder = self.trajectory_recorder
+        if recorder is None:
+            return
+        try:  # noqa: SIM105
+            recorder.record_execution_outcome(
+                action_id=record.action_id,
+                attempt_id=record.attempt_id,
+                tool_id=record.tool_name,
+                canonical_action=record.canonical_action,
+                state=record.state,
+                completion_kind=record.completion_kind,
+                claim_outcome=record.claim_outcome,
+                retry_safe=record.retry_safe,
+                resource_digest=canonical_digest(record.resource),
+                result_digest=record.result_digest,
+                result_size=(len(str(result.data).encode("utf-8")) if result is not None else None),
+                occurred_at=record.completed_at or record.updated_at,
+                correlation=TrajectoryCorrelation(
+                    tool_id=record.tool_name,
+                    action_id=record.action_id,
+                    attempt_id=record.attempt_id,
+                    call_id=record.m3_call_id,
+                    worker_id=record.worker_id,
+                    profile_id=None,
+                ),
+            )
+        except Exception:  # noqa: BLE001 - evidence is optional
+            pass
 
     def _finish(
         self,
@@ -144,7 +185,7 @@ class DurableActionBridge:
         result: ToolResult | None,
         prior: ActionLedgerRecord | None,
         retry_safe: bool | None = None,
-    ) -> None:
+    ) -> ActionLedgerRecord:
         now = datetime.now(UTC)
         if result is not None:
             retry_safe = result.retry_safe if retry_safe is None else retry_safe
@@ -161,6 +202,7 @@ class DurableActionBridge:
             }
         )
         self.ledger.update(updated)
+        return updated
 
 
 def _trusted_input(

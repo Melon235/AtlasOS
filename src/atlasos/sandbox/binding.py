@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from anycode.identity.context import ExecutionContext
 from anycode.sandbox import SandboxProvider
@@ -18,6 +19,13 @@ from atlasos.sandbox.models import (
     trusted_sandbox_spec,
 )
 from atlasos.sandbox.provision import GitProjectProvisioner
+from atlasos.trajectory.models import (
+    TrajectoryCorrelation,
+    derive_sandbox_binding_id,
+)
+
+if TYPE_CHECKING:
+    from atlasos.trajectory.recorder import TrajectoryRecorder
 
 
 class ProjectSandboxManager:
@@ -27,11 +35,13 @@ class ProjectSandboxManager:
         config: SandboxProjectConfig,
         *,
         run_id: str,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         config.validate_v1()
         self.provider = provider
         self.config = config
         self.run_id = run_id
+        self.trajectory_recorder = trajectory_recorder
         self.bindings: dict[str, ProjectSandboxBinding] = {}
         self._task_locks: dict[str, asyncio.Lock] = {}
         self.create_count = 0
@@ -95,6 +105,7 @@ class ProjectSandboxManager:
                 created_at=datetime.now(UTC),
             )
             self.bindings[task_id] = binding
+            self._record_lifecycle(binding, "READY", occurred_at=binding.created_at)
             return binding
 
     async def _best_effort_destroy(self, handle) -> None:
@@ -121,7 +132,9 @@ class ProjectSandboxManager:
         binding = self.bindings.get(task_id)
         if binding is None:
             return
-        self.bindings[task_id] = binding.model_copy(update={"state": "LOST"})
+        updated = binding.model_copy(update={"state": "LOST"})
+        self.bindings[task_id] = updated
+        self._record_lifecycle(updated, "LOST", occurred_at=None)
 
     async def close(self, task_id: str) -> None:
         binding = self.binding(task_id)
@@ -129,12 +142,50 @@ class ProjectSandboxManager:
             return
         result = await self.provider.destroy(binding.sandbox_handle)
         state = "CLOSED" if result.ok else "LOST"
-        self.bindings[task_id] = binding.model_copy(update={"state": state})
+        updated = binding.model_copy(update={"state": state})
+        self.bindings[task_id] = updated
+        self._record_lifecycle(updated, state, occurred_at=None)
 
     async def cancel(self, task_id: str) -> None:
         binding = self.binding(task_id)
         await self.provider.cancel(binding.sandbox_handle)
-        self.bindings[task_id] = binding.model_copy(update={"state": "CLOSED"})
+        updated = binding.model_copy(update={"state": "CLOSED"})
+        self.bindings[task_id] = updated
+        self._record_lifecycle(updated, "CLOSED", occurred_at=None)
+
+    def _record_lifecycle(
+        self,
+        binding: ProjectSandboxBinding,
+        state: str,
+        *,
+        occurred_at: datetime | None,
+    ) -> None:
+        recorder = self.trajectory_recorder
+        if recorder is None:
+            return
+        binding_id = derive_sandbox_binding_id(
+            run_id=binding.run_id,
+            task_id=binding.task_id,
+            worker_id=binding.worker_id,
+            provider_name=binding.provider_name,
+            sandbox_handle_id=binding.sandbox_handle.id,
+        )
+        try:  # noqa: SIM105
+            recorder.record_sandbox_lifecycle(
+                binding_id=binding_id,
+                task_id=binding.task_id,
+                worker_id=binding.worker_id,
+                provider_name=binding.provider_name,
+                state=state,
+                source_commit=binding.source_commit,
+                occurred_at=occurred_at,
+                correlation=TrajectoryCorrelation(
+                    sandbox_binding_id=binding_id,
+                    worker_id=binding.worker_id,
+                ),
+            )
+        except Exception:  # noqa: BLE001 - evidence is optional
+            pass
 
 
 def require_sandbox_capabilities(provider: SandboxProvider) -> None:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from anycode.types import LLMMessage, ToolUseContext
 
@@ -29,6 +29,18 @@ from atlasos.suspension.models import (
 )
 from atlasos.suspension.store import SQLiteSuspensionStore
 from atlasos.tools.catalog import CORE_TOOL_DISPATCH
+from atlasos.trajectory.context import (
+    CallTrajectoryContext,
+    reset_current_call_trajectory,
+    set_current_call_trajectory,
+)
+from atlasos.trajectory.models import (
+    SuspensionPendingRef,
+    TrajectoryCorrelation,
+)
+
+if TYPE_CHECKING:
+    from atlasos.trajectory.recorder import TrajectoryRecorder
 
 _TERMINAL_RUN_STATES = frozenset({"CANCELLED", "COMPLETED", "FAILED"})
 
@@ -62,6 +74,7 @@ class RuntimeSuspensionCoordinator:
         runtime_instance_id: str | None = None,
         clock: Callable[[], datetime] | None = None,
         fault_hook: Callable[[str], None] | None = None,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         self.runtime = runtime
         self.suspension_store = suspension_store
@@ -70,6 +83,7 @@ class RuntimeSuspensionCoordinator:
         self.runtime_instance_id = runtime_instance_id or f"runtime-{run_id}"
         self._clock = clock or (lambda: datetime.now(UTC))
         self._fault_hook = fault_hook
+        self.trajectory_recorder = trajectory_recorder
         self.metrics: M6Metrics = approval_coordinator.metrics
 
     def now(self) -> datetime:
@@ -85,12 +99,30 @@ class RuntimeSuspensionCoordinator:
         self,
         calls: Sequence[BatchCall],
         context: ToolUseContext,
+        *,
+        model_response_id: str | None = None,
+        execution_scope: str | None = None,
     ) -> BatchPreflight:
         ordered = sorted(calls, key=lambda call: call.ordinal)
         call_ids = [call.call_id for call in ordered]
         if len(set(call_ids)) != len(call_ids):
             raise SuspensionStateError("duplicate tool_use ids in one model response")
-        invocations = tuple([await self._preflight_one(call, context) for call in ordered])
+        invocations_list: list[PendingInvocation] = []
+        for call in ordered:
+            token = set_current_call_trajectory(
+                CallTrajectoryContext(
+                    model_response_id=model_response_id,
+                    ordinal=call.ordinal,
+                    call_id=call.call_id,
+                    tool_id=None,
+                    execution_scope=execution_scope,
+                )
+            )
+            try:
+                invocations_list.append(await self._preflight_one(call, context))
+            finally:
+                reset_current_call_trajectory(token)
+        invocations = tuple(invocations_list)
         requires_human = any(
             invocation.preflight_outcome == "REQUIRE_HUMAN" for invocation in invocations
         )
@@ -117,6 +149,7 @@ class RuntimeSuspensionCoordinator:
             context,
             call_id=call.call_id,
             record=True,
+            trajectory_phase="preflight",
         )
         if logical == CORE_TOOL_DISPATCH:
             return await self._preflight_dispatch(call, logical, outer, context)
@@ -196,6 +229,7 @@ class RuntimeSuspensionCoordinator:
             context,
             call_id=call.call_id,
             record=True,
+            trajectory_phase="preflight",
         )
         outer_binding = self.runtime.tool_binding_digest(logical)
         target_binding = self.runtime.tool_binding_digest(target)
@@ -303,6 +337,7 @@ class RuntimeSuspensionCoordinator:
         execution_scope: str | None,
         sandbox_binding_digest: str | None = None,
         sandbox_required: bool = False,
+        model_response_id: str | None = None,
     ) -> ExecutionSuspension:
         if assistant_message.role != "assistant":
             raise SuspensionStateError("held assistant message must have role='assistant'")
@@ -339,6 +374,7 @@ class RuntimeSuspensionCoordinator:
             profile_id=profile_id,
             agent_name=agent_name,
             assistant_response_digest=assistant_digest,
+            model_response_id=model_response_id,
             held_assistant_message=assistant_message.model_dump(mode="json"),
             pending_invocations=pending,
             trusted_identity_digest=trusted_identity_digest(execution_context),
@@ -372,6 +408,33 @@ class RuntimeSuspensionCoordinator:
                     suspension_id=stored.suspension_id,
                 )
         self._fault("suspension_after_pause")
+        recorder = self.trajectory_recorder
+        if recorder is not None:
+            try:  # noqa: SIM105
+                recorder.record_suspension_created(
+                    suspension_id=stored.suspension_id,
+                    assistant_response_digest=stored.assistant_response_digest,
+                    execution_scope=stored.execution_scope,
+                    pending=tuple(
+                        SuspensionPendingRef(
+                            ordinal=item.ordinal,
+                            call_id=item.call_id,
+                            tool_id=item.effective_tool_id,
+                            preflight_outcome=item.preflight_outcome,
+                            approval_id=item.approval_id,
+                        )
+                        for item in stored.pending_invocations
+                    ),
+                    occurred_at=stored.created_at,
+                    correlation=TrajectoryCorrelation(
+                        suspension_id=stored.suspension_id,
+                        model_response_id=stored.model_response_id,
+                        worker_id=stored.worker_id,
+                        profile_id=stored.profile_id,
+                    ),
+                )
+            except Exception:  # noqa: BLE001 - evidence is optional
+                pass
         return stored
 
     @staticmethod

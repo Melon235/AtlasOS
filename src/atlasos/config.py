@@ -13,7 +13,7 @@ from typing import Literal
 
 import yaml
 from anycode.types import MCPServerConfig
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 SchedulerPolicy = Literal["upstream_default", "capability", "context_aware", "cache_aware"]
 ContextPolicy = Literal["upstream_default", "task_scoped"]
@@ -154,6 +154,26 @@ class ToolsConfig(BaseModel):
     mcp_servers: tuple[MCPServerConfig, ...] = ()
 
 
+class TrajectoryConfig(BaseModel):
+    """M7 durable trajectory evidence (never an execution semantic)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    enabled: bool = False
+    store_root: str = "trajectory"
+
+    @field_validator("store_root")
+    @classmethod
+    def _safe_store_root(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("trajectory.store_root must not be empty")
+        path = Path(normalized)
+        if path.is_absolute() or ".." in path.parts:
+            raise ValueError("trajectory.store_root must be relative and traversal-free")
+        return normalized
+
+
 class AtlasConfig(BaseModel):
     """Top-level experiment configuration."""
 
@@ -164,6 +184,7 @@ class AtlasConfig(BaseModel):
     scheduler: SchedulerConfig = SchedulerConfig()
     placement: PlacementConfig = PlacementConfig()
     tools: ToolsConfig = ToolsConfig()
+    trajectory: TrajectoryConfig = TrajectoryConfig()
     pricing: Pricing | None = None
 
 

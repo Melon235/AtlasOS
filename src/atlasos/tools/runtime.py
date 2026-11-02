@@ -14,7 +14,7 @@ import time
 import uuid
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from anycode.hitl.approval import ApprovalManager
 from anycode.identity.policy import PolicyEnforcer
@@ -37,6 +37,7 @@ from atlasos.actions import (
     ActionPolicy,
     ActionReviewer,
     ActionSafetyGate,
+    canonical_digest,
     infer_tool_source,
 )
 from atlasos.actions import (
@@ -69,6 +70,9 @@ from atlasos.tools.search import (
     build_search_index,
 )
 from atlasos.tools.state import RunToolStateStore
+
+if TYPE_CHECKING:
+    from atlasos.trajectory.recorder import TrajectoryRecorder
 
 
 class ToolSearchObservation(BaseModel):
@@ -133,6 +137,7 @@ class AtlasToolRuntime:
         sandbox_tools: SandboxWorkspaceTools | None = None,
         suspension_store: SQLiteSuspensionStore | None = None,
         approval_store: SQLiteApprovalStore | None = None,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         if action_ledger is not None and action_policy is None:
             raise ValueError("action_ledger requires action_policy; M4 runs only after M3")
@@ -166,6 +171,7 @@ class AtlasToolRuntime:
         self._sandbox_tools = sandbox_tools
         self.suspension_store = suspension_store
         self.approval_store = approval_store
+        self.trajectory_recorder = trajectory_recorder
         self.m6_metrics = M6Metrics() if m6_enabled else None
         self.approval_coordinator: ApprovalCoordinator | None = None
         self.suspension_coordinator: RuntimeSuspensionCoordinator | None = None
@@ -206,6 +212,7 @@ class AtlasToolRuntime:
                 action_ledger,
                 runtime_instance_id=self.runtime_instance_id,
                 catalog=action_catalog,
+                trajectory_recorder=trajectory_recorder,
             )
             base_executor = self.durable_bridge
         self.action_safety_gate: ActionSafetyGate | None = None
@@ -219,6 +226,7 @@ class AtlasToolRuntime:
                 approval_manager=action_approval_manager,
                 external_policy=action_external_policy,
                 tool_sources=self._tool_sources,
+                trajectory_recorder=trajectory_recorder,
             )
             self._inner_executor = cast(Any, self.action_safety_gate)
         else:
@@ -227,13 +235,18 @@ class AtlasToolRuntime:
         if m6_enabled:
             assert suspension_store is not None and approval_store is not None
             assert self.m6_metrics is not None
-            self.approval_coordinator = ApprovalCoordinator(approval_store, metrics=self.m6_metrics)
+            self.approval_coordinator = ApprovalCoordinator(
+                approval_store,
+                metrics=self.m6_metrics,
+                trajectory_recorder=trajectory_recorder,
+            )
             self.suspension_coordinator = RuntimeSuspensionCoordinator(
                 self,
                 suspension_store,
                 self.approval_coordinator,
                 run_id=run_id,
                 runtime_instance_id=self.runtime_instance_id,
+                trajectory_recorder=trajectory_recorder,
             )
 
     # -- tool construction --
@@ -386,10 +399,18 @@ class AtlasToolRuntime:
         self,
         calls: Sequence[BatchCall],
         context: ToolUseContext,
+        *,
+        model_response_id: str | None = None,
+        execution_scope: str | None = None,
     ) -> BatchPreflight:
         if self.suspension_coordinator is None:
             raise RuntimeError("M6 is not enabled on this AtlasToolRuntime")
-        return await self.suspension_coordinator.preflight_batch(calls, context)
+        return await self.suspension_coordinator.preflight_batch(
+            calls,
+            context,
+            model_response_id=model_response_id,
+            execution_scope=execution_scope,
+        )
 
     def m6_metrics_snapshot(self) -> dict[str, int] | None:
         if self.m6_metrics is None:
@@ -459,9 +480,36 @@ class AtlasToolRuntime:
             if tool is not None:
                 selected.append((match.tool_id, tool))
         names = {tool_id for tool_id, _ in selected}
+        already = set(self.state.sorted_names)
         changed = self.state.disclose(names)
         if changed:
             self.state_store.save(self.state, run_id=self.run_id)
+        recorder = self.trajectory_recorder
+        if recorder is not None and changed:
+            from atlasos.trajectory.context import current_call_trajectory
+            from atlasos.trajectory.models import TrajectoryCorrelation
+
+            call_context = current_call_trajectory()
+            for tool_id in sorted(names - already):
+                tool = self.registry.get(tool_id)
+                if tool is None:
+                    continue
+                try:  # noqa: SIM105
+                    recorder.record_tool_disclosed(
+                        tool_id=tool_id,
+                        tool_name=tool.name,
+                        disclosure_source="tool_search",
+                        query_digest=canonical_digest(query),
+                        correlation=TrajectoryCorrelation(
+                            model_response_id=(
+                                call_context.model_response_id if call_context is not None else None
+                            ),
+                            call_id=(call_context.call_id if call_context is not None else None),
+                            tool_id=tool_id,
+                        ),
+                    )
+                except Exception:  # noqa: BLE001 - evidence is optional
+                    pass
         latency_ms = (time.perf_counter() - started) * 1000.0
         self._search_observations.append(
             ToolSearchObservation(

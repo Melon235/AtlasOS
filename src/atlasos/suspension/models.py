@@ -151,6 +151,7 @@ class ExecutionSuspension(BaseModel):
     agent_name: str | None = None
 
     assistant_response_digest: str
+    model_response_id: str | None = None
     held_assistant_message: dict[str, Any]
     pending_invocations: tuple[PendingInvocation, ...]
 

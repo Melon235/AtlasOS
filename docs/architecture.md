@@ -609,7 +609,29 @@ registry, executor, policy engine, idempotency engine, or workflow engine is add
 pending invocation is recovered from protected Runtime state; the model is never asked to
 reconstruct it. Details: [`docs/stages/m6-durable-approval.md`](stages/m6-durable-approval.md).
 
-## 20. V2 Boundary
+## 20. V2 M7 Durable Agent Trajectory Boundary
+
+M7 adds a durable evidence projection over the existing AnyCode `RunStore` transcript:
+
+```text
+model response
+  -> ACTION_PROPOSED (fixed proposal, before M3)
+  -> M1 disclosure / M2 worker / M3 decision
+  -> if human: suspension -> approval -> resume -> M3 revalidation
+  -> M4 execution outcome
+  -> tool observation (native or Atlas metadata)
+  -> suspension clear
+  -> run terminal
+```
+
+M7 is evidence, not authority. It never executes, authorizes, replays, resumes, creates M4 claims,
+transitions approvals, or creates sandboxes. The runtime never reads trajectory evidence to make a
+decision. `ACTION_PROPOSED`, `ACTION_DECISION`, `EXECUTION_OUTCOME`, and `TOOL_OBSERVATION` are
+distinct events because model proposal, authorization, execution, and observation are distinct
+facts. Reconciliation repairs evidence only and reports unreconstructable gaps. Details:
+[`docs/stages/m7-durable-agent-trajectory.md`](stages/m7-durable-agent-trajectory.md).
+
+## 21. V2 Boundary
 
 Only after V1 completion, consider:
 

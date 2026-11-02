@@ -17,7 +17,8 @@ import json
 import logging
 import uuid
 from collections.abc import Mapping
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from anycode.hitl.approval import ApprovalManager
 from anycode.identity.policy import PolicyEnforcer, PolicyRequest
@@ -61,6 +62,11 @@ from atlasos.actions.models import (
 )
 from atlasos.actions.policy import ActionPolicy
 from atlasos.actions.reviewer import ActionReviewer
+from atlasos.trajectory.context import current_call_trajectory
+from atlasos.trajectory.models import TrajectoryCorrelation
+
+if TYPE_CHECKING:
+    from atlasos.trajectory.recorder import TrajectoryRecorder
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +86,7 @@ class ActionSafetyGate:
         external_policy: PolicyEnforcer | None = None,
         max_modified_attempts: int = 2,
         tool_sources: Mapping[str, str] | None = None,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         self._executor = executor
         self._registry = registry
@@ -91,6 +98,7 @@ class ActionSafetyGate:
         self.max_modified_attempts = max_modified_attempts
         self.tool_sources = dict(tool_sources or {})
         self.policy_digest = canonical_digest(policy.model_dump(mode="json"))
+        self.trajectory_recorder = trajectory_recorder
         self.audits: list[ActionAudit] = []
         self.preflight_evaluations: list[ActionEvaluation] = []
 
@@ -104,6 +112,7 @@ class ActionSafetyGate:
         *,
         call_id: str | None = None,
         record: bool = False,
+        trajectory_phase: str = "execution",
     ) -> ActionEvaluation:
         """Authorize one call without any execution-side effect.
 
@@ -115,31 +124,40 @@ class ActionSafetyGate:
         actual_call_id = call_id or uuid.uuid4().hex
         tool = self._registry.get(tool_name)
         if tool is None:
-            return self._deny(
-                tool_name,
-                actual_call_id,
-                "not_registered",
-                f'Tool "{tool_name}" is not registered in the current registry.',
+            return self._record_trajectory(
+                self._deny(
+                    tool_name,
+                    actual_call_id,
+                    "not_registered",
+                    f'Tool "{tool_name}" is not registered in the current registry.',
+                ),
+                trajectory_phase,
             )
 
         try:
             check_tool_access(tool_name, context.security_policy)
         except ToolSecurityError as error:
-            return self._deny(
-                tool_name,
-                actual_call_id,
-                "hard_denied",
-                f"action_hard_denied: {safe_exception_message(error)}",
+            return self._record_trajectory(
+                self._deny(
+                    tool_name,
+                    actual_call_id,
+                    "hard_denied",
+                    f"action_hard_denied: {safe_exception_message(error)}",
+                ),
+                trajectory_phase,
             )
 
         try:
             validated = tool.input_model.model_validate(raw_input)
         except Exception as error:
-            return self._deny(
-                tool_name,
-                actual_call_id,
-                "invalid_input",
-                f'Invalid input for tool "{tool_name}": {safe_exception_message(error)}',
+            return self._record_trajectory(
+                self._deny(
+                    tool_name,
+                    actual_call_id,
+                    "invalid_input",
+                    f'Invalid input for tool "{tool_name}": {safe_exception_message(error)}',
+                ),
+                trajectory_phase,
             )
         canonical_arguments = validated.model_dump(mode="json")
 
@@ -147,19 +165,25 @@ class ActionSafetyGate:
             resolution = self.catalog.resolve(tool_name, canonical_arguments)
             self._hard_precheck(tool_name, canonical_arguments, context, resolution)
         except ToolSecurityError as error:
-            return self._deny(
-                tool_name,
-                actual_call_id,
-                "hard_denied",
-                f"action_hard_denied: {safe_exception_message(error)}",
+            return self._record_trajectory(
+                self._deny(
+                    tool_name,
+                    actual_call_id,
+                    "hard_denied",
+                    f"action_hard_denied: {safe_exception_message(error)}",
+                ),
+                trajectory_phase,
             )
 
         if context.execution_context is None:
-            return self._deny(
-                tool_name,
-                actual_call_id,
-                "trusted_context_required",
-                "action_denied: trusted ExecutionContext is required",
+            return self._record_trajectory(
+                self._deny(
+                    tool_name,
+                    actual_call_id,
+                    "trusted_context_required",
+                    "action_denied: trusted ExecutionContext is required",
+                ),
+                trajectory_phase,
             )
 
         evaluation = await self._evaluate(
@@ -170,7 +194,7 @@ class ActionSafetyGate:
         )
         if record:
             self.preflight_evaluations.append(evaluation)
-        return evaluation
+        return self._record_trajectory(evaluation, trajectory_phase)
 
     async def execute(
         self,
@@ -313,6 +337,86 @@ class ActionSafetyGate:
         return results
 
     # -- evaluation internals ------------------------------------------------
+
+    def _record_trajectory(self, evaluation: ActionEvaluation, phase: str) -> ActionEvaluation:
+        recorder = self.trajectory_recorder
+        if recorder is None:
+            return evaluation
+        call_context = current_call_trajectory()
+        request = evaluation.request
+        decision = evaluation.decision
+        action_context = request.context if request is not None else None
+        call_id = (
+            call_context.call_id
+            if call_context is not None and call_context.call_id
+            else evaluation.call_id
+        )
+        tool_id = (
+            call_context.tool_id
+            if call_context is not None and call_context.tool_id
+            else evaluation.tool_name
+        )
+        basis = evaluation.decision_basis_digest
+        if not basis:
+            basis = canonical_digest(
+                {
+                    "tool_id": tool_id,
+                    "phase": phase,
+                    "decision": evaluation.outcome,
+                    "reason_codes": list(evaluation.reason_codes),
+                }
+            )
+        try:
+            recorder.record_action_decision(
+                phase=phase,
+                decision=evaluation.outcome,
+                decision_source=self._decision_source(evaluation),
+                tool_id=tool_id,
+                call_id=call_id,
+                policy_rule_id=decision.matched_rule if decision is not None else None,
+                decision_basis_digest=basis,
+                action_digest=evaluation.action_digest,
+                input_digest=evaluation.input_digest,
+                tool_binding_digest=evaluation.tool_binding_digest,
+                reason_codes=evaluation.reason_codes,
+                scope_alignment=(decision.scope_alignment if decision is not None else None),
+                reviewer_verdict=(decision.reviewer_verdict if decision is not None else None),
+                external_policy_outcome=(
+                    decision.external_policy_outcome if decision is not None else None
+                ),
+                occurred_at=datetime.now(UTC),
+                correlation=TrajectoryCorrelation(
+                    model_response_id=(
+                        call_context.model_response_id if call_context is not None else None
+                    ),
+                    ordinal=(call_context.ordinal if call_context is not None else None),
+                    call_id=call_id,
+                    tool_id=tool_id,
+                    worker_id=(action_context.worker_id if action_context is not None else None),
+                    profile_id=(action_context.profile_id if action_context is not None else None),
+                ),
+            )
+        except Exception:  # noqa: BLE001 - evidence must never change runtime behavior
+            logger.warning("M7 trajectory recording failed for M3 decision", exc_info=True)
+        return evaluation
+
+    @staticmethod
+    def _decision_source(evaluation: ActionEvaluation) -> str:
+        reasons = set(evaluation.reason_codes)
+        if "hard_denied" in reasons:
+            return "hard_security"
+        if "invalid_input" in reasons:
+            return "input_validation"
+        if "not_registered" in reasons:
+            return "registry"
+        if "trusted_context_required" in reasons:
+            return "identity"
+        decision = evaluation.decision
+        if decision is not None and decision.external_policy_outcome is not None:
+            return "external_policy"
+        if "scope_review_escalated" in reasons:
+            return "reviewer"
+        return "policy"
 
     async def _evaluate(
         self,

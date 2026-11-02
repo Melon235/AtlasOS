@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from anycode.identity.context import ExecutionContext
 from anycode.types import AgentConfig
@@ -22,6 +23,9 @@ from atlasos.workers.models import (
 )
 from atlasos.workers.renderer import render_worker_context, render_worker_context_hash
 from atlasos.workers.store import WorkerStore
+
+if TYPE_CHECKING:
+    from atlasos.trajectory.recorder import TrajectoryRecorder
 
 DEFAULT_AVAILABLE_TOOLS = frozenset(
     {
@@ -50,6 +54,7 @@ class ScopedWorkerFactory:
         available_tools: Iterable[str] | None = None,
         clock: Callable[[], datetime] | None = None,
         id_factory: Callable[[], str] | None = None,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         self.model = model
         self.provider = provider
@@ -60,6 +65,7 @@ class ScopedWorkerFactory:
         )
         self._clock = clock or (lambda: datetime.now(UTC))
         self._id_factory = id_factory or (lambda: uuid.uuid4().hex)
+        self.trajectory_recorder = trajectory_recorder
 
     def create(
         self,
@@ -110,6 +116,7 @@ class ScopedWorkerFactory:
             created_at=self._clock(),
         )
         self.store.save(record)
+        self._record_lifecycle(record, mode="create", occurred_at=record.created_at)
         return WorkerInstance(
             record=record,
             profile=profile,
@@ -145,6 +152,8 @@ class ScopedWorkerFactory:
             max_turns=profile.max_turns,
             execution_context=record.execution_context,
         )
+        restored_at = self._clock()
+        self._record_lifecycle(record, mode="restore", occurred_at=restored_at)
         return WorkerInstance(
             record=record,
             profile=profile,
@@ -152,6 +161,30 @@ class ScopedWorkerFactory:
             rendered_context=rendered,
             resumed=True,
         )
+
+    def _record_lifecycle(
+        self,
+        record: WorkerInstanceRecord,
+        *,
+        mode: str,
+        occurred_at: datetime,
+    ) -> None:
+        recorder = self.trajectory_recorder
+        if recorder is None:
+            return
+        try:  # noqa: SIM105
+            recorder.record_worker_lifecycle(
+                worker_id=record.worker_id,
+                profile_id=record.profile_id,
+                parent_agent=record.parent_agent,
+                mode=mode,
+                context_hash=record.rendered_context_hash,
+                transition_id=occurred_at.isoformat(),
+                occurred_at=occurred_at,
+                correlation=None,
+            )
+        except Exception:  # noqa: BLE001 - evidence is optional
+            pass
 
     def _validate_profile(self, profile: WorkerProfile) -> None:
         unknown = set(profile.base_tools) - self.available_tools

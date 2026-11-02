@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from atlasos.approvals.models import (
     ApprovalChallenge,
@@ -19,6 +20,10 @@ from atlasos.approvals.models import (
 from atlasos.approvals.store import SQLiteApprovalStore
 from atlasos.suspension.metrics import M6Metrics
 from atlasos.suspension.models import ExecutionSuspension, PendingInvocation
+from atlasos.trajectory.models import TrajectoryCorrelation, canonical_digest
+
+if TYPE_CHECKING:
+    from atlasos.trajectory.recorder import TrajectoryRecorder
 
 
 @dataclass(frozen=True)
@@ -38,10 +43,12 @@ class ApprovalCoordinator:
         *,
         clock: Callable[[], datetime] | None = None,
         metrics: M6Metrics | None = None,
+        trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         self.store = store
         self._clock = clock or (lambda: datetime.now(UTC))
         self.metrics = metrics or M6Metrics()
+        self.trajectory_recorder = trajectory_recorder
 
     def now(self) -> datetime:
         return self._clock()
@@ -188,9 +195,35 @@ class ApprovalCoordinator:
                 self.metrics.approval_approved += 1
             else:
                 self.metrics.approval_rejected += 1
+            self._record_resolution(resolution)
         elif resolution.status in ("version_conflict", "already_resolved"):
             self.metrics.approval_resolution_conflicts += 1
         return resolution
+
+    def _record_resolution(self, resolution: ApprovalResolution) -> None:
+        recorder = self.trajectory_recorder
+        challenge = resolution.challenge
+        if recorder is None or challenge is None or challenge.actor is None:
+            return
+        try:  # noqa: SIM105
+            recorder.record_approval_resolved(
+                approval_id=challenge.approval_id,
+                suspension_id=challenge.suspension_id,
+                call_id=challenge.call_id,
+                decision=challenge.state,
+                version=challenge.version,
+                reviewer=challenge.actor,
+                reason_digest=(canonical_digest(challenge.reason) if challenge.reason else None),
+                occurred_at=challenge.resolved_at,
+                correlation=TrajectoryCorrelation(
+                    approval_id=challenge.approval_id,
+                    suspension_id=challenge.suspension_id,
+                    call_id=challenge.call_id,
+                    tool_id=challenge.tool_name,
+                ),
+            )
+        except Exception:  # noqa: BLE001 - evidence is optional
+            pass
 
     def list_orphans(self, suspension_lookup: object) -> tuple[ApprovalChallenge, ...]:
         """Approvals whose suspension is missing are audit facts, never executable.

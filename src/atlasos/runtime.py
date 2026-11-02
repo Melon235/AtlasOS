@@ -26,6 +26,7 @@ from anycode import (
     TeamRunResult,
 )
 from anycode.plugins.registry import register_provider_factory
+from anycode.runstore.store import FilesystemRunStore
 from anycode.tasks.queue import TaskQueue
 from anycode.types import LLMAdapter, OrchestratorEvent, ToolDefinition, ToolUseContext
 from pydantic import BaseModel, ConfigDict, Field
@@ -90,6 +91,8 @@ from atlasos.suspension.models import ExecutionSuspension
 from atlasos.suspension.store import SQLiteSuspensionStore
 from atlasos.tools import AtlasToolRuntime, ToolRuntimeMetrics
 from atlasos.tools.conversation import set_current_task_id
+from atlasos.trajectory.models import canonical_digest
+from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.workflow import (
     AtlasAgentSpec,
     AtlasTaskSpec,
@@ -260,9 +263,13 @@ class AtlasRuntime:
             raise ValueError("M6 requires both suspension_store and approval_store")
         if suspension_store is not None and config.tools.mode != "progressive":
             raise ValueError("M6 requires tools.mode='progressive'")
+        if config.trajectory.enabled and config.tools.mode != "progressive":
+            raise ValueError("M7 requires tools.mode='progressive'")
         self._config = config
         self._suspension_store = suspension_store
         self._approval_store = approval_store
+        self._trajectory_store: FilesystemRunStore | None = None
+        self._trajectory_recorder: TrajectoryRecorder | None = None
         self._runs_root = Path(runs_root)
         self._adapter_factory = adapter_factory or _default_adapter_factory
         self._engine_factory: EngineFactory = engine_factory or (lambda options: AnyCode(options))
@@ -315,8 +322,20 @@ class AtlasRuntime:
     async def _setup_tool_runtime(self, run_id: str, run_dir: Path) -> None:
         self._tool_runtime = None
         self._tool_setup_errors = []
+        self._trajectory_store = None
+        self._trajectory_recorder = None
         if self._config.tools.mode != "progressive":
             return
+        if self._config.trajectory.enabled:
+            self._trajectory_store = FilesystemRunStore(
+                run_dir / self._config.trajectory.store_root
+            )
+            self._trajectory_recorder = TrajectoryRecorder(
+                self._trajectory_store,
+                run_id,
+                agent_name="atlas-runtime",
+                model=self._config.provider.model,
+            )
         runtime = AtlasToolRuntime(
             run_id,
             state_path=run_dir / "run_tool_state.json",
@@ -327,6 +346,7 @@ class AtlasRuntime:
             max_results=self._config.tools.max_results,
             suspension_store=self._suspension_store,
             approval_store=self._approval_store,
+            trajectory_recorder=self._trajectory_recorder,
         )
         try:
             await runtime.connect_mcp_servers(self._config.tools.mcp_servers)
@@ -803,6 +823,17 @@ class AtlasRuntime:
             manifest_path,
             manifest.model_copy(update={"status": "succeeded" if succeeded else "failed"}),
         )
+        if self._trajectory_recorder is not None:
+            try:  # noqa: SIM105
+                self._trajectory_recorder.record_run_terminal(
+                    status="succeeded" if succeeded else "failed",
+                    task_count=len(tasks),
+                    final_output_digest=canonical_digest(final_output),
+                    final_output_size=len(final_output.encode("utf-8")),
+                    occurred_at=result.finished_at,
+                )
+            except Exception:  # noqa: BLE001 - evidence is optional
+                pass
         result_path = run_dir / "result.json"
         result_path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
         if persist:

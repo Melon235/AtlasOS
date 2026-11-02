@@ -27,6 +27,18 @@ from anycode.types import (
 )
 
 from atlasos.tools.state import ToolStateError
+from atlasos.trajectory.codec import shape_of, size_of
+from atlasos.trajectory.context import (
+    CallTrajectoryContext,
+    current_call_trajectory,
+    reset_current_call_trajectory,
+    set_current_call_trajectory,
+)
+from atlasos.trajectory.models import (
+    TrajectoryCorrelation,
+    canonical_digest,
+    derive_model_response_id,
+)
 
 CONVERSATION_SCHEMA_VERSION = 1
 CURRENT_TASK_ID: ContextVar[str | None] = contextvars.ContextVar(
@@ -152,10 +164,49 @@ class AtlasAgentRunner(AgentRunner):
         *,
         idempotency_scope: str,
     ) -> list[Any]:
-        if self._suspension_coordinator is None or not blocks:
+        if not blocks:
             return await super()._execute_tool_blocks(
                 blocks, turn_span, ctx, idempotency_scope=idempotency_scope
             )
+
+        recorder = getattr(self._atlas_tool_runtime, "trajectory_recorder", None)
+        response = LAST_ASSISTANT_RESPONSE.get()
+        model_response_id = self._model_response_id(response, blocks, ctx, idempotency_scope)
+        projection = self._proposal_correlation(ctx, model_response_id)
+        if recorder is not None:
+            for index, block in enumerate(blocks):
+                logical = self._atlas_tool_runtime.logical_tool_name(block.name) or block.name
+                try:  # noqa: SIM105
+                    recorder.record_action_proposed(
+                        model_response_id=model_response_id,
+                        ordinal=index,
+                        call_id=block.id,
+                        tool_id=logical,
+                        tool_name=block.name,
+                        input_digest=canonical_digest(block.input),
+                        input_shape=shape_of(block.input),
+                        input_size=size_of(block.input),
+                        correlation=projection.model_copy(
+                            update={
+                                "model_response_id": model_response_id,
+                                "ordinal": index,
+                                "call_id": block.id,
+                                "tool_id": logical,
+                            }
+                        ),
+                    )
+                except Exception:  # noqa: BLE001 - evidence is optional
+                    pass
+
+        if self._suspension_coordinator is None:
+            return await self._execute_with_batch_context(
+                blocks,
+                turn_span,
+                ctx,
+                idempotency_scope=idempotency_scope,
+                model_response_id=model_response_id,
+            )
+
         from atlasos.suspension.batch import BatchCall, ExecutionSuspended
 
         calls = [
@@ -168,13 +219,21 @@ class AtlasAgentRunner(AgentRunner):
             )
             for index, block in enumerate(blocks)
         ]
-        plan = await self._suspension_coordinator.preflight_batch(calls, ctx)
+        plan = await self._suspension_coordinator.preflight_batch(
+            calls,
+            ctx,
+            model_response_id=model_response_id,
+            execution_scope=idempotency_scope,
+        )
         if not plan.requires_human:
-            return await super()._execute_tool_blocks(
-                blocks, turn_span, ctx, idempotency_scope=idempotency_scope
+            return await self._execute_with_batch_context(
+                blocks,
+                turn_span,
+                ctx,
+                idempotency_scope=idempotency_scope,
+                model_response_id=model_response_id,
             )
 
-        response = LAST_ASSISTANT_RESPONSE.get()
         if response is None:
             raise RuntimeError("M6 preflight refused: assistant response was not captured")
         task_id = _context_attribute(ctx, "task_id")
@@ -187,8 +246,123 @@ class AtlasAgentRunner(AgentRunner):
             execution_scope=idempotency_scope,
             sandbox_binding_digest=sandbox_digest,
             sandbox_required=sandbox_required,
+            model_response_id=model_response_id,
         )
         raise ExecutionSuspended(suspension.suspension_id, suspension.run_id)
+
+    async def _execute_with_batch_context(
+        self,
+        blocks: list[Any],
+        turn_span: Any,
+        ctx: ToolUseContext,
+        *,
+        idempotency_scope: str,
+        model_response_id: str,
+    ) -> list[Any]:
+        token = set_current_call_trajectory(
+            CallTrajectoryContext(
+                model_response_id=model_response_id,
+                ordinal=None,
+                call_id=None,
+                tool_id=None,
+                execution_scope=idempotency_scope,
+            )
+        )
+        try:
+            return await super()._execute_tool_blocks(
+                blocks, turn_span, ctx, idempotency_scope=idempotency_scope
+            )
+        finally:
+            reset_current_call_trajectory(token)
+
+    async def _run_single_tool_block(  # type: ignore[override]
+        self,
+        block: Any,
+        turn_span: Any,
+        ctx: ToolUseContext,
+        *,
+        idempotency_key: str,
+    ) -> Any:
+        batch_context = current_call_trajectory()
+        logical = self._atlas_tool_runtime.logical_tool_name(block.name) or block.name
+        ordinal: int | None = None
+        suffix = idempotency_key.rsplit(":", 1)[-1]
+        if suffix.isdigit():
+            ordinal = int(suffix)
+        token = set_current_call_trajectory(
+            CallTrajectoryContext(
+                model_response_id=(batch_context.model_response_id if batch_context else None),
+                ordinal=ordinal,
+                call_id=block.id,
+                tool_id=logical,
+                execution_scope=(batch_context.execution_scope if batch_context else None),
+            )
+        )
+        try:
+            result = await super()._run_single_tool_block(
+                block, turn_span, ctx, idempotency_key=idempotency_key
+            )
+        finally:
+            reset_current_call_trajectory(token)
+
+        recorder = getattr(self._atlas_tool_runtime, "trajectory_recorder", None)
+        if recorder is not None:
+            result_block, _record = result
+            content = str(result_block.content)
+            try:  # noqa: SIM105
+                recorder.record_tool_observation(
+                    call_id=block.id,
+                    tool_id=logical,
+                    is_error=bool(result_block.is_error),
+                    result_digest=canonical_digest(content),
+                    result_size=len(content.encode("utf-8")),
+                    correlation=self._proposal_correlation(
+                        ctx,
+                        batch_context.model_response_id if batch_context else None,
+                    ).model_copy(
+                        update={
+                            "ordinal": ordinal,
+                            "call_id": block.id,
+                            "tool_id": logical,
+                        }
+                    ),
+                )
+            except Exception:  # noqa: BLE001 - evidence is optional
+                pass
+        return result
+
+    def _model_response_id(
+        self,
+        response: LLMResponse | None,
+        blocks: list[Any],
+        ctx: ToolUseContext,
+        execution_scope: str,
+    ) -> str:
+        if response is not None and getattr(response, "id", None):
+            return str(response.id)
+        assistant_digest = canonical_digest(
+            {
+                "role": "assistant",
+                "content": [block.model_dump(mode="json") for block in blocks],
+            }
+        )
+        task_id = _context_attribute(ctx, "task_id") or "<main>"
+        turn = execution_scope.rsplit(":", 1)[-1] if execution_scope else "unknown"
+        return derive_model_response_id(
+            run_id=self._atlas_tool_runtime.run_id,
+            turn_identity=f"task:{task_id}:turn:{turn}",
+            assistant_response_digest=assistant_digest,
+        )
+
+    @staticmethod
+    def _proposal_correlation(
+        ctx: ToolUseContext, model_response_id: str | None
+    ) -> TrajectoryCorrelation:
+        return TrajectoryCorrelation(
+            model_response_id=model_response_id,
+            worker_id=_context_attribute(ctx, "worker_id"),
+            profile_id=_context_attribute(ctx, "profile_id"),
+        )
 
 
 def _context_attribute(context: ToolUseContext, key: str) -> str | None:
@@ -221,7 +395,10 @@ class AtlasToolAgent(Agent):
         if (
             self._runner is not None
             or self._atlas_tool_runtime is None
-            or getattr(self._atlas_tool_runtime, "suspension_coordinator", None) is None
+            or (
+                getattr(self._atlas_tool_runtime, "suspension_coordinator", None) is None
+                and getattr(self._atlas_tool_runtime, "trajectory_recorder", None) is None
+            )
         ):
             return await super()._get_runner()
         from anycode.constants import AGENT_ROLE_MAX_LENGTH
