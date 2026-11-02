@@ -160,6 +160,27 @@ def _copy_fixture(fixture: Path, workspace: Path) -> None:
             shutil.copy2(entry, target)
 
 
+_RESERVED_WINDOWS_NAMES = frozenset(
+    {"nul", "con", "prn", "aux", "com1", "com2", "com3", "com4", "lpt1", "lpt2", "lpt3"}
+)
+
+
+def _export_workspace(source: Path, target: Path) -> None:
+    """Copy the sandbox workspace, excluding VCS/cache and Windows device names."""
+
+    for item in source.rglob("*"):
+        if not item.is_file():
+            continue
+        parts = set(item.relative_to(source).parts)
+        if parts & {".git", "__pycache__", ".pytest_cache"}:
+            continue
+        if item.name.lower() in _RESERVED_WINDOWS_NAMES:
+            continue
+        destination = target / item.relative_to(source)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(item.read_bytes())
+
+
 def _init_git(workspace: Path) -> None:
     """Give the agent a normal git working tree; ignore failure for non-git environments."""
 
@@ -331,7 +352,7 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
         for record in agent_result_item.tool_calls
     ]
     export = run_dir / "workspace"
-    shutil.copytree(workspace, export, ignore=shutil.ignore_patterns("__pycache__"))
+    _export_workspace(workspace, export)
     session = {
         "run_id": run_id,
         "mode": "coding",

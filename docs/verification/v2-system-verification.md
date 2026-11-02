@@ -1,6 +1,13 @@
 # V2 Integrated System Verification
 
-Status: **IMPLEMENTED; FORMAL INTEGRATED RUN PENDING; REAL UAT BLOCKED BY ENVIRONMENT**
+Status: **INTEGRATED SYSTEM VERIFICATION PASS; REAL USER ACCEPTANCE BLOCKED BY ENVIRONMENT**
+
+```text
+V2 INTEGRATED SYSTEM VERIFICATION = PASS
+V2 RELIABILITY DRILL              = PASS (controlled runtime-boundary drills)
+V2 REAL USER ACCEPTANCE           = BLOCKED_NO_REAL_SANDBOX_PROVIDER
+V2 OVERALL ACCEPTANCE             = NOT CLAIMED
+```
 
 This stage is not M8. It adds no runtime authority. It drives the frozen M1–M7 stack through
 system-level scenarios, a thin user-facing CLI adapter, and reliability drills.
@@ -127,8 +134,9 @@ REAL USER ACCEPTANCE = BLOCKED_NO_REAL_SANDBOX_PROVIDER
 
 A production UAT must install/configure one AnyCode sandbox provider, then run:
 
-```bash
-PYTHONPATH=src:. .venv/bin/python experiments/uat_v2.py --runs-root experiments/runs/uat
+```powershell
+$env:PYTHONPATH = "src;."
+.\.venv\Scripts\python.exe experiments\uat_v2.py --runs-root experiments\runs\uat
 ```
 
 with no `--scripted` flag, and a real provider selected in `experiments/uat_cli.py`.
@@ -136,6 +144,13 @@ with no `--scripted` flag, and a real provider selected in `experiments/uat_cli.
 The live LLM result, failure classification, changed files, host isolation, test exit code, patch
 digest, and M7 trajectory cross-check are recorded in
 [`experiments/results/v2-user-acceptance.md`](../../experiments/results/v2-user-acceptance.md).
+In the three exploratory live runs, one run fixed the bug and passed all external checks, one run
+was a model failure, and one run hit a harness export defect (fixed). The coding run did not call
+`tool.search`, so M1 progressive discovery was only partially exercised in live UAT; the integrated
+S1 scenario exercises it deterministically.
+
+Real HITL restart with a live sandbox is blocked by the M5 v1 runtime-scoped binding limitation.
+The controlled integrated S2 scenario is not presented as an OS-process live-sandbox substitute.
 
 ## 7. Known limitations
 
