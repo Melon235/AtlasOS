@@ -70,6 +70,8 @@ recovery preserves unfinished-task context.
 - [**M4.1 SQLite process results**](experiments/results/v2-m4-sqlite-process-results.md)
 - [**V2 M5 project sandbox**](docs/stages/m5-project-sandbox.md)
 - [**V2 M5 formal results**](experiments/results/v2-m5-project-sandbox-results.md)
+- [**V2 real Atlas Sandbox provider results**](experiments/results/v2-real-sandbox-results.md)
+- [**V2 integrated system verification**](docs/verification/v2-system-verification.md)
 - [Architecture decision records](docs/decisions/)
 - [Repository constitution](AGENTS.md)
 

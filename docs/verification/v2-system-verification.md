@@ -1,12 +1,15 @@
 # V2 Integrated System Verification
 
-Status: **INTEGRATED SYSTEM VERIFICATION PASS; REAL USER ACCEPTANCE FAIL/BLOCKED**
+Status: **INTEGRATED SYSTEM VERIFICATION PASS; REAL ATLAS SANDBOX PROVIDER IMPLEMENTED;
+LIVE SANDBOX UAT BLOCKED_NO_CREDENTIALS**
 
 ```text
 V2 INTEGRATED SYSTEM VERIFICATION = PASS
 V2 RELIABILITY DRILL              = PASS (controlled runtime-boundary drills)
-V2 REAL USER ACCEPTANCE           = FAIL (MODEL_FAILURE in clean run;
-                                    sandbox isolation BLOCKED_NO_REAL_SANDBOX_PROVIDER)
+REAL ATLAS SANDBOX PROVIDER       = IMPLEMENTED (Daytona through AnyCode SandboxProvider)
+REAL SANDBOX ISOLATION            = NOT CLAIMED (no credential-backed real run yet)
+V2 REAL USER ACCEPTANCE           = BLOCKED_NO_CREDENTIALS at evaluated HEAD 7c34f22;
+                                    previous clean-run MODEL_FAILURE retained
 V2 OVERALL ACCEPTANCE             = NOT CLAIMED
 ```
 
@@ -117,54 +120,106 @@ Final numbers are recorded in
 
 The UAT fixture is a small Python CSV parser with a seeded quoted-comma/escaped-quote bug. The
 external acceptance oracle is not mounted into the sandbox; it checks behavior the agent was not
-given as visible tests, and the harness also runs the fixture test suite and compares the host
+given as visible tests, and the harness also runs the fixture test suite and compares the Host
 fixture digest.
 
-The current environment has:
-
-- a live DeepSeek credential (`.env`, never printed or stored);
-- **no production AnyCode sandbox provider** (no E2B/Daytona/Modal/Runloop/Vercel SDK/credential
-  configured).
-
-Therefore the coding UAT runs through the thin CLI using the repository's deterministic local
-sandbox provider for infrastructure validation, but it is **not** counted as a real-isolation PASS.
+The current environment has a live DeepSeek credential. At the evaluated HEAD `7c34f22`, the Host
+had **no Daytona credential**, so the real-provider path failed closed before creating a sandbox:
 
 ```text
-REAL USER ACCEPTANCE = FAIL (MODEL_FAILURE in the clean run)
-SANDBOX ISOLATION   = BLOCKED_NO_REAL_SANDBOX_PROVIDER
+REAL ATLAS SANDBOX PROVIDER = IMPLEMENTED
+REAL SANDBOX ISOLATION      = NOT CLAIMED
+REAL CODING UAT             = BLOCKED_NO_CREDENTIALS
 ```
 
-A production UAT must install/configure one AnyCode sandbox provider, then run:
+The deterministic scripted path still exercises the same CLI, M1–M7 stack, real M5 binding,
+single-flight provisioning, sandbox file/command tools, M7 evidence, export, and cleanup through
+the in-repository fake provider. It is reported as `SCRIPTED_SMOKE`, never as a real-isolation PASS.
+
+A production UAT must install the optional Daytona integration and configure Host credentials, then
+run:
 
 ```powershell
+uv sync --extra sandbox   # or: pip install -e ".[sandbox]"
+$env:DAYTONA_API_KEY = "<Host secret>"
 $env:PYTHONPATH = "src;."
+.\.venv\Scripts\python.exe experiments\eval_real_sandbox.py
 .\.venv\Scripts\python.exe experiments\uat_v2.py --runs-root experiments\runs\uat
 ```
 
-with no `--scripted` flag, and a real provider selected in `experiments/uat_cli.py`.
+with no `--scripted` flag. `experiments/uat_cli.py` refuses the fake provider on the live path.
 
-The live LLM result, failure classification, changed files, host isolation, test exit code, patch
-digest, and M7 trajectory cross-check are recorded in
+The previous clean live run at `674cbdc` fixed the parser (external oracle PASS) but authored a test
+with an import error, so `python -m pytest -q` failed; the UAT harness correctly classified it
+`MODEL_FAILURE`/FAIL. That result is retained, not repaired by changing the fixture or ignoring
+pytest. The live LLM result, failure classification, changed files, Host isolation, test exit code,
+patch digest, and M7 trajectory cross-check are recorded in
 [`experiments/results/v2-user-acceptance.md`](../../experiments/results/v2-user-acceptance.md).
-In the three exploratory live runs, one run fixed the bug and passed all external checks, one run
-was a model failure, and one run hit a harness export defect (fixed). A subsequent clean live run at
-`674cbdc` fixed the parser (external oracle PASS) but authored a test with an import error, so
-`python -m pytest -q` failed; the UAT harness classified it `MODEL_FAILURE`/FAIL. The coding runs did
-not call `tool.search`, so M1 progressive discovery was only partially exercised in live UAT; the
-integrated S1 scenario exercises it deterministically.
 
-Real HITL restart with a live sandbox is blocked by the M5 v1 runtime-scoped binding limitation.
-The controlled integrated S2 scenario is not presented as an OS-process live-sandbox substitute.
+## 7. Real Atlas Sandbox provider integration
 
-## 7. Known limitations
+**Atlas Sandbox** is the product capability. M5 owns binding, trusted configuration, lifecycle, and
+fail-closed behavior. The AnyCode-compatible `SandboxProvider` owns the real remote resource,
+process execution, remote filesystem, network enforcement, and destruction. Atlas does not import
+the Daytona SDK directly and does not implement a second sandbox runtime.
+
+```text
+Atlas Runtime -> M3 -> M4 -> M5 ProjectSandboxBinding
+  -> AnyCode SandboxProvider protocol
+  -> create_sandbox_provider("daytona")
+  -> DaytonaSandboxProvider
+  -> remote isolated sandbox
+  -> /workspace/project
+```
+
+Trusted configuration lives in
+[`experiments/configs/v2-uat.yaml`](../../experiments/configs/v2-uat.yaml):
+
+```yaml
+sandbox:
+  provider: daytona
+  image: python:3.12@sha256:...
+  workspace_root: /workspace/project
+  network: none
+```
+
+Provider and workspace cannot be selected by the model, task text, tool arguments, or worker
+profile. Credentials come only from the Host environment/SDK configuration
+(`DAYTONA_API_KEY`, or `DAYTONA_JWT_TOKEN` + `DAYTONA_ORGANIZATION_ID`); Atlas checks presence and
+never stores the value in specs, labels, commands, trajectory, ledgers, sessions, or reports.
+
+Before create, Atlas requires remote/isolated execution, persistent filesystem, file transfer, and a
+network policy compatible with `none`. AnyCode reports `networking="allowlist"` for Daytona because
+the adapter can enforce an allowlist or a complete block; the adapter maps `network="none"` to
+`network_block_all=True`. The UAT/evaluator also runs an empirical egress probe. Missing capability
+or an unexpected egress success fails closed; there is no silent downgrade.
+
+Provisioning uploads a clean Git bundle with `provider.write_file`, creates `/workspace/project`,
+clones inside the sandbox, and verifies the source commit. Task-end export downloads a tar archive
+created inside the sandbox with `provider.read_file`; the Host extracts it with traversal checks and
+runs external acceptance on that copy. The Host fixture is never mounted or mutated. Normal
+completion and failure cleanup call `provider.destroy`; a LOST sandbox is terminal and is never
+recreated or replaced by Host execution.
+
+At `7c34f22`, the deterministic tests, integrated verifier, and scripted smoke passed. The real
+evaluator and live UAT recorded `BLOCKED_NO_CREDENTIALS` with `fake_provider_used_in_real_uat=0`,
+`host_workspace_fallbacks=0`, and an unchanged Host fixture digest. Real isolation is **not
+claimed** until a credential-backed run produces the full evidence set.
+
+## 8. Known limitations
 
 - **M5 binding metadata is runtime-scoped in v1.** A fresh OS process cannot prove it still owns a
   sandbox handle; it fails closed rather than recreating. Real HITL restart with a sandbox is
   therefore blocked until M5 owns durable handle continuity. The external-only approval path can
   restart safely, but the coding UAT cannot claim that.
-- No real cloud sandbox provider is installed/configured.
+- **OS-process sandbox reattachment is not implemented in this stage.** A restarted process cannot
+  attach to the old remote sandbox, and Atlas does not create a replacement.
+- Live credential-backed UAT requires Host Daytona credentials; without them the formal status is
+  `BLOCKED_NO_CREDENTIALS`.
 - The local fake provider is deterministic test infrastructure; it is not a production isolation
-  boundary.
+  boundary and is never used on the live UAT path.
+- The UAT image is a generic pinned Python image; external acceptance runs on the Host export, so
+  model-side test tooling may differ from the Host venv.
 - Live LLM behavior is nondeterministic. UAT acceptance is external outcome-based, not token-level
   reproduction.
 - The integrated S2/S6 “restart” is a controlled runtime-boundary restart, not an OS process kill;
