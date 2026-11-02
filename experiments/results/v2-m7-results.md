@@ -19,6 +19,11 @@ scenario twice in separate temp directories and compared every metric before rec
 record is in `experiments/runs/v2-m7-trajectory.jsonl` (the `experiments/runs/` directory is
 gitignored, matching earlier stages).
 
+The formal counters describe implementation commit `110b439`. A later reader-audit test for native
+`tool_result` deduplication was added after the formal run; it does not change any implementation
+behavior or any formal counter. The final tree therefore has one more focused test and one more
+overall test than the formal commit.
+
 ## Result
 
 ```text
@@ -141,10 +146,12 @@ call the model.
 ruff check .                 PASS
 ruff format --check .        PASS (215 files)
 pyright                      PASS (0 errors)
-pytest                       PASS (289 passed, 1 deselected) twice
+pytest at formal commit       PASS (289 passed, 1 deselected) twice
+pytest on final tree          PASS (290 passed, 1 deselected) twice
 ```
 
-Focused M7 tests: 16 passed.
+Focused M7 tests: 16 passed at the formal commit; 17 on the final tree (native observation
+dedupe).
 
 ## Known limitations
 

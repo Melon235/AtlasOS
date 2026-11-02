@@ -107,6 +107,46 @@ def test_m7_reader_reports_unknown_schema_without_raising(tmp_path: Path) -> Non
     assert [event.seq for event in view.events] == [1]
 
 
+def test_m7_reader_projects_native_observation_and_suppresses_atlas_duplicate(
+    tmp_path: Path,
+) -> None:
+    store = FilesystemRunStore(tmp_path / "trajectory")
+    store.create_run("run-m6", agent_name="test", model="fake")
+    store.append_event(
+        "run-m6",
+        "message",
+        {"role": "assistant", "content": [{"type": "text", "text": "hi"}]},
+    )
+    store.append_event(
+        "run-m6",
+        "tool_result",
+        {
+            "tool_use_id": "call-1",
+            "tool_name": "file_read",
+            "output": "hello",
+            "is_error": False,
+        },
+    )
+    recorder = TrajectoryRecorder(store, "run-m6")
+    recorder.record_tool_observation(
+        call_id="call-1",
+        tool_id="file_read",
+        is_error=False,
+        result_digest="d" * 64,
+        result_size=5,
+        correlation=TrajectoryCorrelation(call_id="call-1", tool_id="file_read"),
+    )
+    view = TrajectoryReader(store).read("run-m6")
+    messages = [event for event in view.events if event.event_type == "model_message"]
+    assert len(messages) == 1
+    assert messages[0].source == "anycode"
+    observations = [event for event in view.events if event.event_type == "tool_observation"]
+    assert len(observations) == 1
+    assert observations[0].source == "anycode"
+    assert observations[0].correlation.call_id == "call-1"
+    assert view.metrics.native_tool_observations_duplicated == 1
+
+
 def test_m7_reader_logical_dedupe_prefers_lowest_sequence(tmp_path: Path) -> None:
     store = FilesystemRunStore(tmp_path / "trajectory")
     recorder = TrajectoryRecorder(store, "run-m6")
