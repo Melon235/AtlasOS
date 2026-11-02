@@ -463,6 +463,8 @@ def main() -> None:
         final_status = "SCRIPTED_SMOKE"
     elif failure_class == "CREDENTIAL_BLOCKED":
         final_status = "BLOCKED_NO_CREDENTIALS"
+    elif failure_class == "SANDBOX_ENVIRONMENT_BLOCKED":
+        final_status = "BLOCKED_ENVIRONMENT"
     elif (
         real_llm
         and real_sandbox

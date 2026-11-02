@@ -1,8 +1,9 @@
 """Minimal real Atlas Sandbox isolation evaluator.
 
-This is a control-plane smoke evaluation, not a model workload. It creates one real remote sandbox
-through the configured AnyCode-compatible provider, exercises file transfer and command execution,
-checks empirical Host/sandbox separation and network-none behavior, then destroys the sandbox.
+This is a control-plane smoke evaluation, not a model workload. It creates one real self-hosted
+OpenSandbox sandbox through the configured AnyCode-compatible provider, exercises file transfer and
+command execution, checks empirical Host/sandbox separation and network-none behavior, exports the
+workspace, then destroys the sandbox.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from atlasos.sandbox import (
     OpenSandboxOptions,
     SandboxCapabilityError,
     SandboxCredentialError,
+    SandboxEnvironmentBlocked,
     SandboxProjectConfig,
     build_sandbox_provider,
     capability_digest,
@@ -177,7 +179,7 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
         health = await provider.health()
         record.opensandbox_server_health = health.status
         if health.status == "unavailable":
-            raise SandboxCapabilityError(f"sandbox provider unavailable: {health.message}")
+            raise SandboxEnvironmentBlocked(f"sandbox provider unavailable: {health.message}")
 
         project_config = SandboxProjectConfig(
             provider_name=provider_name,
@@ -271,6 +273,9 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
     except SandboxCredentialError as error:
         failure_class = "CREDENTIAL_BLOCKED"
         failure_message = safe_exception_message(error)
+    except SandboxEnvironmentBlocked as error:
+        failure_class = "SANDBOX_ENVIRONMENT_BLOCKED"
+        failure_message = safe_exception_message(error)
     except SandboxIsolationError as error:
         failure_class = "SANDBOX_ISOLATION_FAILURE"
         failure_message = safe_exception_message(error)
@@ -306,6 +311,8 @@ async def _run(args: argparse.Namespace) -> tuple[RealSandboxRecord, int]:
             record.status = "PASS"
         elif failure_class == "CREDENTIAL_BLOCKED":
             record.status = "BLOCKED_NO_CREDENTIALS"
+        elif failure_class == "SANDBOX_ENVIRONMENT_BLOCKED":
+            record.status = "BLOCKED_ENVIRONMENT"
         else:
             record.status = "FAIL"
         (run_dir / "result.json").write_text(json.dumps(asdict(record), indent=2), encoding="utf-8")

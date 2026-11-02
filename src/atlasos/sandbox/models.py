@@ -89,6 +89,10 @@ class SandboxIsolationError(SandboxBindingError):
     pass
 
 
+class SandboxEnvironmentBlocked(SandboxBindingError):
+    """The local sandbox service or its Docker backend is unavailable."""
+
+
 def trusted_sandbox_spec(
     *,
     run_id: str,

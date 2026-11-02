@@ -58,6 +58,7 @@ from atlasos.sandbox import (
     ProjectSandboxManager,
     SandboxCapabilityError,
     SandboxCredentialError,
+    SandboxEnvironmentBlocked,
     SandboxExecutionError,
     SandboxFileTransferError,
     SandboxIsolationError,
@@ -405,6 +406,8 @@ def _build_provider(
 def _classify_exception(error: BaseException) -> str:
     if isinstance(error, SandboxCredentialError):
         return "CREDENTIAL_BLOCKED"
+    if isinstance(error, SandboxEnvironmentBlocked):
+        return "SANDBOX_ENVIRONMENT_BLOCKED"
     if isinstance(error, SandboxIsolationError):
         return "SANDBOX_ISOLATION_FAILURE"
     if isinstance(error, SandboxFileTransferError):
@@ -509,7 +512,7 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         health = await provider.health()
         metrics.opensandbox_server_health = health.status
         if health.status == "unavailable":
-            raise SandboxProviderError(f"sandbox provider is unavailable: {health.message}")
+            raise SandboxEnvironmentBlocked(f"sandbox provider is unavailable: {health.message}")
 
         project_config = _project_config(config, provider_name, scripted=args.scripted)
         metrics.workspace_root = project_config.workspace_root
