@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import posixpath
+import shlex
 
 from anycode.constants import (
     BASH_MAX_OUTPUT_BYTES,
@@ -122,9 +123,9 @@ class SandboxWorkspaceTools:
         return posixpath.relpath(logical, workspace)
 
     async def _execute(self, command: str, *, cwd: str, timeout_seconds: int = 60):
-        binding = self._binding()
         self.command_count += 1
         async with self.lock:
+            binding = self._binding()
             try:
                 result = await self.provider.execute(
                     binding.sandbox_handle,
@@ -141,8 +142,8 @@ class SandboxWorkspaceTools:
         self.file_read_count += 1
         try:
             logical = self._logical(validated.path)
-            binding = self._binding()
             async with self.lock:
+                binding = self._binding()
                 result = await self.provider.read_file(binding.sandbox_handle, logical)
             if not result.ok or result.data is None:
                 return ToolResult(
@@ -177,20 +178,28 @@ class SandboxWorkspaceTools:
         self.file_write_count += 1
         try:
             logical = self._logical(validated.path)
-            binding = self._binding()
             async with self.lock:
+                binding = self._binding()
                 existed_result = await self.provider.read_file(binding.sandbox_handle, logical)
                 existed = existed_result.ok
                 logical_parent = posixpath.dirname(logical)
                 if logical_parent != binding.workspace_root:
-                    await self.provider.execute(
+                    result = await self.provider.execute(
                         binding.sandbox_handle,
                         SandboxCommand(
-                            command=f'mkdir -p "{logical_parent}"',
+                            command=f"mkdir -p -- {shlex.quote(logical_parent)}",
                             cwd=binding.workspace_root,
                             timeout_seconds=30,
                         ),
                     )
+                    if not result.ok or (result.exit_code or 0) != 0:
+                        return ToolResult(
+                            data=(
+                                f'Could not create parent directory for "{validated.path}": '
+                                f"{result.stderr or result.error}"
+                            ),
+                            is_error=True,
+                        )
                 result = await self.provider.write_file(
                     binding.sandbox_handle, logical, validated.content.encode(DEFAULT_ENCODING)
                 )
@@ -220,8 +229,8 @@ class SandboxWorkspaceTools:
         self.file_edit_count += 1
         try:
             logical = self._logical(validated.path)
-            binding = self._binding()
             async with self.lock:
+                binding = self._binding()
                 read = await self.provider.read_file(binding.sandbox_handle, logical)
                 if not read.ok or read.data is None:
                     return ToolResult(

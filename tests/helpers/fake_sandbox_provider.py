@@ -52,6 +52,8 @@ class FakeSandboxProvider:
         self.execute_calls = 0
         self.read_calls = 0
         self.write_calls = 0
+        self.cancel_calls = 0
+        self.commands: list[tuple[str, str | None]] = []
         self.active_operations = 0
         self.max_active_operations = 0
         self.lost: set[str] = set()
@@ -61,6 +63,8 @@ class FakeSandboxProvider:
         self.fail_create = False
         self.fail_clone = False
         self.fail_operations = False
+        self.fail_cancel = False
+        self.raise_cancel = False
 
     def capabilities(self) -> SandboxCapabilities:
         return self.capabilities_value
@@ -133,6 +137,7 @@ class FakeSandboxProvider:
 
     async def execute(self, handle: SandboxHandle, command: SandboxCommand) -> SandboxCommandResult:
         self.execute_calls += 1
+        self.commands.append((command.command, command.cwd))
         self.active_operations += 1
         self.max_active_operations = max(self.max_active_operations, self.active_operations)
         try:
@@ -202,6 +207,11 @@ class FakeSandboxProvider:
         return SandboxFileResult(ok=True, data=target.read_bytes())
 
     async def cancel(self, handle: SandboxHandle) -> SandboxActionResult:
+        self.cancel_calls += 1
+        if self.raise_cancel:
+            raise RuntimeError("provider cancel unavailable")
+        if self.fail_cancel:
+            return SandboxActionResult(ok=False)
         self.lost.add(handle.id)
         return SandboxActionResult(ok=True)
 

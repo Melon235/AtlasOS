@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import random
 import subprocess
 from pathlib import Path
@@ -92,11 +93,11 @@ def context(*, workspace: str = "/workspace/project") -> ToolUseContext:
     )
 
 
-async def setup_stack(tmp_path: Path, *, max_bundle: int = 64 * 1024 * 1024):
+async def setup_stack(tmp_path: Path, *, max_bundle: int = 64 * 1024 * 1024, shell: str = "cmd"):
     from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
 
     repo = make_repo(tmp_path)
-    provider = FakeSandboxProvider(tmp_path / "provider")
+    provider = FakeSandboxProvider(tmp_path / "provider", shell=shell)
     config = SandboxProjectConfig(
         provider_name="fake",
         image="fake@sha256:0123456789abcdef",
@@ -662,3 +663,153 @@ async def test_m5_workspace_export_is_explicit_and_host_unchanged(tmp_path: Path
     assert not (tmp_path / "exported" / ".git").exists()
     assert repo_digest(repo) == before
     assert not (repo / "new.py").exists()
+
+
+def _capture_first_binding(tools: SandboxWorkspaceTools) -> asyncio.Event:
+    captured = asyncio.Event()
+    original = tools._binding
+
+    def observe():
+        binding = original()
+        captured.set()
+        return binding
+
+    tools._binding = observe  # type: ignore[method-assign]
+    return captured
+
+
+async def test_m5_file_write_quotes_model_path_against_shell_injection(
+    tmp_path: Path,
+) -> None:
+    git_bash = Path("C:/Program Files/Git/bin/bash.exe")
+    if os.name == "nt" and not git_bash.is_file():  # noqa: ASYNC240 - test preflight
+        pytest.skip("git-bash is required for the POSIX shell injection regression")
+    shell = "git-bash" if os.name == "nt" else "cmd"
+    repo, provider, manager, binding, tools, runtime = await setup_stack(tmp_path, shell=shell)
+    workspace = provider.workspaces[binding.sandbox_handle.id] / "workspace" / "project"
+    before_repo = repo_digest(repo)
+    cases = (
+        (
+            '/workspace/project/a"; touch PWN_SEMICOLON; echo "/file.txt',
+            "PWN_SEMICOLON",
+        ),
+        (
+            "/workspace/project/a $(touch PWN_SUBST) `touch PWN_BACKTICK`/file.txt",
+            "PWN_SUBST",
+        ),
+        (
+            "/workspace/project/a' ; touch PWN_QUOTE; echo '/file.txt",
+            "PWN_QUOTE",
+        ),
+    )
+    for index, (path, sentinel) in enumerate(cases):
+        result = await runtime.executor.execute(
+            "file_write",
+            {"path": path, "content": "safe\n"},
+            context(),
+            idempotency_key=f"injection-{index}",
+        )
+        assert not (workspace / sentinel).exists(), f"shell injection created {sentinel}"
+        if result.is_error is not True:
+            assert (workspace / sentinel).exists() is False
+    assert repo_digest(repo) == before_repo
+    assert provider.commands
+    mkdir_commands = [
+        command for command, _ in provider.commands if command.startswith("mkdir -p --")
+    ]
+    assert mkdir_commands
+    assert all(command.startswith("mkdir -p -- '") for command in mkdir_commands)
+    assert any("touch PWN_SEMICOLON" in command for command in mkdir_commands)
+
+
+async def test_m5_lost_while_waiting_lock_blocks_stale_read(tmp_path: Path) -> None:
+    repo, provider, manager, binding, tools, runtime = await setup_stack(tmp_path)
+    del repo
+    before_reads = provider.read_calls
+    captured = _capture_first_binding(tools)
+    await tools.lock.acquire()
+    task = asyncio.create_task(
+        runtime.executor.execute("file_read", {"path": "/workspace/project/app.py"}, context())
+    )
+    try:
+        await asyncio.wait_for(captured.wait(), timeout=2)
+        await manager.mark_lost("task-m5")
+    finally:
+        tools.lock.release()
+    result = await task
+    assert result.is_error is True
+    assert provider.read_calls == before_reads
+    assert manager.binding("task-m5").state == "LOST"
+    assert provider.create_count == 1
+
+
+async def test_m5_lost_while_waiting_lock_blocks_stale_write(tmp_path: Path) -> None:
+    repo, provider, manager, binding, tools, runtime = await setup_stack(tmp_path)
+    del repo
+    before_writes = provider.write_calls
+    captured = _capture_first_binding(tools)
+    await tools.lock.acquire()
+    task = asyncio.create_task(
+        runtime.executor.execute(
+            "file_write",
+            {"path": "/workspace/project/race.txt", "content": "stale\n"},
+            context(),
+            idempotency_key="lost-race-write",
+        )
+    )
+    try:
+        await asyncio.wait_for(captured.wait(), timeout=2)
+        await manager.mark_lost("task-m5")
+    finally:
+        tools.lock.release()
+    result = await task
+    assert result.is_error is True
+    assert provider.write_calls == before_writes
+    assert manager.binding("task-m5").state == "LOST"
+    assert provider.create_count == 1
+
+
+async def test_m5_lost_while_waiting_lock_blocks_stale_command(tmp_path: Path) -> None:
+    repo, provider, manager, binding, tools, runtime = await setup_stack(tmp_path)
+    del repo
+    before_executes = provider.execute_calls
+    captured = _capture_first_binding(tools)
+    await tools.lock.acquire()
+    task = asyncio.create_task(
+        tools.bash(
+            BashInput(command="echo should-not-run", cwd="/workspace/project"),
+            context(),
+        )
+    )
+    try:
+        await asyncio.wait_for(captured.wait(), timeout=2)
+        await manager.mark_lost("task-m5")
+    finally:
+        tools.lock.release()
+    result = await task
+    assert result.is_error is True
+    assert provider.execute_calls == before_executes
+    assert manager.binding("task-m5").state == "LOST"
+    assert provider.create_count == 1
+
+
+async def test_m5_cancel_provider_failure_is_not_closed(tmp_path: Path) -> None:
+    repo, provider, manager, binding, tools, runtime = await setup_stack(tmp_path)
+    del repo, binding, tools, runtime
+    provider.fail_cancel = True
+    with pytest.raises(SandboxProviderError, match="cancel failed"):
+        await manager.cancel("task-m5")
+    assert manager.binding("task-m5").state == "LOST"
+    assert provider.cancel_calls == 1
+    assert provider.create_count == 1
+
+
+async def test_m5_cancel_provider_exception_is_not_closed(tmp_path: Path) -> None:
+    repo, provider, manager, binding, tools, runtime = await setup_stack(tmp_path)
+    del repo, binding, tools, runtime
+    provider.raise_cancel = True
+    with pytest.raises(SandboxProviderError, match="cancel failed"):
+        await manager.cancel("task-m5")
+    assert manager.binding("task-m5").state == "LOST"
+    assert provider.cancel_calls == 1
+    assert provider.create_count == 1

@@ -132,8 +132,9 @@ class ScopedWorkerFactory:
         expected_hash = render_worker_context_hash(profile, record.task_context)
         if expected_hash != record.rendered_context_hash:
             raise WorkerConfigurationError("worker rendered context hash mismatch on resume")
-        if record.execution_context.principal != record.execution_context.principal:
-            raise WorkerConfigurationError("invalid worker context")
+        # resume(worker_id) has no trusted expected principal/parent identity parameter; the
+        # persisted record schema, render hash, and atlas_worker metadata are the available
+        # integrity checks. Do not invent a tautological security comparison.
         metadata = record.execution_context.attributes.get("atlas_worker")
         if not isinstance(metadata, dict):
             raise WorkerConfigurationError("worker context metadata missing")

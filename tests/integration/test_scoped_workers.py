@@ -282,6 +282,42 @@ def test_worker_persists_and_resumes_with_identical_hash(tmp_path: Path) -> None
     assert resumed.resumed is True
 
 
+@pytest.mark.parametrize("field", ["worker_id", "profile_id", "task_id"])
+def test_resume_rejects_tampered_atlas_worker_metadata(tmp_path: Path, field: str) -> None:
+    factory = make_factory(tmp_path)
+    worker = factory.create(
+        parent_context=parent_context(),
+        parent_agent="planner",
+        assignment=assignment(),
+        worker_id="tamper-worker",
+        task_id="tamper-task",
+    )
+    record = factory.store.load(worker.worker_id)
+    attributes = dict(record.execution_context.attributes)
+    metadata = dict(cast(dict[str, Any], attributes["atlas_worker"]))
+    metadata[field] = "tampered"
+    attributes["atlas_worker"] = metadata
+    tampered_context = record.execution_context.model_copy(update={"attributes": attributes})
+    factory.store.save(record.model_copy(update={"execution_context": tampered_context}))
+    with pytest.raises(WorkerConfigurationError, match="metadata does not match"):
+        factory.resume(worker.worker_id)
+
+
+def test_resume_rejects_tampered_rendered_context_hash(tmp_path: Path) -> None:
+    factory = make_factory(tmp_path)
+    worker = factory.create(
+        parent_context=parent_context(),
+        parent_agent="planner",
+        assignment=assignment(),
+        worker_id="hash-worker",
+        task_id="hash-task",
+    )
+    record = factory.store.load(worker.worker_id)
+    factory.store.save(record.model_copy(update={"rendered_context_hash": "0" * 64}))
+    with pytest.raises(WorkerConfigurationError, match="rendered context hash mismatch"):
+        factory.resume(worker.worker_id)
+
+
 # M2-25
 def test_parent_context_is_unchanged_and_renderer_hash_is_stable() -> None:
     parent = parent_context()

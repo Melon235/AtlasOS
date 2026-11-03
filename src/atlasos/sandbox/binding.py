@@ -172,7 +172,18 @@ class ProjectSandboxManager:
 
     async def cancel(self, task_id: str) -> None:
         binding = self.binding(task_id)
-        await self.provider.cancel(binding.sandbox_handle)
+        try:
+            result = await self.provider.cancel(binding.sandbox_handle)
+        except Exception as error:
+            await self.mark_lost(task_id)
+            raise SandboxProviderError(
+                f"provider cancel failed; sandbox state is unknown: {error}"
+            ) from error
+        if not result.ok:
+            await self.mark_lost(task_id)
+            raise SandboxProviderError(
+                f"provider cancel failed; sandbox state is unknown: {result.error}"
+            )
         updated = binding.model_copy(update={"state": "CLOSED"})
         self.bindings[task_id] = updated
         self._record_lifecycle(updated, "CLOSED", occurred_at=None)
