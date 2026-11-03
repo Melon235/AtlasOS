@@ -217,7 +217,12 @@ cancelled, dirty, oversized, or unprovisionable sandbox fails closed: no host fa
 recreation, no old M4 history continued on a new filesystem. Patches are exported as untrusted
 artifacts and never auto-applied to Host.
 
-See [design](docs/stages/m5-project-sandbox.md).
+The V2 UAT path persists sandbox binding metadata in SQLite. Durable binding metadata survives a
+process restart, but verified cross-process sandbox reattachment remains pending; a restarted
+runtime without a live handle fails closed and does not create a replacement sandbox.
+
+See [design](docs/stages/m5-project-sandbox.md) and
+[durable sandbox binding](docs/stages/durable-sandbox-binding.md).
 
 ## Headline results
 

@@ -2,30 +2,151 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from anycode.sandbox import SandboxHandle, SandboxSpec
 from pydantic import BaseModel, ConfigDict, Field
 
 BindingState = Literal["PROVISIONING", "READY", "LOST", "CLOSED"]
+DurableBindingState = Literal["READY", "LOST", "CLOSED"]
 ExecutionMode = Literal["HOST", "SANDBOX"]
+SANDBOX_CONTINUITY_PROTOCOL = "atlas/m5-sandbox-continuity/v1"
 
 
 class ProjectSandboxBinding(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    binding_id: str = Field(min_length=1)
     run_id: str
     task_id: str
     worker_id: str | None = None
     provider_name: str
     sandbox_handle: SandboxHandle
     workspace_root: str = "/workspace/project"
+    config_digest: str = Field(min_length=1)
+    capabilities_digest: str = Field(min_length=1)
     source_commit: str
     source_digest: str
     bundle_digest: str
     state: BindingState = "PROVISIONING"
     created_at: datetime
+
+
+class DurableSandboxBindingRecord(BaseModel):
+    """Durable M5 relationship truth; never contains a live SDK object."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: int = Field(default=1, ge=1)
+    binding_id: str = Field(min_length=1)
+    run_id: str
+    task_id: str
+    worker_id: str | None = None
+    provider_name: str
+    sandbox_id: str = Field(min_length=1)
+    workspace_root: str
+    config_digest: str
+    capabilities_digest: str
+    source_commit: str
+    source_digest: str
+    bundle_digest: str
+    state: DurableBindingState
+    created_at: datetime
+    updated_at: datetime
+    revision: int = Field(default=1, ge=1)
+
+
+class SandboxContinuityProjection(BaseModel):
+    """Stable identity consumed by M6; excludes runtime/state/lifecycle fields."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    protocol_version: Literal["atlas/m5-sandbox-continuity/v1"] = SANDBOX_CONTINUITY_PROTOCOL
+    binding_id: str
+    run_id: str
+    task_id: str
+    worker_id: str | None = None
+    provider_name: str
+    sandbox_id: str
+    workspace_root: str
+    config_digest: str
+    capabilities_digest: str
+    source_commit: str
+    source_digest: str
+
+    @classmethod
+    def from_record(cls, record: DurableSandboxBindingRecord) -> SandboxContinuityProjection:
+        return cls(
+            binding_id=record.binding_id,
+            run_id=record.run_id,
+            task_id=record.task_id,
+            worker_id=record.worker_id,
+            provider_name=record.provider_name,
+            sandbox_id=record.sandbox_id,
+            workspace_root=record.workspace_root,
+            config_digest=record.config_digest,
+            capabilities_digest=record.capabilities_digest,
+            source_commit=record.source_commit,
+            source_digest=record.source_digest,
+        )
+
+    @classmethod
+    def from_binding(cls, binding: ProjectSandboxBinding) -> SandboxContinuityProjection:
+        return cls(
+            binding_id=binding.binding_id,
+            run_id=binding.run_id,
+            task_id=binding.task_id,
+            worker_id=binding.worker_id,
+            provider_name=binding.provider_name,
+            sandbox_id=binding.sandbox_handle.id,
+            workspace_root=binding.workspace_root,
+            config_digest=binding.config_digest,
+            capabilities_digest=binding.capabilities_digest,
+            source_commit=binding.source_commit,
+            source_digest=binding.source_digest,
+        )
+
+
+def _canonical_digest(value: Any) -> str:
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return "sha256:" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def compute_sandbox_config_digest(config: SandboxProjectConfig) -> str:
+    """Hash only trusted sandbox execution configuration semantics."""
+
+    return _canonical_digest(
+        {
+            "provider_name": config.provider_name,
+            "image": config.image,
+            "snapshot": config.snapshot,
+            "workspace_root": config.workspace_root,
+            "max_bundle_bytes": config.max_bundle_bytes,
+            "network": config.network,
+            "secret_references": dict(sorted(config.secret_references.items())),
+        }
+    )
+
+
+def compute_sandbox_continuity_digest(
+    record: DurableSandboxBindingRecord | ProjectSandboxBinding,
+) -> str:
+    """One M5-owned continuity representation for M6 consumption."""
+
+    projection = (
+        SandboxContinuityProjection.from_record(record)
+        if isinstance(record, DurableSandboxBindingRecord)
+        else SandboxContinuityProjection.from_binding(record)
+    )
+    return _canonical_digest(projection.model_dump(mode="json"))
 
 
 class SandboxProjectConfig(BaseModel):
@@ -91,6 +212,10 @@ class SandboxIsolationError(SandboxBindingError):
 
 class SandboxEnvironmentBlocked(SandboxBindingError):
     """The local sandbox service or its Docker backend is unavailable."""
+
+
+class SandboxReattachmentRequired(SandboxBindingError):
+    """A durable READY binding exists but this runtime has no live handle for it."""
 
 
 def trusted_sandbox_spec(

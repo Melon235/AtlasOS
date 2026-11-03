@@ -63,6 +63,7 @@ class FakeSandboxProvider:
         self.fail_create = False
         self.fail_clone = False
         self.fail_operations = False
+        self.fail_destroy = False
         self.fail_cancel = False
         self.raise_cancel = False
 
@@ -221,6 +222,8 @@ class FakeSandboxProvider:
 
     async def destroy(self, handle: SandboxHandle) -> SandboxActionResult:
         self.destroy_count += 1
+        if self.fail_destroy:
+            return SandboxActionResult(ok=False)
         self.lost.add(handle.id)
         shutil.rmtree(self.workspaces.get(handle.id, self.root / handle.id), ignore_errors=True)
         return SandboxActionResult(ok=True)

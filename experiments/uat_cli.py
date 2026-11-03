@@ -67,6 +67,7 @@ from atlasos.sandbox import (
     SandboxProviderError,
     SandboxProvisionError,
     SandboxWorkspaceTools,
+    SQLiteSandboxBindingStore,
     build_sandbox_provider,
     capability_digest,
     capability_summary,
@@ -84,7 +85,6 @@ from atlasos.sandbox.validation import (
 from atlasos.suspension.store import SQLiteSuspensionStore
 from atlasos.tools import AtlasToolRuntime
 from atlasos.tools.conversation import reset_current_task_id, set_current_task_id
-from atlasos.trajectory.models import derive_sandbox_binding_id
 from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerStore
 
@@ -563,6 +563,7 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             provider,
             project_config,
             run_id=run_id,
+            binding_store=SQLiteSandboxBindingStore(runs_root / "sandbox_bindings.db"),
             trajectory_recorder=recorder,
         )
         source_repo = _stage_fixture_repo(fixture, run_dir / "source")
@@ -576,13 +577,7 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         metrics.sandbox_ready = binding.state == "READY"
         metrics.sandbox_logical_id = binding.sandbox_handle.id
         metrics.network_policy_accepted = True
-        metrics.binding_id = derive_sandbox_binding_id(
-            run_id=run_id,
-            task_id=task_id,
-            worker_id=worker.worker_id,
-            provider_name=provider_name,
-            sandbox_handle_id=binding.sandbox_handle.id,
-        )
+        metrics.binding_id = binding.binding_id
 
         metrics.network_policy_verified = await probe_network_none(provider, binding.sandbox_handle)
         if metrics.network_policy_verified == "FAIL":

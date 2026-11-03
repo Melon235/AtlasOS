@@ -17,8 +17,11 @@ from atlasos.sandbox import (
     SandboxLostError,
     SandboxProjectConfig,
     SandboxWorkspaceTools,
+    capability_digest,
+    compute_sandbox_config_digest,
 )
 from atlasos.sandbox.models import trusted_sandbox_spec
+from atlasos.trajectory.models import derive_sandbox_binding_id
 
 
 async def test_m6_11_m5_lost_sandbox_fails_closed(tmp_path: Path) -> None:
@@ -53,12 +56,21 @@ async def test_m6_11_m5_lost_sandbox_fails_closed(tmp_path: Path) -> None:
     created = await provider.create(spec)
     assert created.ok and created.handle is not None
     binding = ProjectSandboxBinding(
+        binding_id=derive_sandbox_binding_id(
+            run_id="run-m6",
+            task_id="task-m6",
+            worker_id="worker-m6",
+            provider_name="fake",
+            sandbox_handle_id=created.handle.id,
+        ),
         run_id="run-m6",
         task_id="task-m6",
         worker_id="worker-m6",
         provider_name="fake",
         sandbox_handle=created.handle,
         workspace_root="/workspace/project",
+        config_digest=compute_sandbox_config_digest(config),
+        capabilities_digest=capability_digest(created.handle.capabilities),
         source_commit="0" * 40,
         source_digest="sha256:test",
         bundle_digest="sha256:test",

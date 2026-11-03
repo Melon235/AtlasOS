@@ -796,7 +796,12 @@ async def _m5_lost_scenario(root: Path) -> bool:
 
     from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
 
-    from atlasos.sandbox import ProjectSandboxBinding
+    from atlasos.sandbox import (
+        ProjectSandboxBinding,
+        capability_digest,
+        compute_sandbox_config_digest,
+    )
+    from atlasos.trajectory.models import derive_sandbox_binding_id
 
     root.mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240
     provider = FakeSandboxProvider(root / "provider")
@@ -823,12 +828,21 @@ async def _m5_lost_scenario(root: Path) -> bool:
     if created.handle is None:
         return False
     manager.bindings["task-m6"] = ProjectSandboxBinding(
+        binding_id=derive_sandbox_binding_id(
+            run_id="run-m6",
+            task_id="task-m6",
+            worker_id="worker-m6",
+            provider_name="fake",
+            sandbox_handle_id=created.handle.id,
+        ),
         run_id="run-m6",
         task_id="task-m6",
         worker_id="worker-m6",
         provider_name="fake",
         sandbox_handle=created.handle,
         workspace_root="/workspace/project",
+        config_digest=compute_sandbox_config_digest(config),
+        capabilities_digest=capability_digest(created.handle.capabilities),
         source_commit="0" * 40,
         source_digest="sha256:test",
         bundle_digest="sha256:test",

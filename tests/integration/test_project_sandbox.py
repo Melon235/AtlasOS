@@ -8,6 +8,7 @@ import os
 import random
 import subprocess
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from anycode.identity.context import ExecutionContext
@@ -20,16 +21,25 @@ from anycode.types import AgentInfo, ToolSecurityPolicy, ToolUseContext
 from atlasos.actions import ActionCatalog, ActionPolicy, ActionRule, StaticActionReviewer
 from atlasos.ledger import SQLiteActionLedgerStore
 from atlasos.sandbox import (
+    DurableSandboxBindingRecord,
     ProjectSandboxManager,
+    SandboxBindingConflict,
+    SandboxBindingError,
+    SandboxBindingStore,
+    SandboxBindingStoreUnavailable,
     SandboxCapabilityError,
     SandboxLostError,
     SandboxProjectConfig,
     SandboxProviderError,
     SandboxProvisionError,
+    SandboxReattachmentRequired,
     SandboxWorkspaceTools,
+    SQLiteSandboxBindingStore,
+    compute_sandbox_continuity_digest,
     export_patch,
     export_workspace,
 )
+from atlasos.sandbox.models import DurableBindingState
 from atlasos.tools import AtlasToolRuntime
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerStore
 
@@ -93,7 +103,13 @@ def context(*, workspace: str = "/workspace/project") -> ToolUseContext:
     )
 
 
-async def setup_stack(tmp_path: Path, *, max_bundle: int = 64 * 1024 * 1024, shell: str = "cmd"):
+async def setup_stack(
+    tmp_path: Path,
+    *,
+    max_bundle: int = 64 * 1024 * 1024,
+    shell: str = "cmd",
+    binding_store: SandboxBindingStore | None = None,
+):
     from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
 
     repo = make_repo(tmp_path)
@@ -103,7 +119,12 @@ async def setup_stack(tmp_path: Path, *, max_bundle: int = 64 * 1024 * 1024, she
         image="fake@sha256:0123456789abcdef",
         max_bundle_bytes=max_bundle,
     )
-    manager = ProjectSandboxManager(provider, config, run_id="run-m5")
+    manager = ProjectSandboxManager(
+        provider,
+        config,
+        run_id="run-m5",
+        binding_store=binding_store,
+    )
     binding = await manager.ensure_binding(
         task_id="task-m5",
         source_repo=str(repo),
@@ -813,3 +834,355 @@ async def test_m5_cancel_provider_exception_is_not_closed(tmp_path: Path) -> Non
     assert manager.binding("task-m5").state == "LOST"
     assert provider.cancel_calls == 1
     assert provider.create_count == 1
+
+
+async def test_m5_fresh_create_persists_durable_binding(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.binding_id == binding.binding_id
+    assert durable.run_id == "run-m5"
+    assert durable.task_id == "task-m5"
+    assert durable.worker_id == "w1"
+    assert durable.provider_name == "fake"
+    assert durable.sandbox_id == binding.sandbox_handle.id
+    assert durable.workspace_root == "/workspace/project"
+    assert durable.config_digest == binding.config_digest
+    assert durable.capabilities_digest == binding.capabilities_digest
+    assert durable.state == "READY"
+    assert durable.revision == 1
+    assert compute_sandbox_continuity_digest(binding) == compute_sandbox_continuity_digest(durable)
+    assert manager.require_ready("task-m5") is binding
+    assert provider.create_count == 1
+
+    # Same runtime manager reuses the live cache; it never creates a second physical sandbox.
+    again = await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    assert again is binding
+    assert provider.create_count == 1
+
+
+async def test_m5_durable_binding_survives_manager_recreation(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=SQLiteSandboxBindingStore(db_path)
+    )
+    del tools, runtime
+    recreated_store = SQLiteSandboxBindingStore(db_path)
+    recreated = recreated_store.get_for_task("run-m5", "task-m5")
+    assert recreated is not None
+    assert recreated.binding_id == binding.binding_id
+    assert recreated.sandbox_id == binding.sandbox_handle.id
+    assert recreated.state == "READY"
+    assert recreated.revision == 1
+
+    manager_b = ProjectSandboxManager(
+        provider,
+        manager.config,
+        run_id="run-m5",
+        binding_store=recreated_store,
+    )
+    with pytest.raises(SandboxReattachmentRequired, match="reattachment"):
+        await manager_b.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    with pytest.raises(SandboxReattachmentRequired, match="reattachment"):
+        manager_b.require_ready("task-m5")
+    assert provider.create_count == 1
+    assert manager_b.bindings == {}
+
+
+async def test_m5_durable_lost_survives_manager_recreation(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del tools, runtime
+    await manager.mark_lost("task-m5")
+    lost = store.get_for_task("run-m5", "task-m5")
+    assert lost is not None
+    assert lost.state == "LOST"
+    assert lost.revision == 2
+    assert manager.bindings["task-m5"].state == "LOST"
+
+    manager_b = ProjectSandboxManager(
+        provider,
+        manager.config,
+        run_id="run-m5",
+        binding_store=SQLiteSandboxBindingStore(db_path),
+    )
+    with pytest.raises(SandboxLostError, match="LOST"):
+        await manager_b.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    assert provider.create_count == 1
+
+
+async def test_m5_cancel_failure_persists_lost(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del binding, tools, runtime
+    provider.fail_cancel = True
+    with pytest.raises(SandboxProviderError, match="cancel failed"):
+        await manager.cancel("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert durable.revision == 2
+
+    manager_b = ProjectSandboxManager(
+        provider,
+        manager.config,
+        run_id="run-m5",
+        binding_store=SQLiteSandboxBindingStore(db_path),
+    )
+    with pytest.raises(SandboxLostError, match="LOST"):
+        await manager_b.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    assert provider.create_count == 1
+
+
+async def test_m5_close_failure_persists_lost(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del binding, tools, runtime
+    provider.fail_destroy = True
+    assert await manager.close("task-m5") is False
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert durable.revision == 2
+    assert manager.bindings["task-m5"].state == "LOST"
+
+    manager_b = ProjectSandboxManager(
+        provider,
+        manager.config,
+        run_id="run-m5",
+        binding_store=SQLiteSandboxBindingStore(db_path),
+    )
+    with pytest.raises(SandboxLostError, match="LOST"):
+        await manager_b.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    assert provider.create_count == 1
+
+
+async def test_m5_durable_closed_survives_manager_recreation(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del binding, tools, runtime
+    assert await manager.close("task-m5") is True
+    closed = store.get_for_task("run-m5", "task-m5")
+    assert closed is not None
+    assert closed.state == "CLOSED"
+    assert closed.revision == 2
+
+    manager_b = ProjectSandboxManager(
+        provider,
+        manager.config,
+        run_id="run-m5",
+        binding_store=SQLiteSandboxBindingStore(db_path),
+    )
+    with pytest.raises(SandboxBindingError, match="CLOSED"):
+        await manager_b.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    assert provider.create_count == 1
+
+
+async def test_m5_durable_lost_blocks_stale_runtime_cache(tmp_path: Path) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del repo
+    assert manager.bindings["task-m5"].state == "READY"
+    store.transition(binding.binding_id, expected_revision=1, new_state="LOST")
+    before_reads = provider.read_calls
+    result = await runtime.executor.execute(
+        "file_read", {"path": "/workspace/project/app.py"}, context()
+    )
+    assert result.is_error is True
+    assert provider.read_calls == before_reads
+    with pytest.raises(SandboxLostError, match="LOST"):
+        manager.require_ready("task-m5")
+
+
+async def test_m5_m6_consumes_m5_continuity_digest(tmp_path: Path) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del repo, binding, tools
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert runtime.sandbox_binding_digest("task-m5") == compute_sandbox_continuity_digest(durable)
+
+
+class _LifecycleRecorder:
+    def __init__(self) -> None:
+        self.events: list[dict[str, Any]] = []
+
+    def record_sandbox_lifecycle(self, **kwargs: Any) -> None:
+        self.events.append(kwargs)
+
+
+class _FailingBindingStore:
+    def __init__(self) -> None:
+        self.create_calls = 0
+
+    def create(self, record: DurableSandboxBindingRecord) -> DurableSandboxBindingRecord:
+        self.create_calls += 1
+        raise SandboxBindingStoreUnavailable("injected durable store failure")
+
+    def get(self, binding_id: str) -> DurableSandboxBindingRecord | None:
+        del binding_id
+        return None
+
+    def get_for_task(self, run_id: str, task_id: str) -> DurableSandboxBindingRecord | None:
+        del run_id, task_id
+        return None
+
+    def transition(
+        self,
+        binding_id: str,
+        *,
+        expected_revision: int,
+        new_state: DurableBindingState,
+    ) -> DurableSandboxBindingRecord:
+        del binding_id, expected_revision, new_state
+        raise AssertionError("transition must not be called")
+
+    def list(self) -> tuple[DurableSandboxBindingRecord, ...]:
+        return ()
+
+
+async def test_m5_store_commit_failure_cleans_up_new_sandbox(tmp_path: Path) -> None:
+    from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
+
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    config = SandboxProjectConfig(provider_name="fake", image="fake@sha256:0123456789abcdef")
+    failing = _FailingBindingStore()
+    recorder = _LifecycleRecorder()
+    manager = ProjectSandboxManager(
+        provider,
+        config,
+        run_id="run-m5",
+        binding_store=failing,
+        trajectory_recorder=cast(Any, recorder),
+    )
+    with pytest.raises(SandboxBindingStoreUnavailable, match="injected"):
+        await manager.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    assert failing.create_calls == 1
+    assert provider.create_count == 1
+    assert provider.destroy_count == 1
+    assert manager.destroy_count == 1
+    assert manager.destroyed_count == 1
+    assert manager.bindings == {}
+    assert recorder.events == []
+
+
+async def test_m5_duplicate_durable_commit_destroys_losing_sandbox(
+    tmp_path: Path,
+) -> None:
+    from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
+
+    class GatedProvider(FakeSandboxProvider):
+        def __init__(self, root: Path) -> None:
+            super().__init__(root)
+            self.started = 0
+            self.both_started = asyncio.Event()
+
+        async def create(self, spec):
+            self.started += 1
+            if self.started >= 2:
+                self.both_started.set()
+            await self.both_started.wait()
+            return await super().create(spec)
+
+    repo = make_repo(tmp_path)
+    provider = GatedProvider(tmp_path / "provider")
+    config = SandboxProjectConfig(provider_name="fake", image="fake@sha256:0123456789abcdef")
+    db_path = tmp_path / "sandbox_bindings.db"
+    manager_a = ProjectSandboxManager(
+        provider,
+        config,
+        run_id="run-m5",
+        binding_store=SQLiteSandboxBindingStore(db_path),
+    )
+    manager_b = ProjectSandboxManager(
+        provider,
+        config,
+        run_id="run-m5",
+        binding_store=SQLiteSandboxBindingStore(db_path),
+    )
+    results = await asyncio.wait_for(
+        asyncio.gather(
+            manager_a.ensure_binding(
+                task_id="task-m5",
+                source_repo=str(repo),
+                context=exec_context(),
+                worker_id="w1",
+            ),
+            manager_b.ensure_binding(
+                task_id="task-m5",
+                source_repo=str(repo),
+                context=exec_context(),
+                worker_id="w1",
+            ),
+            return_exceptions=True,
+        ),
+        timeout=20,
+    )
+    successes = [item for item in results if not isinstance(item, BaseException)]
+    failures = [item for item in results if isinstance(item, BaseException)]
+    assert len(successes) == 1
+    assert len(failures) == 1
+    assert isinstance(failures[0], SandboxBindingConflict)
+    winner = successes[0]
+    durable = SQLiteSandboxBindingStore(db_path).get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.sandbox_id == winner.sandbox_handle.id
+    assert provider.create_count == 2
+    assert provider.destroy_count == 1
+    assert sum("task-m5" in manager.bindings for manager in (manager_a, manager_b)) == 1

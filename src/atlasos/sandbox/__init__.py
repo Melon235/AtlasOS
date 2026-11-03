@@ -9,10 +9,12 @@ from atlasos.sandbox.export import (
 )
 from atlasos.sandbox.models import (
     BindingState,
+    DurableSandboxBindingRecord,
     ExecutionMode,
     ProjectSandboxBinding,
     SandboxBindingError,
     SandboxCapabilityError,
+    SandboxContinuityProjection,
     SandboxCredentialError,
     SandboxEnvironmentBlocked,
     SandboxExecutionError,
@@ -22,6 +24,9 @@ from atlasos.sandbox.models import (
     SandboxProjectConfig,
     SandboxProviderError,
     SandboxProvisionError,
+    SandboxReattachmentRequired,
+    compute_sandbox_config_digest,
+    compute_sandbox_continuity_digest,
     trusted_sandbox_spec,
 )
 from atlasos.sandbox.opensandbox_provider import OpenSandboxOptions, OpenSandboxProvider
@@ -36,11 +41,21 @@ from atlasos.sandbox.provider import (
     require_real_sandbox_provider,
 )
 from atlasos.sandbox.provision import GitProjectProvisioner, GitProjectSource
+from atlasos.sandbox.store import (
+    SandboxBindingConflict,
+    SandboxBindingNotFound,
+    SandboxBindingStateError,
+    SandboxBindingStore,
+    SandboxBindingStoreError,
+    SandboxBindingStoreUnavailable,
+    SQLiteSandboxBindingStore,
+)
 from atlasos.sandbox.tools import SandboxWorkspaceTools, sandbox_tool_names
 
 __all__ = [
     "REAL_SANDBOX_PROVIDERS",
     "BindingState",
+    "DurableSandboxBindingRecord",
     "ExecutionMode",
     "GitProjectProvisioner",
     "GitProjectSource",
@@ -48,8 +63,16 @@ __all__ = [
     "OpenSandboxProvider",
     "ProjectSandboxBinding",
     "ProjectSandboxManager",
+    "SQLiteSandboxBindingStore",
+    "SandboxBindingConflict",
     "SandboxBindingError",
+    "SandboxBindingNotFound",
+    "SandboxBindingStateError",
+    "SandboxBindingStore",
+    "SandboxBindingStoreError",
+    "SandboxBindingStoreUnavailable",
     "SandboxCapabilityError",
+    "SandboxContinuityProjection",
     "SandboxCredentialError",
     "SandboxEnvironmentBlocked",
     "SandboxExecutionError",
@@ -60,12 +83,15 @@ __all__ = [
     "SandboxProjectConfig",
     "SandboxProviderError",
     "SandboxProvisionError",
+    "SandboxReattachmentRequired",
     "SandboxWorkspaceExport",
     "SandboxWorkspaceTools",
     "build_sandbox_provider",
     "capability_digest",
     "capability_failures",
     "capability_summary",
+    "compute_sandbox_config_digest",
+    "compute_sandbox_continuity_digest",
     "export_patch",
     "export_workspace",
     "is_real_sandbox_provider",

@@ -36,6 +36,8 @@ from atlasos.sandbox import (
     ProjectSandboxBinding,
     ProjectSandboxManager,
     SandboxProjectConfig,
+    capability_digest,
+    compute_sandbox_config_digest,
 )
 from atlasos.sandbox.models import trusted_sandbox_spec
 from atlasos.suspension.batch import ExecutionSuspended
@@ -45,6 +47,7 @@ from atlasos.trajectory.models import (
     ExecutionOutcomeData,
     TrajectoryCorrelation,
     derive_event_id,
+    derive_sandbox_binding_id,
 )
 from atlasos.trajectory.reader import TrajectoryReader
 from atlasos.trajectory.reconcile import TrajectoryReconciler
@@ -429,12 +432,21 @@ async def test_m7_m1_m2_m5_seams(tmp_path: Path) -> None:
     created = await provider.create(spec)
     assert created.handle is not None
     manager.bindings["task-m6"] = ProjectSandboxBinding(
+        binding_id=derive_sandbox_binding_id(
+            run_id="run-m6",
+            task_id="task-m6",
+            worker_id=worker.worker_id,
+            provider_name="fake",
+            sandbox_handle_id=created.handle.id,
+        ),
         run_id="run-m6",
         task_id="task-m6",
         worker_id=worker.worker_id,
         provider_name="fake",
         sandbox_handle=created.handle,
         workspace_root="/workspace/project",
+        config_digest=compute_sandbox_config_digest(config),
+        capabilities_digest=capability_digest(created.handle.capabilities),
         source_commit="0" * 40,
         source_digest="sha256:test",
         bundle_digest="sha256:test",

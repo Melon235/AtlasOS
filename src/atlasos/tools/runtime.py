@@ -376,23 +376,15 @@ class AtlasToolRuntime:
         if task_id is None or self._sandbox_tools is None:
             return None
         manager = self._sandbox_tools.manager
-        if manager.bindings.get(task_id) is None:
+        if not manager.has_binding(task_id):
             return None
-        binding = manager.require_ready(task_id)
-        return hashlib.sha256(
-            json.dumps(
-                binding.model_dump(mode="json"),
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        ).hexdigest()
+        return manager.continuity_digest(task_id)
 
     def sandbox_required(self, task_id: str | None) -> bool:
         if task_id is None or self._sandbox_tools is None:
             return False
-        return (
-            self._sandbox_tools.task_id == task_id
-            or task_id in self._sandbox_tools.manager.bindings
+        return self._sandbox_tools.task_id == task_id or self._sandbox_tools.manager.has_binding(
+            task_id
         )
 
     async def preflight_batch(

@@ -55,11 +55,13 @@ from atlasos.sandbox import (
     ProjectSandboxManager,
     SandboxProjectConfig,
     SandboxWorkspaceTools,
+    capability_digest,
+    compute_sandbox_config_digest,
 )
 from atlasos.sandbox.models import trusted_sandbox_spec
 from atlasos.suspension.batch import ExecutionSuspended
 from atlasos.tools import AtlasToolRuntime
-from atlasos.trajectory.models import canonical_digest
+from atlasos.trajectory.models import canonical_digest, derive_sandbox_binding_id
 from atlasos.trajectory.reader import TrajectoryReader
 from atlasos.trajectory.reconcile import TrajectoryReconciler
 from atlasos.trajectory.recorder import TrajectoryRecorder
@@ -306,12 +308,21 @@ async def _run(root: Path) -> EvalRecord:
     assert created.handle is not None
     fixed_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
     binding = ProjectSandboxBinding(
+        binding_id=derive_sandbox_binding_id(
+            run_id="run-m6",
+            task_id="task-m6",
+            worker_id=worker.worker_id,
+            provider_name="fake",
+            sandbox_handle_id=created.handle.id,
+        ),
         run_id="run-m6",
         task_id="task-m6",
         worker_id=worker.worker_id,
         provider_name="fake",
         sandbox_handle=created.handle,
         workspace_root="/workspace/project",
+        config_digest=compute_sandbox_config_digest(sandbox_config),
+        capabilities_digest=capability_digest(created.handle.capabilities),
         source_commit="0" * 40,
         source_digest="sha256:test",
         bundle_digest="sha256:test",
