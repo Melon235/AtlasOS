@@ -57,6 +57,9 @@ class DurableSandboxBindingRecord(BaseModel):
     created_at: datetime
     updated_at: datetime
     revision: int = Field(default=1, ge=1)
+    provider_control_plane_digest: str | None = None
+    provider_created_at: datetime | None = None
+    provider_metadata_digest: str | None = None
 
 
 class SandboxContinuityProjection(BaseModel):
@@ -229,7 +232,12 @@ def trusted_sandbox_spec(
     """Build the sandbox spec exclusively from trusted deployment/task config."""
 
     config.validate_v1()
-    labels = {"atlas_run_id": run_id, "atlas_task_id": task_id, "atlas_m5": "1"}
+    labels = {
+        "atlas_run_id": run_id,
+        "atlas_task_id": task_id,
+        "atlas_m5": "1",
+        "atlas_config_digest": compute_sandbox_config_digest(config),
+    }
     if worker_id:
         labels["atlas_worker_id"] = worker_id
     return SandboxSpec(

@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS sandbox_bindings (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     revision INTEGER NOT NULL,
+    provider_control_plane_digest TEXT,
+    provider_created_at TEXT,
+    provider_metadata_digest TEXT,
     payload TEXT NOT NULL,
     UNIQUE (run_id, task_id)
 );
@@ -47,6 +50,12 @@ CREATE INDEX IF NOT EXISTS sandbox_bindings_state_idx
 
 _ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     "READY": frozenset({"LOST", "CLOSED"}),
+}
+
+_PROVIDER_VERIFICATION_COLUMNS = {
+    "provider_control_plane_digest": "TEXT",
+    "provider_created_at": "TEXT",
+    "provider_metadata_digest": "TEXT",
 }
 
 
@@ -131,6 +140,15 @@ class SQLiteSandboxBindingStore:
     def _initialize(self) -> None:
         with self._connection() as connection:
             connection.executescript(_SCHEMA)
+            existing = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(sandbox_bindings)").fetchall()
+            }
+            for name, column_type in _PROVIDER_VERIFICATION_COLUMNS.items():
+                if name not in existing:
+                    connection.execute(
+                        f"ALTER TABLE sandbox_bindings ADD COLUMN {name} {column_type}"
+                    )
 
     def _now(self) -> datetime:
         return self._clock()
@@ -144,8 +162,9 @@ class SQLiteSandboxBindingStore:
             "INSERT INTO sandbox_bindings "
             "(binding_id, run_id, task_id, worker_id, provider_name, sandbox_id, workspace_root, "
             "config_digest, capabilities_digest, source_commit, source_digest, bundle_digest, "
-            "state, created_at, updated_at, revision, payload) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "state, created_at, updated_at, revision, provider_control_plane_digest, "
+            "provider_created_at, provider_metadata_digest, payload) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 record.binding_id,
                 record.run_id,
@@ -163,6 +182,11 @@ class SQLiteSandboxBindingStore:
                 record.created_at.isoformat(),
                 record.updated_at.isoformat(),
                 record.revision,
+                record.provider_control_plane_digest,
+                record.provider_created_at.isoformat()
+                if record.provider_created_at is not None
+                else None,
+                record.provider_metadata_digest,
                 record.model_dump_json(),
             ),
         )

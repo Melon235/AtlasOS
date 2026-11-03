@@ -884,6 +884,7 @@ async def test_m5_durable_binding_survives_manager_recreation(tmp_path: Path) ->
     assert recreated.state == "READY"
     assert recreated.revision == 1
 
+    before_inspect = provider.inspect_calls
     manager_b = ProjectSandboxManager(
         provider,
         manager.config,
@@ -906,6 +907,8 @@ async def test_m5_durable_binding_survives_manager_recreation(tmp_path: Path) ->
         provider.write_calls,
     ) == before_calls
     assert provider.create_count == 1
+    assert provider.inspect_calls == before_inspect
+    assert provider.attach_calls == 0
     assert manager_b.bindings == {}
 
 

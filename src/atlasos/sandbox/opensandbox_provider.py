@@ -8,6 +8,7 @@ isolated Docker-backed machine.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -31,6 +32,17 @@ from anycode.sandbox import (
 from anycode.security.redaction import safe_exception_message
 
 from atlasos.sandbox.models import SandboxLostError
+from atlasos.sandbox.reattachment import (
+    SandboxAttachFailed,
+    SandboxProviderUnavailable,
+    SandboxReattachmentObservation,
+    SandboxRemoteNotFound,
+    atlas_metadata_digest,
+    compute_control_plane_digest,
+    normalize_atlas_metadata,
+    normalize_provider_created_at,
+    normalize_remote_state,
+)
 
 _OPEN_SANDBOX_LIMITATIONS = (
     "Docker container isolation; actual strength depends on the local OpenSandbox and Docker "
@@ -38,7 +50,8 @@ _OPEN_SANDBOX_LIMITATIONS = (
     "Network-none enforcement depends on the OpenSandbox egress sidecar; Atlas verifies it with "
     "an empirical egress probe.",
     "Point-in-time snapshots are not exposed through this adapter.",
-    "OS-process sandbox reattachment is not supported by Atlas M5.",
+    "Verified provider-instance reattachment is explicit; automatic cross-process recovery and "
+    "ownership locking are not implemented.",
 )
 
 
@@ -139,8 +152,15 @@ class OpenSandboxProvider:
                 "atlas.task_id": self._metadata_value(spec.task_id or "none"),
                 "atlas.correlation_id": self._metadata_value(spec.correlation_id),
                 "atlas.provider": "opensandbox",
+                "atlas.m5": "1",
+                "atlas.config_digest": self._metadata_value(
+                    str(spec.labels.get("atlas_config_digest", "none"))
+                ),
             }
         )
+        worker_id = spec.labels.get("atlas_worker_id")
+        if worker_id is not None:
+            metadata["atlas.worker_id"] = self._metadata_value(str(worker_id))
         return metadata
 
     async def _default_sandbox_factory(self, spec: SandboxSpec) -> Any:
@@ -175,9 +195,102 @@ class OpenSandboxProvider:
             # handle. An in-process cache miss fails closed instead of silently reattaching.
             raise SandboxLostError(
                 f"OpenSandbox handle {handle.id!r} is not owned by this runtime; "
-                "cross-process reattachment is not implemented"
+                "verified reattachment is required"
             )
         return sandbox
+
+    def continuity_identity_digest(self) -> str:
+        """Stable control-plane identity; excludes credentials and client timeouts."""
+
+        return compute_control_plane_digest(
+            provider_name="opensandbox",
+            base_url=self._connection_config().get_base_url(),
+            use_server_proxy=self.options.use_server_proxy,
+        )
+
+    async def inspect_existing(self, sandbox_id: str) -> SandboxReattachmentObservation:
+        """Inspect via the control plane only; never connect as part of inspection."""
+
+        try:
+            from opensandbox import SandboxManager
+            from opensandbox.exceptions import (
+                SandboxApiException,
+                SandboxConnectionException,
+                SandboxInternalException,
+                SandboxTimeoutException,
+            )
+        except ImportError as error:
+            raise SandboxProviderUnavailable(f"OpenSandbox SDK is unavailable: {error}") from error
+
+        manager: Any | None = None
+        try:
+            manager = await SandboxManager.create(self._connection_config())
+            info = await manager.get_sandbox_info(sandbox_id)
+            return SandboxReattachmentObservation(
+                sandbox_id=str(info.id),
+                state=normalize_remote_state(str(info.status.state)),
+                created_at=normalize_provider_created_at(info.created_at),
+                metadata=normalize_atlas_metadata(info.metadata),
+                metadata_digest=atlas_metadata_digest(info.metadata),
+            )
+        except SandboxApiException as error:
+            if error.status_code in (404, 410):
+                raise SandboxRemoteNotFound(
+                    f"OpenSandbox sandbox {sandbox_id!r} does not exist"
+                ) from error
+            raise SandboxProviderUnavailable(
+                f"OpenSandbox control plane could not inspect {sandbox_id!r}: {error}"
+            ) from error
+        except (
+            SandboxConnectionException,
+            SandboxTimeoutException,
+            SandboxInternalException,
+        ) as error:
+            raise SandboxProviderUnavailable(
+                f"OpenSandbox control plane is unavailable while inspecting {sandbox_id!r}: {error}"
+            ) from error
+        except Exception as error:  # noqa: BLE001 - normalize SDK-independent failures
+            from opensandbox.exceptions import SandboxException
+
+            if isinstance(error, SandboxException):
+                raise SandboxProviderUnavailable(
+                    f"OpenSandbox inspection failed for {sandbox_id!r}: {error}"
+                ) from error
+            raise SandboxProviderUnavailable(
+                f"OpenSandbox inspection failed for {sandbox_id!r}: {error}"
+            ) from error
+        finally:
+            if manager is not None:
+                with contextlib.suppress(Exception):
+                    await manager.close()
+
+    async def attach_existing(self, sandbox_id: str) -> None:
+        """Connect to a verified existing sandbox and install only the local handle cache."""
+
+        try:
+            from opensandbox import Sandbox
+        except ImportError as error:
+            raise SandboxAttachFailed(f"OpenSandbox SDK is unavailable: {error}") from error
+        try:
+            sandbox = await Sandbox.connect(
+                sandbox_id,
+                connection_config=self._connection_config(),
+                connect_timeout=timedelta(seconds=self.options.ready_timeout_seconds),
+            )
+        except Exception as error:  # noqa: BLE001 - attach failure is a typed M5 failure
+            raise SandboxAttachFailed(
+                f"OpenSandbox could not connect to verified sandbox {sandbox_id!r}: {error}"
+            ) from error
+        self._sandboxes[sandbox_id] = sandbox
+
+    async def detach_local(self, sandbox_id: str) -> None:
+        """Close only local SDK resources; the remote sandbox is never destroyed here."""
+
+        sandbox = self._sandboxes.pop(sandbox_id, None)
+        if sandbox is None:
+            return
+        with contextlib.suppress(Exception):
+            await sandbox.close()
 
     async def create(self, spec: SandboxSpec) -> SandboxCreateResult:
         if spec.snapshot:

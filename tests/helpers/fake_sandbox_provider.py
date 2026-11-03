@@ -7,6 +7,7 @@ import re
 import shlex
 import shutil
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from anycode.sandbox import (
@@ -23,6 +24,12 @@ from anycode.sandbox import (
 )
 
 from atlasos.sandbox.models import SandboxLostError
+from atlasos.sandbox.reattachment import (
+    SandboxReattachmentObservation,
+    SandboxRemoteNotFound,
+    atlas_metadata_digest,
+    normalize_atlas_metadata,
+)
 
 
 class FakeSandboxProvider:
@@ -60,6 +67,16 @@ class FakeSandboxProvider:
         self.workspaces: dict[str, Path] = {}
         self.handles: dict[str, SandboxHandle] = {}
         self.specs: list[SandboxSpec] = []
+        self.control_plane_digest = "sha256:fake-control-plane"
+        self.remote_created_at: dict[str, datetime] = {}
+        self.remote_metadata: dict[str, dict[str, str]] = {}
+        self.remote_state: dict[str, str] = {}
+        self.attached: set[str] = set()
+        self.inspect_calls = 0
+        self.attach_calls = 0
+        self.detach_calls = 0
+        self.inspect_error: Exception | None = None
+        self.attach_error: Exception | None = None
         self.fail_create = False
         self.fail_clone = False
         self.fail_operations = False
@@ -134,7 +151,50 @@ class FakeSandboxProvider:
         (workspace / "tmp").mkdir(parents=True, exist_ok=True)
         self.workspaces[handle.id] = workspace
         self.handles[handle.id] = handle
+        metadata = {
+            "atlas.run_id": spec.run_id,
+            "atlas.task_id": spec.task_id or "none",
+            "atlas.provider": "fake",
+            "atlas.m5": "1",
+            "atlas.config_digest": str(spec.labels.get("atlas_config_digest", "none")),
+        }
+        worker_id = spec.labels.get("atlas_worker_id")
+        if worker_id is not None:
+            metadata["atlas.worker_id"] = str(worker_id)
+        self.remote_created_at[handle.id] = datetime.now(UTC)
+        self.remote_metadata[handle.id] = metadata
+        self.remote_state[handle.id] = "RUNNING"
         return SandboxCreateResult(ok=True, handle=handle)
+
+    def continuity_identity_digest(self) -> str:
+        return self.control_plane_digest
+
+    async def inspect_existing(self, sandbox_id: str) -> SandboxReattachmentObservation:
+        self.inspect_calls += 1
+        if self.inspect_error is not None:
+            raise self.inspect_error
+        if sandbox_id not in self.remote_state:
+            raise SandboxRemoteNotFound(f"fake sandbox {sandbox_id!r} does not exist")
+        metadata = self.remote_metadata[sandbox_id]
+        return SandboxReattachmentObservation(
+            sandbox_id=sandbox_id,
+            state=self.remote_state[sandbox_id],
+            created_at=self.remote_created_at[sandbox_id],
+            metadata=normalize_atlas_metadata(metadata),
+            metadata_digest=atlas_metadata_digest(metadata),
+        )
+
+    async def attach_existing(self, sandbox_id: str) -> None:
+        self.attach_calls += 1
+        if self.attach_error is not None:
+            raise self.attach_error
+        if sandbox_id not in self.remote_state:
+            raise SandboxRemoteNotFound(f"fake sandbox {sandbox_id!r} does not exist")
+        self.attached.add(sandbox_id)
+
+    async def detach_local(self, sandbox_id: str) -> None:
+        self.detach_calls += 1
+        self.attached.discard(sandbox_id)
 
     async def execute(self, handle: SandboxHandle, command: SandboxCommand) -> SandboxCommandResult:
         self.execute_calls += 1
@@ -214,6 +274,10 @@ class FakeSandboxProvider:
         if self.fail_cancel:
             return SandboxActionResult(ok=False)
         self.lost.add(handle.id)
+        self.attached.discard(handle.id)
+        self.remote_state.pop(handle.id, None)
+        self.remote_created_at.pop(handle.id, None)
+        self.remote_metadata.pop(handle.id, None)
         return SandboxActionResult(ok=True)
 
     async def snapshot(self, handle: SandboxHandle, name: str) -> SandboxActionResult:
@@ -225,6 +289,10 @@ class FakeSandboxProvider:
         if self.fail_destroy:
             return SandboxActionResult(ok=False)
         self.lost.add(handle.id)
+        self.attached.discard(handle.id)
+        self.remote_state.pop(handle.id, None)
+        self.remote_created_at.pop(handle.id, None)
+        self.remote_metadata.pop(handle.id, None)
         shutil.rmtree(self.workspaces.get(handle.id, self.root / handle.id), ignore_errors=True)
         return SandboxActionResult(ok=True)
 

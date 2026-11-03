@@ -1,7 +1,8 @@
 # Stage A — Durable Sandbox Binding
 
-Status: **implemented**. This stage does **not** implement verified cross-process sandbox
-reattachment.
+Status: **implemented and frozen**. Stage A itself did not implement verified cross-process sandbox
+reattachment; Stage B adds an explicit verification/reconnect primitive while leaving automatic
+recovery and ownership locking disabled.
 
 ## Problem
 
@@ -113,7 +114,9 @@ durable READY binding exists
 ```
 
 Atlas does not call `Sandbox.connect()`, does not recreate S1, and does not fall back to the Host.
-This is an intentional fail-closed boundary until Stage B implements verified reattachment.
+This remains the automatic-recovery behavior. Stage B provides an explicit
+`reattach_verified()` primitive for callers that have verified the durable provider evidence; it is
+not wired into `ensure_binding()` or M6.
 
 `LOST` and `CLOSED` durable records also block recreation after a manager restart.
 
@@ -161,4 +164,5 @@ Stage A does **not** implement:
 - true OS-process HITL resume;
 - provider-side continuity verification.
 
-The next stage is **Stage B — Verified OpenSandbox Reattachment**.
+See **Stage B — Verified OpenSandbox Reattachment** for the explicit provider-instance reconnect
+primitive. Cross-process ownership remains Stage C.

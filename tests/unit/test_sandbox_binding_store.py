@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -42,6 +44,107 @@ def record(**overrides) -> DurableSandboxBindingRecord:
     }
     values.update(overrides)
     return DurableSandboxBindingRecord(**values)
+
+
+def test_store_migrates_stage_a_records_without_provider_evidence(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "stage-a.db"
+    old = record()
+    payload = old.model_dump(mode="json")
+    for field in (
+        "provider_control_plane_digest",
+        "provider_created_at",
+        "provider_metadata_digest",
+    ):
+        payload.pop(field)
+    connection = sqlite3.connect(path)
+    connection.executescript(
+        """
+        CREATE TABLE sandbox_bindings (
+            binding_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL,
+            task_id TEXT NOT NULL,
+            worker_id TEXT,
+            provider_name TEXT NOT NULL,
+            sandbox_id TEXT NOT NULL,
+            workspace_root TEXT NOT NULL,
+            config_digest TEXT NOT NULL,
+            capabilities_digest TEXT NOT NULL,
+            source_commit TEXT NOT NULL,
+            source_digest TEXT NOT NULL,
+            bundle_digest TEXT NOT NULL,
+            state TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            revision INTEGER NOT NULL,
+            payload TEXT NOT NULL,
+            UNIQUE (run_id, task_id)
+        );
+        """
+    )
+    connection.execute(
+        "INSERT INTO sandbox_bindings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            old.binding_id,
+            old.run_id,
+            old.task_id,
+            old.worker_id,
+            old.provider_name,
+            old.sandbox_id,
+            old.workspace_root,
+            old.config_digest,
+            old.capabilities_digest,
+            old.source_commit,
+            old.source_digest,
+            old.bundle_digest,
+            old.state,
+            old.created_at.isoformat(),
+            old.updated_at.isoformat(),
+            old.revision,
+            json.dumps(payload),
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+    store = SQLiteSandboxBindingStore(path)
+    loaded = store.get(old.binding_id)
+    assert loaded is not None
+    assert loaded.provider_control_plane_digest is None
+    assert loaded.provider_created_at is None
+    assert loaded.provider_metadata_digest is None
+    assert loaded.state == "READY"
+    columns_connection = sqlite3.connect(path)
+    try:
+        columns = {
+            row[1]
+            for row in columns_connection.execute("PRAGMA table_info(sandbox_bindings)").fetchall()
+        }
+    finally:
+        columns_connection.close()
+    assert {
+        "provider_control_plane_digest",
+        "provider_created_at",
+        "provider_metadata_digest",
+    } <= columns
+
+
+def test_store_persists_provider_verification_fields(tmp_path: Path) -> None:
+    path = tmp_path / "sandbox_bindings.db"
+    first = SQLiteSandboxBindingStore(path)
+    created = first.create(
+        record(
+            provider_control_plane_digest="sha256:control-plane",
+            provider_created_at=CREATED,
+            provider_metadata_digest="sha256:metadata",
+        )
+    )
+    loaded = SQLiteSandboxBindingStore(path).get(created.binding_id)
+    assert loaded is not None
+    assert loaded.provider_control_plane_digest == "sha256:control-plane"
+    assert loaded.provider_created_at == CREATED
+    assert loaded.provider_metadata_digest == "sha256:metadata"
 
 
 def test_store_persists_binding_across_store_instances(tmp_path: Path) -> None:
