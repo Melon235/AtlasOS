@@ -271,17 +271,26 @@ class ProjectSandboxManager:
         return task_id in self.bindings
 
     def binding(self, task_id: str) -> ProjectSandboxBinding:
-        runtime = self.bindings.get(task_id)
+        # Durable lifecycle truth must be classified before runtime-handle availability.
+        # A terminal durable binding is never eligible for reattachment.
         durable = self._durable(task_id)
-        if runtime is None:
-            if durable is not None:
-                raise SandboxReattachmentRequired(
-                    f"durable binding exists for task {task_id!r} but no live sandbox handle "
-                    "is attached; verified reattachment is not implemented"
-                )
-            raise SandboxBindingError(f"no sandbox binding for task {task_id!r}")
+        runtime = self.bindings.get(task_id)
         if durable is not None:
+            if durable.state == "LOST":
+                raise SandboxLostError(f"sandbox for task {task_id!r} is LOST")
+            if durable.state != "READY":
+                raise SandboxBindingError(
+                    f"durable sandbox for task {task_id!r} is {durable.state}; failing closed"
+                )
+            if runtime is None:
+                raise SandboxReattachmentRequired(
+                    f"durable READY binding exists for task {task_id!r} but no live sandbox "
+                    "handle is attached; verified reattachment is required"
+                )
             self._validate_runtime_identity(runtime, durable)
+            return runtime
+        if runtime is None:
+            raise SandboxBindingError(f"no sandbox binding for task {task_id!r}")
         return runtime
 
     def require_ready(self, task_id: str) -> ProjectSandboxBinding:

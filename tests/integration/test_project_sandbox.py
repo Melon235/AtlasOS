@@ -897,8 +897,14 @@ async def test_m5_durable_binding_survives_manager_recreation(tmp_path: Path) ->
             context=exec_context(),
             worker_id="w1",
         )
+    before_calls = (provider.execute_calls, provider.read_calls, provider.write_calls)
     with pytest.raises(SandboxReattachmentRequired, match="reattachment"):
         manager_b.require_ready("task-m5")
+    assert (
+        provider.execute_calls,
+        provider.read_calls,
+        provider.write_calls,
+    ) == before_calls
     assert provider.create_count == 1
     assert manager_b.bindings == {}
 
@@ -923,6 +929,7 @@ async def test_m5_durable_lost_survives_manager_recreation(tmp_path: Path) -> No
         run_id="run-m5",
         binding_store=SQLiteSandboxBindingStore(db_path),
     )
+    before_calls = (provider.execute_calls, provider.read_calls, provider.write_calls)
     with pytest.raises(SandboxLostError, match="LOST"):
         await manager_b.ensure_binding(
             task_id="task-m5",
@@ -930,6 +937,13 @@ async def test_m5_durable_lost_survives_manager_recreation(tmp_path: Path) -> No
             context=exec_context(),
             worker_id="w1",
         )
+    with pytest.raises(SandboxLostError, match="LOST"):
+        manager_b.require_ready("task-m5")
+    assert (
+        provider.execute_calls,
+        provider.read_calls,
+        provider.write_calls,
+    ) == before_calls
     assert provider.create_count == 1
 
 
@@ -1014,6 +1028,7 @@ async def test_m5_durable_closed_survives_manager_recreation(tmp_path: Path) -> 
         run_id="run-m5",
         binding_store=SQLiteSandboxBindingStore(db_path),
     )
+    before_calls = (provider.execute_calls, provider.read_calls, provider.write_calls)
     with pytest.raises(SandboxBindingError, match="CLOSED"):
         await manager_b.ensure_binding(
             task_id="task-m5",
@@ -1021,6 +1036,13 @@ async def test_m5_durable_closed_survives_manager_recreation(tmp_path: Path) -> 
             context=exec_context(),
             worker_id="w1",
         )
+    with pytest.raises(SandboxBindingError, match="CLOSED"):
+        manager_b.require_ready("task-m5")
+    assert (
+        provider.execute_calls,
+        provider.read_calls,
+        provider.write_calls,
+    ) == before_calls
     assert provider.create_count == 1
 
 
