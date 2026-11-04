@@ -219,4 +219,6 @@ distributed fencing
 true M6 OS-process restart
 ```
 
-The next stage is **Stage C — Local Cross-Process Binding Ownership Lock**.
+Stage C adds a Host-local OS ownership lock; see
+[local sandbox ownership](local-sandbox-ownership.md). Distributed fencing and true OS-process HITL
+resume remain future work.

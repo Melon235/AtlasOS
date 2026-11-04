@@ -168,6 +168,7 @@ async def run(*, config_path: Path, fixture: Path, runs_root: Path) -> dict[str,
             # Local detach: close SDK resources only; the remote sandbox must survive.
             await provider_a.detach_local(binding.sandbox_handle.id)
             manager_create_count = manager_a.create_count
+            manager_a.release_ownership("task-stage-b-real")
             manager_a = None
 
             provider_b = _provider(config)

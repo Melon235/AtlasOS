@@ -30,6 +30,13 @@ from atlasos.sandbox.models import (
     trusted_sandbox_spec,
 )
 from atlasos.sandbox.opensandbox_provider import OpenSandboxOptions, OpenSandboxProvider
+from atlasos.sandbox.ownership import (
+    SandboxOwnershipBusy,
+    SandboxOwnershipError,
+    SandboxOwnershipUnavailable,
+    WorkloadOwnershipLock,
+    workload_lock_identity,
+)
 from atlasos.sandbox.provider import (
     REAL_SANDBOX_PROVIDERS,
     build_sandbox_provider,
@@ -107,6 +114,9 @@ __all__ = [
     "SandboxFileTransferError",
     "SandboxIsolationError",
     "SandboxLostError",
+    "SandboxOwnershipBusy",
+    "SandboxOwnershipError",
+    "SandboxOwnershipUnavailable",
     "SandboxPatch",
     "SandboxProjectConfig",
     "SandboxProviderError",
@@ -133,6 +143,8 @@ __all__ = [
     "is_real_sandbox_provider",
     "require_capabilities",
     "require_real_sandbox_provider",
+    "WorkloadOwnershipLock",
     "sandbox_tool_names",
     "trusted_sandbox_spec",
+    "workload_lock_identity",
 ]

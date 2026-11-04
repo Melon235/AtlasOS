@@ -218,14 +218,16 @@ recreation, no old M4 history continued on a new filesystem. Patches are exporte
 artifacts and never auto-applied to Host.
 
 The V2 UAT path persists sandbox binding metadata in SQLite. Atlas can explicitly verify and
-reconnect a durable OpenSandbox binding through M5 continuity and provider inspection, but
-automatic cross-process recovery remains disabled until exclusive ownership locking is implemented.
-A restarted runtime without a live handle still fails closed in the normal path and never creates a
-replacement sandbox.
+reconnect a durable OpenSandbox binding through M5 continuity and provider inspection, and a
+Host-local OS file lock prevents two Atlas processes sharing one trusted state root from owning the
+same workload. This is not distributed fencing, and automatic cross-process recovery remains
+disabled. A restarted runtime without a live handle still fails closed in the normal path and never
+creates a replacement sandbox.
 
 See [design](docs/stages/m5-project-sandbox.md),
-[durable sandbox binding](docs/stages/durable-sandbox-binding.md), and
-[verified reattachment](docs/stages/verified-sandbox-reattachment.md).
+[durable sandbox binding](docs/stages/durable-sandbox-binding.md),
+[verified reattachment](docs/stages/verified-sandbox-reattachment.md), and
+[local workload ownership](docs/stages/local-sandbox-ownership.md).
 
 ## Headline results
 

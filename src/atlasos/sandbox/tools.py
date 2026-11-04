@@ -18,6 +18,7 @@ from anycode.types import ToolDefinition, ToolResult, ToolUseContext
 
 from atlasos.sandbox.binding import ProjectSandboxManager
 from atlasos.sandbox.models import SandboxLostError
+from atlasos.sandbox.ownership import SandboxOwnershipError
 
 _WORKSPACE_TOOLS = frozenset({"bash", "file_read", "file_write", "file_edit", "grep", "list_files"})
 
@@ -98,7 +99,7 @@ class SandboxWorkspaceTools:
     def _binding(self):
         try:
             binding = self.manager.require_ready(self.task_id)
-        except SandboxLostError:
+        except (SandboxLostError, SandboxOwnershipError):
             raise
         except Exception as error:
             raise SandboxLostError(str(error)) from error
@@ -154,6 +155,8 @@ class SandboxWorkspaceTools:
             return ToolResult(data=str(error), is_error=True)
         except SandboxLostError as error:
             await self.manager.mark_lost(self.task_id)
+            return ToolResult(data=str(error), is_error=True)
+        except SandboxOwnershipError as error:
             return ToolResult(data=str(error), is_error=True)
 
         lines = raw.split("\n")
@@ -212,6 +215,8 @@ class SandboxWorkspaceTools:
         except SandboxLostError as error:
             await self.manager.mark_lost(self.task_id)
             return ToolResult(data=str(error), is_error=True)
+        except SandboxOwnershipError as error:
+            return ToolResult(data=str(error), is_error=True)
         line_count = validated.content.count("\n") + (
             1 if validated.content and not validated.content.endswith("\n") else 0
         )
@@ -268,6 +273,8 @@ class SandboxWorkspaceTools:
         except SandboxLostError as error:
             await self.manager.mark_lost(self.task_id)
             return ToolResult(data=str(error), is_error=True)
+        except SandboxOwnershipError as error:
+            return ToolResult(data=str(error), is_error=True)
         replaced = hits if validated.replace_all else 1
         return ToolResult(
             data=(
@@ -305,6 +312,8 @@ class SandboxWorkspaceTools:
             return ToolResult(data=output, is_error=False)
         except (ValueError, SandboxLostError) as error:
             return ToolResult(data=str(error), is_error=True)
+        except SandboxOwnershipError as error:
+            return ToolResult(data=str(error), is_error=True)
 
     async def list_files(self, validated, context: ToolUseContext) -> ToolResult:
         del context
@@ -335,6 +344,8 @@ class SandboxWorkspaceTools:
             note = f"\n\n({count} file{'s' if count != 1 else ''}, backend: sandbox)"
             return ToolResult(data=output + note, is_error=False)
         except (ValueError, SandboxLostError) as error:
+            return ToolResult(data=str(error), is_error=True)
+        except SandboxOwnershipError as error:
             return ToolResult(data=str(error), is_error=True)
 
     async def bash(self, validated, context: ToolUseContext) -> ToolResult:
@@ -370,6 +381,8 @@ class SandboxWorkspaceTools:
                 parts.append(f"\n(exit code {code})")
             return ToolResult(data="\n".join(parts), is_error=code != 0)
         except (ValueError, SandboxLostError) as error:
+            return ToolResult(data=str(error), is_error=True)
+        except SandboxOwnershipError as error:
             return ToolResult(data=str(error), is_error=True)
 
     def tool_definitions(self) -> tuple[ToolDefinition, ...]:

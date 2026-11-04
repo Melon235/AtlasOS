@@ -33,6 +33,8 @@ from atlasos.sandbox import (
 
 
 def _manager_b(provider, manager, db_path: Path, *, config=None) -> ProjectSandboxManager:
+    # Simulate the source process releasing ownership before a restarted manager can recover.
+    manager.release_ownership("task-m5")
     return ProjectSandboxManager(
         provider,
         config or manager.config,

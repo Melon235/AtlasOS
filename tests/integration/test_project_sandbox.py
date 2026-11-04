@@ -23,12 +23,12 @@ from atlasos.ledger import SQLiteActionLedgerStore
 from atlasos.sandbox import (
     DurableSandboxBindingRecord,
     ProjectSandboxManager,
-    SandboxBindingConflict,
     SandboxBindingError,
     SandboxBindingStore,
     SandboxBindingStoreUnavailable,
     SandboxCapabilityError,
     SandboxLostError,
+    SandboxOwnershipBusy,
     SandboxProjectConfig,
     SandboxProviderError,
     SandboxProvisionError,
@@ -885,6 +885,7 @@ async def test_m5_durable_binding_survives_manager_recreation(tmp_path: Path) ->
     assert recreated.revision == 1
 
     before_inspect = provider.inspect_calls
+    manager.release_ownership("task-m5")
     manager_b = ProjectSandboxManager(
         provider,
         manager.config,
@@ -1129,6 +1130,7 @@ async def test_m5_store_commit_failure_cleans_up_new_sandbox(tmp_path: Path) -> 
         config,
         run_id="run-m5",
         binding_store=failing,
+        ownership_root=tmp_path,
         trajectory_recorder=cast(Any, recorder),
     )
     with pytest.raises(SandboxBindingStoreUnavailable, match="injected"):
@@ -1147,26 +1149,11 @@ async def test_m5_store_commit_failure_cleans_up_new_sandbox(tmp_path: Path) -> 
     assert recorder.events == []
 
 
-async def test_m5_duplicate_durable_commit_destroys_losing_sandbox(
-    tmp_path: Path,
-) -> None:
+async def test_m5_ownership_prevents_duplicate_creation(tmp_path: Path) -> None:
     from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
 
-    class GatedProvider(FakeSandboxProvider):
-        def __init__(self, root: Path) -> None:
-            super().__init__(root)
-            self.started = 0
-            self.both_started = asyncio.Event()
-
-        async def create(self, spec):
-            self.started += 1
-            if self.started >= 2:
-                self.both_started.set()
-            await self.both_started.wait()
-            return await super().create(spec)
-
     repo = make_repo(tmp_path)
-    provider = GatedProvider(tmp_path / "provider")
+    provider = FakeSandboxProvider(tmp_path / "provider")
     config = SandboxProjectConfig(provider_name="fake", image="fake@sha256:0123456789abcdef")
     db_path = tmp_path / "sandbox_bindings.db"
     manager_a = ProjectSandboxManager(
@@ -1203,11 +1190,11 @@ async def test_m5_duplicate_durable_commit_destroys_losing_sandbox(
     failures = [item for item in results if isinstance(item, BaseException)]
     assert len(successes) == 1
     assert len(failures) == 1
-    assert isinstance(failures[0], SandboxBindingConflict)
+    assert isinstance(failures[0], SandboxOwnershipBusy)
     winner = successes[0]
     durable = SQLiteSandboxBindingStore(db_path).get_for_task("run-m5", "task-m5")
     assert durable is not None
     assert durable.sandbox_id == winner.sandbox_handle.id
-    assert provider.create_count == 2
-    assert provider.destroy_count == 1
+    assert provider.create_count == 1
+    assert provider.destroy_count == 0
     assert sum("task-m5" in manager.bindings for manager in (manager_a, manager_b)) == 1

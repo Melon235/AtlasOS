@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, cast
+from functools import wraps
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 
 from anycode.identity.context import ExecutionContext
 from anycode.sandbox import SandboxHandle, SandboxProvider
@@ -25,6 +28,11 @@ from atlasos.sandbox.models import (
     compute_sandbox_config_digest,
     compute_sandbox_continuity_digest,
     trusted_sandbox_spec,
+)
+from atlasos.sandbox.ownership import (
+    SandboxOwnershipError,
+    SandboxOwnershipUnavailable,
+    WorkloadOwnershipLock,
 )
 from atlasos.sandbox.provider import (
     capability_digest,
@@ -62,6 +70,67 @@ if TYPE_CHECKING:
     from atlasos.trajectory.recorder import TrajectoryRecorder
 
 
+def _owned_workload(
+    method: Callable[..., Awaitable[Any]],
+) -> Callable[..., Awaitable[Any]]:
+    """Acquire the Host-local workload lock before the method and keep it on success."""
+
+    @wraps(method)
+    async def wrapped(self, *args: Any, **kwargs: Any) -> Any:
+        task_id = kwargs.get("task_id")
+        if not isinstance(task_id, str):
+            raise SandboxOwnershipError("ownership-guarded operation requires task_id")
+        self._acquire_ownership(task_id)
+        try:
+            return await method(self, *args, **kwargs)
+        except BaseException:
+            self.release_ownership(task_id)
+            raise
+
+    return wrapped
+
+
+def _release_ownership_after(
+    method: Callable[..., Awaitable[Any]],
+) -> Callable[..., Awaitable[Any]]:
+    """Run a terminal provider operation under a held lock and release it afterward."""
+
+    @wraps(method)
+    async def wrapped(self, *args: Any, **kwargs: Any) -> Any:
+        task_id = kwargs.get("task_id")
+        if task_id is None and args:
+            task_id = args[0]
+        if not isinstance(task_id, str):
+            raise SandboxOwnershipError("ownership-guarded operation requires task_id")
+        self.require_ownership(task_id)
+        try:
+            return await method(self, *args, **kwargs)
+        finally:
+            self.release_ownership(task_id)
+
+    return wrapped
+
+
+def _release_ownership_if_held(
+    method: Callable[..., Awaitable[Any]],
+) -> Callable[..., Awaitable[Any]]:
+    """Release any local ownership after a non-provider lifecycle update such as mark_lost."""
+
+    @wraps(method)
+    async def wrapped(self, *args: Any, **kwargs: Any) -> Any:
+        task_id = kwargs.get("task_id")
+        if task_id is None and args:
+            task_id = args[0]
+        if not isinstance(task_id, str):
+            raise SandboxOwnershipError("ownership-guarded operation requires task_id")
+        try:
+            return await method(self, *args, **kwargs)
+        finally:
+            self.release_ownership(task_id)
+
+    return wrapped
+
+
 class ProjectSandboxManager:
     def __init__(
         self,
@@ -70,6 +139,7 @@ class ProjectSandboxManager:
         *,
         run_id: str,
         binding_store: SandboxBindingStore | None = None,
+        ownership_root: str | Path | None = None,
         trajectory_recorder: TrajectoryRecorder | None = None,
     ) -> None:
         config.validate_v1()
@@ -78,6 +148,17 @@ class ProjectSandboxManager:
         self.run_id = run_id
         self.binding_store = binding_store
         self.trajectory_recorder = trajectory_recorder
+        self.ownership_root: Path | None = None
+        if binding_store is not None:
+            if ownership_root is None:
+                store_path = getattr(binding_store, "path", None)
+                if store_path is None:
+                    raise SandboxOwnershipUnavailable(
+                        "durable sandbox store has no ownership root; refusing to run unlocked"
+                    )
+                ownership_root = Path(store_path).parent
+            self.ownership_root = Path(ownership_root)
+        self._ownership: dict[str, WorkloadOwnershipLock] = {}
         # Runtime-local live-handle cache, never the durable M5 authority.
         self.bindings: dict[str, ProjectSandboxBinding] = {}
         self._task_locks: dict[str, asyncio.Lock] = {}
@@ -87,6 +168,37 @@ class ProjectSandboxManager:
         self.destroyed_count = 0
         self.provision_commands = 0
         self.provision_uploads = 0
+
+    def _acquire_ownership(self, task_id: str) -> WorkloadOwnershipLock | None:
+        if self.ownership_root is None:
+            return None
+        existing = self._ownership.get(task_id)
+        if existing is not None:
+            existing.assert_held()
+            return existing
+        lock = WorkloadOwnershipLock(
+            self.ownership_root,
+            run_id=self.run_id,
+            task_id=task_id,
+        )
+        lock.acquire()
+        self._ownership[task_id] = lock
+        return lock
+
+    def require_ownership(self, task_id: str) -> None:
+        if self.ownership_root is None:
+            return
+        lock = self._ownership.get(task_id)
+        if lock is None:
+            raise SandboxOwnershipError(
+                f"local ownership for workload {self.run_id!r}/{task_id!r} is not held"
+            )
+        lock.assert_held()
+
+    def release_ownership(self, task_id: str) -> None:
+        lock = self._ownership.pop(task_id, None)
+        if lock is not None:
+            lock.release()
 
     def _durable(self, task_id: str) -> DurableSandboxBindingRecord | None:
         if self.binding_store is None:
@@ -142,6 +254,7 @@ class ProjectSandboxManager:
                 "runtime/durable sandbox binding mismatch: " + ", ".join(mismatches)
             )
 
+    @_owned_workload
     async def ensure_binding(
         self,
         *,
@@ -294,6 +407,7 @@ class ProjectSandboxManager:
             self._record_lifecycle(binding, "READY", occurred_at=binding.created_at)
             return binding
 
+    @_owned_workload
     async def reattach_verified(
         self,
         *,
@@ -552,6 +666,7 @@ class ProjectSandboxManager:
 
     def require_ready(self, task_id: str) -> ProjectSandboxBinding:
         binding = self.binding(task_id)
+        self.require_ownership(task_id)
         durable = self._require_durable(task_id) if self.binding_store is not None else None
         if durable is not None:
             if durable.state == "LOST":
@@ -575,6 +690,7 @@ class ProjectSandboxManager:
             return compute_sandbox_continuity_digest(self._require_durable(task_id))
         return compute_sandbox_continuity_digest(binding)
 
+    @_release_ownership_if_held
     async def mark_lost(self, task_id: str) -> None:
         runtime = self.bindings.get(task_id)
         store = self.binding_store
@@ -604,6 +720,7 @@ class ProjectSandboxManager:
         self.bindings[task_id] = updated
         self._record_lifecycle(updated, "LOST", occurred_at=None)
 
+    @_release_ownership_after
     async def close(self, task_id: str) -> bool:
         binding = self.binding(task_id)
         store = self.binding_store
@@ -645,6 +762,7 @@ class ProjectSandboxManager:
         self._record_lifecycle(updated, updated.state, occurred_at=None)
         return result.ok
 
+    @_release_ownership_after
     async def cancel(self, task_id: str) -> None:
         binding = self.binding(task_id)
         store = self.binding_store
