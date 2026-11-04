@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from anycode.identity.context import ExecutionContext
 from anycode.sandbox import SandboxHandle, SandboxProvider
@@ -70,67 +68,6 @@ if TYPE_CHECKING:
     from atlasos.trajectory.recorder import TrajectoryRecorder
 
 
-def _owned_workload(
-    method: Callable[..., Awaitable[Any]],
-) -> Callable[..., Awaitable[Any]]:
-    """Acquire the Host-local workload lock before the method and keep it on success."""
-
-    @wraps(method)
-    async def wrapped(self, *args: Any, **kwargs: Any) -> Any:
-        task_id = kwargs.get("task_id")
-        if not isinstance(task_id, str):
-            raise SandboxOwnershipError("ownership-guarded operation requires task_id")
-        self._acquire_ownership(task_id)
-        try:
-            return await method(self, *args, **kwargs)
-        except BaseException:
-            self.release_ownership(task_id)
-            raise
-
-    return wrapped
-
-
-def _release_ownership_after(
-    method: Callable[..., Awaitable[Any]],
-) -> Callable[..., Awaitable[Any]]:
-    """Run a terminal provider operation under a held lock and release it afterward."""
-
-    @wraps(method)
-    async def wrapped(self, *args: Any, **kwargs: Any) -> Any:
-        task_id = kwargs.get("task_id")
-        if task_id is None and args:
-            task_id = args[0]
-        if not isinstance(task_id, str):
-            raise SandboxOwnershipError("ownership-guarded operation requires task_id")
-        self.require_ownership(task_id)
-        try:
-            return await method(self, *args, **kwargs)
-        finally:
-            self.release_ownership(task_id)
-
-    return wrapped
-
-
-def _release_ownership_if_held(
-    method: Callable[..., Awaitable[Any]],
-) -> Callable[..., Awaitable[Any]]:
-    """Release any local ownership after a non-provider lifecycle update such as mark_lost."""
-
-    @wraps(method)
-    async def wrapped(self, *args: Any, **kwargs: Any) -> Any:
-        task_id = kwargs.get("task_id")
-        if task_id is None and args:
-            task_id = args[0]
-        if not isinstance(task_id, str):
-            raise SandboxOwnershipError("ownership-guarded operation requires task_id")
-        try:
-            return await method(self, *args, **kwargs)
-        finally:
-            self.release_ownership(task_id)
-
-    return wrapped
-
-
 class ProjectSandboxManager:
     def __init__(
         self,
@@ -161,7 +98,13 @@ class ProjectSandboxManager:
         self._ownership: dict[str, WorkloadOwnershipLock] = {}
         # Runtime-local live-handle cache, never the durable M5 authority.
         self.bindings: dict[str, ProjectSandboxBinding] = {}
+        # Manager-wide per-workload gate. All lifecycle, ownership-release, and provider
+        # operations for one workload pass through this gate.
         self._task_locks: dict[str, asyncio.Lock] = {}
+        # The create/recover critical section remains separately serialized; it is never
+        # entered before the manager-wide gate.
+        self._inner_task_locks: dict[str, asyncio.Lock] = {}
+        self._uncertain_operations: set[str] = set()
         self.config_digest = compute_sandbox_config_digest(config)
         self.create_count = 0
         self.destroy_count = 0
@@ -169,13 +112,15 @@ class ProjectSandboxManager:
         self.provision_commands = 0
         self.provision_uploads = 0
 
-    def _acquire_ownership(self, task_id: str) -> WorkloadOwnershipLock | None:
+    def _owned_locked(self, task_id: str) -> bool:
+        """Return whether this caller newly acquired the OS lock under the gate."""
+
         if self.ownership_root is None:
-            return None
+            return False
         existing = self._ownership.get(task_id)
         if existing is not None:
             existing.assert_held()
-            return existing
+            return False
         lock = WorkloadOwnershipLock(
             self.ownership_root,
             run_id=self.run_id,
@@ -183,7 +128,11 @@ class ProjectSandboxManager:
         )
         lock.acquire()
         self._ownership[task_id] = lock
-        return lock
+        return True
+
+    def _has_ownership(self, task_id: str) -> bool:
+        lock = self._ownership.get(task_id)
+        return lock is not None and lock.held
 
     def require_ownership(self, task_id: str) -> None:
         if self.ownership_root is None:
@@ -195,10 +144,48 @@ class ProjectSandboxManager:
             )
         lock.assert_held()
 
-    def release_ownership(self, task_id: str) -> None:
+    def _release_ownership_locked(self, task_id: str) -> None:
         lock = self._ownership.pop(task_id, None)
         if lock is not None:
             lock.release()
+
+    async def release_ownership(self, task_id: str) -> None:
+        """Wait for in-flight operations, then release the workload's OS lock."""
+
+        async with self._operation_gate(task_id):
+            if task_id in self._uncertain_operations:
+                raise SandboxOwnershipError(
+                    f"cannot release ownership for workload {self.run_id!r}/{task_id!r}: "
+                    "a provider operation outcome is uncertain; resolve with close or mark_lost"
+                )
+            self._release_ownership_locked(task_id)
+
+    @contextlib.asynccontextmanager
+    async def _operation_gate(self, task_id: str):
+        gate = self._task_locks.setdefault(task_id, asyncio.Lock())
+        async with gate:
+            yield
+
+    @contextlib.asynccontextmanager
+    async def operation_gate(self, task_id: str):
+        """Gate a provider operation and re-confirm ownership inside the gate."""
+
+        async with self._operation_gate(task_id):
+            self.require_ownership(task_id)
+            if task_id in self._uncertain_operations:
+                raise SandboxOwnershipError(
+                    f"provider operation outcome for workload {self.run_id!r}/{task_id!r} "
+                    "is uncertain; refusing another provider operation"
+                )
+            yield
+
+    def mark_provider_uncertain(self, task_id: str) -> None:
+        """Record that a canceled provider call left the remote side effect unconfirmed."""
+
+        self._uncertain_operations.add(task_id)
+
+    def _resolve_uncertain(self, task_id: str) -> None:
+        self._uncertain_operations.discard(task_id)
 
     def _durable(self, task_id: str) -> DurableSandboxBindingRecord | None:
         if self.binding_store is None:
@@ -254,7 +241,6 @@ class ProjectSandboxManager:
                 "runtime/durable sandbox binding mismatch: " + ", ".join(mismatches)
             )
 
-    @_owned_workload
     async def ensure_binding(
         self,
         *,
@@ -263,7 +249,42 @@ class ProjectSandboxManager:
         context: ExecutionContext,
         worker_id: str | None = None,
     ) -> ProjectSandboxBinding:
-        lock = self._task_locks.setdefault(task_id, asyncio.Lock())
+        async with self._operation_gate(task_id):
+            acquired_here = self._owned_locked(task_id)
+            if task_id in self._uncertain_operations:
+                if acquired_here:
+                    self._release_ownership_locked(task_id)
+                raise SandboxOwnershipError(
+                    f"provider operation outcome for workload {self.run_id!r}/{task_id!r} "
+                    "is uncertain; refusing another create"
+                )
+            try:
+                return await self._ensure_binding_impl(
+                    task_id=task_id,
+                    source_repo=source_repo,
+                    context=context,
+                    worker_id=worker_id,
+                )
+            except asyncio.CancelledError:
+                # A canceled provider operation is not proof that the remote side effect
+                # stopped. Keep ownership and poison further provider operations.
+                if self.ownership_root is not None:
+                    self.mark_provider_uncertain(task_id)
+                raise
+            except BaseException:
+                if acquired_here:
+                    self._release_ownership_locked(task_id)
+                raise
+
+    async def _ensure_binding_impl(
+        self,
+        *,
+        task_id: str,
+        source_repo: str,
+        context: ExecutionContext,
+        worker_id: str | None = None,
+    ) -> ProjectSandboxBinding:
+        lock = self._inner_task_locks.setdefault(task_id, asyncio.Lock())
         async with lock:
             durable = self._durable(task_id)
             if durable is not None:
@@ -407,7 +428,6 @@ class ProjectSandboxManager:
             self._record_lifecycle(binding, "READY", occurred_at=binding.created_at)
             return binding
 
-    @_owned_workload
     async def reattach_verified(
         self,
         *,
@@ -419,7 +439,36 @@ class ProjectSandboxManager:
         This is explicit. ``ensure_binding`` never calls it automatically.
         """
 
-        lock = self._task_locks.setdefault(task_id, asyncio.Lock())
+        async with self._operation_gate(task_id):
+            acquired_here = self._owned_locked(task_id)
+            if task_id in self._uncertain_operations:
+                if acquired_here:
+                    self._release_ownership_locked(task_id)
+                raise SandboxOwnershipError(
+                    f"provider operation outcome for workload {self.run_id!r}/{task_id!r} "
+                    "is uncertain; refusing reattachment"
+                )
+            try:
+                return await self._reattach_verified_impl(
+                    task_id=task_id,
+                    context=context,
+                )
+            except asyncio.CancelledError:
+                if self.ownership_root is not None:
+                    self.mark_provider_uncertain(task_id)
+                raise
+            except BaseException:
+                if acquired_here:
+                    self._release_ownership_locked(task_id)
+                raise
+
+    async def _reattach_verified_impl(
+        self,
+        *,
+        task_id: str,
+        context: ExecutionContext,
+    ) -> ProjectSandboxBinding:
+        lock = self._inner_task_locks.setdefault(task_id, asyncio.Lock())
         async with lock:
             store = self.binding_store
             if store is None:
@@ -667,6 +716,11 @@ class ProjectSandboxManager:
     def require_ready(self, task_id: str) -> ProjectSandboxBinding:
         binding = self.binding(task_id)
         self.require_ownership(task_id)
+        if task_id in self._uncertain_operations:
+            raise SandboxOwnershipError(
+                f"provider operation outcome for workload {self.run_id!r}/{task_id!r} "
+                "is uncertain; failing closed"
+            )
         durable = self._require_durable(task_id) if self.binding_store is not None else None
         if durable is not None:
             if durable.state == "LOST":
@@ -690,8 +744,17 @@ class ProjectSandboxManager:
             return compute_sandbox_continuity_digest(self._require_durable(task_id))
         return compute_sandbox_continuity_digest(binding)
 
-    @_release_ownership_if_held
     async def mark_lost(self, task_id: str) -> None:
+        async with self._operation_gate(task_id):
+            if self.ownership_root is not None and not self._has_ownership(task_id):
+                return
+            try:
+                await self._mark_lost_impl(task_id)
+            finally:
+                self._resolve_uncertain(task_id)
+                self._release_ownership_locked(task_id)
+
+    async def _mark_lost_impl(self, task_id: str) -> None:
         runtime = self.bindings.get(task_id)
         store = self.binding_store
         durable = self._durable(task_id)
@@ -720,8 +783,23 @@ class ProjectSandboxManager:
         self.bindings[task_id] = updated
         self._record_lifecycle(updated, "LOST", occurred_at=None)
 
-    @_release_ownership_after
     async def close(self, task_id: str) -> bool:
+        async with self._operation_gate(task_id):
+            self.require_ownership(task_id)
+            try:
+                result = await self._close_impl(task_id)
+            except asyncio.CancelledError:
+                if self.ownership_root is not None:
+                    self.mark_provider_uncertain(task_id)
+                raise
+            except BaseException:
+                self._release_ownership_locked(task_id)
+                raise
+            self._resolve_uncertain(task_id)
+            self._release_ownership_locked(task_id)
+            return result
+
+    async def _close_impl(self, task_id: str) -> bool:
         binding = self.binding(task_id)
         store = self.binding_store
         durable = self._durable(task_id)
@@ -762,8 +840,22 @@ class ProjectSandboxManager:
         self._record_lifecycle(updated, updated.state, occurred_at=None)
         return result.ok
 
-    @_release_ownership_after
     async def cancel(self, task_id: str) -> None:
+        async with self._operation_gate(task_id):
+            self.require_ownership(task_id)
+            try:
+                await self._cancel_impl(task_id)
+            except asyncio.CancelledError:
+                if self.ownership_root is not None:
+                    self.mark_provider_uncertain(task_id)
+                raise
+            except BaseException:
+                self._release_ownership_locked(task_id)
+                raise
+            self._resolve_uncertain(task_id)
+            self._release_ownership_locked(task_id)
+
+    async def _cancel_impl(self, task_id: str) -> None:
         binding = self.binding(task_id)
         store = self.binding_store
         durable = self._durable(task_id)
@@ -776,12 +868,12 @@ class ProjectSandboxManager:
         try:
             result = await self.provider.cancel(binding.sandbox_handle)
         except Exception as error:
-            await self.mark_lost(task_id)
+            await self._mark_lost_impl(task_id)
             raise SandboxProviderError(
                 f"provider cancel failed; sandbox state is unknown: {error}"
             ) from error
         if not result.ok:
-            await self.mark_lost(task_id)
+            await self._mark_lost_impl(task_id)
             raise SandboxProviderError(
                 f"provider cancel failed; sandbox state is unknown: {result.error}"
             )

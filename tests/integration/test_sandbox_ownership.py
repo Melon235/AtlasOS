@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import subprocess
 import sys
@@ -9,6 +10,7 @@ import time
 from pathlib import Path
 
 import pytest
+from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
 from tests.integration.test_project_sandbox import (
     context,
     exec_context,
@@ -20,7 +22,9 @@ from atlasos.sandbox import (
     ProjectSandboxManager,
     SandboxLostError,
     SandboxOwnershipBusy,
+    SandboxOwnershipError,
     SandboxProjectConfig,
+    SandboxWorkspaceTools,
     SQLiteSandboxBindingStore,
     WorkloadOwnershipLock,
     workload_lock_identity,
@@ -84,6 +88,95 @@ def _spawn_holder(
 def _stop_holder(process: subprocess.Popen[bytes], stop: Path) -> None:
     stop.write_text("stop", encoding="utf-8")
     process.wait(timeout=20)
+
+
+_ATTEMPT_SCRIPT = """
+import sys
+from atlasos.sandbox.ownership import SandboxOwnershipBusy, WorkloadOwnershipLock
+
+lock = WorkloadOwnershipLock(
+    sys.argv[1],
+    run_id=sys.argv[2],
+    task_id=sys.argv[3],
+)
+try:
+    lock.acquire()
+except SandboxOwnershipBusy:
+    sys.exit(2)
+lock.release()
+"""
+
+
+def _attempt_lock_in_process(root: Path, *, run_id: str, task_id: str) -> bool:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(ROOT / "src"), str(ROOT), env.get("PYTHONPATH", "")]
+    ).rstrip(os.pathsep)
+    result = subprocess.run(
+        [sys.executable, "-c", _ATTEMPT_SCRIPT, str(root), run_id, task_id],
+        cwd=str(ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode == 0:
+        return True
+    if result.returncode == 2:
+        return False
+    raise AssertionError(f"lock-attempt process failed: {result.returncode} {result.stderr}")
+
+
+class GatedCreateProvider(FakeSandboxProvider):
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self.create_entered = asyncio.Event()
+        self.create_release = asyncio.Event()
+        self.fail_first_create = False
+        self.create_calls = 0
+
+    async def create(self, spec):
+        self.create_calls += 1
+        self.create_entered.set()
+        await self.create_release.wait()
+        if self.fail_first_create:
+            self.fail_first_create = False
+            raise RuntimeError("injected create failure")
+        return await super().create(spec)
+
+
+class GatedWriteProvider(FakeSandboxProvider):
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self.write_entered = asyncio.Event()
+        self.write_release = asyncio.Event()
+        self.write_started = 0
+        self.write_active = 0
+        self.write_max_active = 0
+
+    async def create(self, spec):
+        return await super().create(spec)
+
+    async def write_file(self, handle, path, data):
+        if not path.startswith("/workspace/project"):
+            return await super().write_file(handle, path, data)
+        self.write_started += 1
+        self.write_active += 1
+        self.write_max_active = max(self.write_max_active, self.write_active)
+        self.write_entered.set()
+        try:
+            await self.write_release.wait()
+            return await super().write_file(handle, path, data)
+        finally:
+            self.write_active -= 1
+
+
+def _file_write_input(path: str, content: str):
+    return type("V", (), {"path": path, "content": content})()
+
+
+def _file_read_input(path: str):
+    return type("V", (), {"path": path, "offset": None, "limit": None})()
 
 
 def test_lock_identity_is_path_safe() -> None:
@@ -192,7 +285,7 @@ async def test_c6_released_ownership_blocks_stale_runtime_cache(tmp_path: Path) 
         tmp_path, binding_store=store
     )
     del repo, binding, runtime
-    manager.release_ownership("task-m5")
+    await manager.release_ownership("task-m5")
     before_reads = provider.read_calls
     result = await tools.file_read(
         type("V", (), {"path": "/workspace/project/app.py", "offset": None, "limit": None})(),
@@ -210,7 +303,7 @@ async def test_c8_new_owner_uses_verified_reattachment(tmp_path: Path) -> None:
         tmp_path, binding_store=store
     )
     del repo, tools, runtime
-    manager.release_ownership("task-m5")
+    await manager.release_ownership("task-m5")
     manager_b = ProjectSandboxManager(
         provider,
         manager.config,
@@ -255,6 +348,272 @@ async def test_c7_terminal_durable_cannot_be_revived_by_new_owner(tmp_path: Path
     assert durable.state == "LOST"
 
 
+def _manager_for(
+    tmp_path: Path, provider: FakeSandboxProvider, db_path: Path | None = None
+) -> ProjectSandboxManager:
+    return ProjectSandboxManager(
+        provider,
+        SandboxProjectConfig(provider_name="fake", image="fake@sha256:0123456789abcdef"),
+        run_id="run-m5",
+        binding_store=SQLiteSandboxBindingStore(db_path or (tmp_path / "sandbox_bindings.db")),
+        ownership_root=tmp_path,
+    )
+
+
+async def test_t1_cancel_waiting_coroutine_does_not_release_ownership(
+    tmp_path: Path,
+) -> None:
+    repo = make_repo(tmp_path)
+    provider = GatedCreateProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    first = asyncio.create_task(
+        manager.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    )
+    await provider.create_entered.wait()
+    second = asyncio.create_task(
+        manager.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    )
+    await asyncio.sleep(0)
+    second.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await second
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is False
+    provider.create_release.set()
+    binding = await first
+    assert binding.state == "READY"
+    assert provider.create_count == 1
+    assert await manager.close("task-m5") is True
+
+
+async def test_t2_failed_creator_releases_and_waiting_successor_acquires(
+    tmp_path: Path,
+) -> None:
+    repo = make_repo(tmp_path)
+    db_path = tmp_path / "sandbox_bindings.db"
+    provider = GatedCreateProvider(tmp_path / "provider")
+    provider.fail_first_create = True
+    manager_a = _manager_for(tmp_path, provider, db_path)
+    manager_b = manager_a
+    first = asyncio.create_task(
+        manager_a.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    )
+    await provider.create_entered.wait()
+    second = asyncio.create_task(
+        manager_b.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    )
+    await asyncio.sleep(0)
+    provider.create_release.set()
+    with pytest.raises(RuntimeError, match="injected"):
+        await first
+    binding = await second
+    assert binding.state == "READY"
+    assert provider.create_count == 1
+    assert provider.create_calls == 2
+    store = SQLiteSandboxBindingStore(db_path)
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.sandbox_id == binding.sandbox_handle.id
+    assert await manager_b.close("task-m5") is True
+
+
+async def test_t3_release_waits_for_inflight_write_and_process_gate(
+    tmp_path: Path,
+) -> None:
+    repo = make_repo(tmp_path)
+    provider = GatedWriteProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    binding = await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    tools = SandboxWorkspaceTools(manager, "task-m5", provider)
+    write = asyncio.create_task(
+        tools.file_write(_file_write_input("/workspace/project/t3.txt", "t3"), context())
+    )
+    await provider.write_entered.wait()
+    release = asyncio.create_task(manager.release_ownership("task-m5"))
+    await asyncio.sleep(0)
+    assert release.done() is False
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is False
+    provider.write_release.set()
+    result = await write
+    assert result.is_error is False
+    await release
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is True
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is True
+    assert binding.state == "READY"
+
+
+async def test_t4_two_tools_instances_share_manager_gate(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    provider = GatedWriteProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    first_tools = SandboxWorkspaceTools(manager, "task-m5", provider)
+    second_tools = SandboxWorkspaceTools(manager, "task-m5", provider)
+    first = asyncio.create_task(
+        first_tools.file_write(_file_write_input("/workspace/project/t4-a.txt", "a"), context())
+    )
+    await provider.write_entered.wait()
+    second = asyncio.create_task(
+        second_tools.file_write(_file_write_input("/workspace/project/t4-b.txt", "b"), context())
+    )
+    await asyncio.sleep(0)
+    assert provider.write_started == 1
+    assert second.done() is False
+    provider.write_release.set()
+    assert (await first).is_error is False
+    assert (await second).is_error is False
+    assert provider.write_max_active == 1
+    assert await manager.close("task-m5") is True
+
+
+async def test_t5_canceled_provider_operation_fails_closed(tmp_path: Path) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo = make_repo(tmp_path)
+    provider = GatedWriteProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    binding = await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    tools = SandboxWorkspaceTools(manager, "task-m5", provider)
+    write = asyncio.create_task(
+        tools.file_write(_file_write_input("/workspace/project/t5.txt", "x"), context())
+    )
+    await provider.write_entered.wait()
+    write.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await write
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        manager.require_ready("task-m5")
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        await manager.release_ownership("task-m5")
+    await manager.mark_lost("task-m5")
+    durable = store.get(binding.binding_id)
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert provider.create_count == 1
+
+
+async def test_t5_cancel_waits_for_inflight_provider_operation(
+    tmp_path: Path,
+) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo = make_repo(tmp_path)
+    provider = GatedWriteProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    binding = await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    tools = SandboxWorkspaceTools(manager, "task-m5", provider)
+    write = asyncio.create_task(
+        tools.file_write(_file_write_input("/workspace/project/t5-cancel.txt", "x"), context())
+    )
+    await provider.write_entered.wait()
+    cancel = asyncio.create_task(manager.cancel("task-m5"))
+    await asyncio.sleep(0)
+    assert cancel.done() is False
+    provider.write_release.set()
+    assert (await write).is_error is False
+    await cancel
+    durable = store.get(binding.binding_id)
+    assert durable is not None
+    assert durable.state == "CLOSED"
+    assert provider.create_count == 1
+
+
+async def test_t5_mark_lost_waits_for_inflight_provider_operation(
+    tmp_path: Path,
+) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo = make_repo(tmp_path)
+    provider = GatedWriteProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    binding = await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    tools = SandboxWorkspaceTools(manager, "task-m5", provider)
+    write = asyncio.create_task(
+        tools.file_write(_file_write_input("/workspace/project/t5-lost.txt", "x"), context())
+    )
+    await provider.write_entered.wait()
+    lost = asyncio.create_task(manager.mark_lost("task-m5"))
+    await asyncio.sleep(0)
+    assert lost.done() is False
+    provider.write_release.set()
+    assert (await write).is_error is False
+    await lost
+    durable = store.get(binding.binding_id)
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert provider.create_count == 1
+
+
+async def test_t5_close_waits_for_inflight_provider_operation(tmp_path: Path) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo = make_repo(tmp_path)
+    provider = GatedWriteProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    tools = SandboxWorkspaceTools(manager, "task-m5", provider)
+    write = asyncio.create_task(
+        tools.file_write(_file_write_input("/workspace/project/t5-close.txt", "x"), context())
+    )
+    await provider.write_entered.wait()
+    close = asyncio.create_task(manager.close("task-m5"))
+    await asyncio.sleep(0)
+    assert close.done() is False
+    provider.write_release.set()
+    result = await write
+    assert result.is_error is False
+    assert await close is True
+    assert provider.destroy_count == 1
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "CLOSED"
+
+
 async def test_c10_network_policy_failure_keeps_ownership_from_enabling_runtime(
     tmp_path: Path,
 ) -> None:
@@ -266,7 +625,7 @@ async def test_c10_network_policy_failure_keeps_ownership_from_enabling_runtime(
         tmp_path, binding_store=store
     )
     del repo, tools, runtime
-    manager.release_ownership("task-m5")
+    await manager.release_ownership("task-m5")
     provider.network_policies[binding.sandbox_handle.id] = {
         "default_action": "deny",
         "egress": [{"action": "allow", "target": "example.com"}],

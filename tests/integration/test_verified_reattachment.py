@@ -32,9 +32,9 @@ from atlasos.sandbox import (
 )
 
 
-def _manager_b(provider, manager, db_path: Path, *, config=None) -> ProjectSandboxManager:
+async def _manager_b(provider, manager, db_path: Path, *, config=None) -> ProjectSandboxManager:
     # Simulate the source process releasing ownership before a restarted manager can recover.
-    manager.release_ownership("task-m5")
+    await manager.release_ownership("task-m5")
     return ProjectSandboxManager(
         provider,
         config or manager.config,
@@ -58,7 +58,7 @@ async def test_b1_verified_reattachment_success(tmp_path: Path) -> None:
         context(),
     )
     before_policy_reads = provider.network_policy_read_calls
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     reattached = await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     assert reattached.binding_id == binding.binding_id
     assert reattached.sandbox_handle.id == binding.sandbox_handle.id
@@ -97,7 +97,7 @@ async def test_b1a_allow_egress_blocks_reattachment_binding(tmp_path: Path) -> N
         "default_action": "deny",
         "egress": [{"action": "allow", "target": "example.com"}],
     }
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxNetworkPolicyViolation, match="non-deny"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get(binding.binding_id)
@@ -120,7 +120,7 @@ async def test_b1b_default_allow_blocks_reattachment_binding(tmp_path: Path) -> 
         "default_action": "allow",
         "egress": [],
     }
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxNetworkPolicyViolation, match="default action"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get(binding.binding_id)
@@ -139,7 +139,7 @@ async def test_b1c_network_policy_read_failure_fails_closed(tmp_path: Path) -> N
     )
     del repo, tools, runtime
     provider.network_policy_error = SandboxNetworkPolicyUnavailable("policy read unavailable")
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxNetworkPolicyUnavailable, match="unavailable"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get(binding.binding_id)
@@ -159,7 +159,7 @@ async def test_b2_lost_never_reattaches(tmp_path: Path) -> None:
     )
     del repo, tools, runtime
     await manager.mark_lost("task-m5")
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     before_inspect = provider.inspect_calls
     with pytest.raises(SandboxLostError, match="LOST"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
@@ -179,7 +179,7 @@ async def test_b3_closed_never_reattaches(tmp_path: Path) -> None:
     )
     del repo, binding, tools, runtime
     await manager.close("task-m5")
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxBindingError, match="CLOSED"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     assert provider.attach_calls == 0
@@ -196,7 +196,7 @@ async def test_b4_control_plane_mismatch_never_inspects_or_attaches(
     )
     del repo, binding, tools, runtime
     provider.control_plane_digest = "sha256:other-control-plane"
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     before_inspect = provider.inspect_calls
     with pytest.raises(SandboxContinuityMismatch, match="control-plane"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
@@ -216,7 +216,7 @@ async def test_b5_config_mismatch_never_inspects_or_attaches(tmp_path: Path) -> 
     )
     del repo, binding, tools, runtime
     different = manager.config.model_copy(update={"image": "fake@sha256:different"})
-    manager_b = _manager_b(provider, manager, db_path, config=different)
+    manager_b = await _manager_b(provider, manager, db_path, config=different)
     before_inspect = provider.inspect_calls
     with pytest.raises(SandboxConfigMismatch, match="config"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
@@ -233,7 +233,7 @@ async def test_b6_metadata_mismatch_never_attaches(tmp_path: Path) -> None:
     )
     del repo, tools, runtime
     provider.remote_metadata[binding.sandbox_handle.id]["atlas.run_id"] = "other-run"
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxMetadataMismatch, match="metadata"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     assert provider.attach_calls == 0
@@ -252,7 +252,7 @@ async def test_b7_created_at_mismatch_never_attaches(tmp_path: Path) -> None:
     del repo, tools, runtime
     sid = binding.sandbox_handle.id
     provider.remote_created_at[sid] = provider.remote_created_at[sid] + timedelta(seconds=1)
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxCreatedAtMismatch, match="created_at"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     assert provider.attach_calls == 0
@@ -270,7 +270,7 @@ async def test_b8a_terminal_provider_state_marks_durable_lost(tmp_path: Path) ->
     )
     del repo, tools, runtime
     provider.remote_state[binding.sandbox_handle.id] = "TERMINATED"
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxLostError, match="LOST"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get(binding.binding_id)
@@ -288,7 +288,7 @@ async def test_b8b_non_attachable_state_preserves_durable_ready(tmp_path: Path) 
     )
     del repo, tools, runtime
     provider.remote_state[binding.sandbox_handle.id] = "PAUSED"
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxRemoteNotAttachable, match="PAUSED"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get(binding.binding_id)
@@ -307,7 +307,7 @@ async def test_b8_remote_not_found_marks_durable_lost(tmp_path: Path) -> None:
     del repo, tools, runtime
     sid = binding.sandbox_handle.id
     provider.remote_state.pop(sid)
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxLostError, match="missing"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get(binding.binding_id)
@@ -326,7 +326,7 @@ async def test_b9_provider_unavailable_keeps_durable_ready(tmp_path: Path) -> No
     )
     del repo, tools, runtime
     provider.inspect_error = SandboxProviderUnavailable("temporary control-plane outage")
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxProviderUnavailable, match="outage"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get(binding.binding_id)
@@ -346,7 +346,7 @@ async def test_b10_attach_failure_keeps_durable_ready(tmp_path: Path) -> None:
     )
     del repo, binding, tools, runtime
     provider.attach_error = SandboxAttachFailed("transient connect failure")
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     with pytest.raises(SandboxAttachFailed, match="transient"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     durable = store.get_for_task("run-m5", "task-m5")
@@ -375,7 +375,7 @@ async def test_b11_legacy_binding_without_evidence_fails_closed(tmp_path: Path) 
     )
     legacy_store = SQLiteSandboxBindingStore(db_path)
     legacy_store.create(legacy)
-    manager_b = _manager_b(provider, manager, db_path)
+    manager_b = await _manager_b(provider, manager, db_path)
     before_inspect = provider.inspect_calls
     with pytest.raises(SandboxLegacyContinuityUnavailable, match="continuity"):
         await manager_b.reattach_verified(task_id="task-m5", context=exec_context())

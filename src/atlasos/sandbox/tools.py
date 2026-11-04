@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import posixpath
 import shlex
 
@@ -123,18 +124,31 @@ class SandboxWorkspaceTools:
         workspace = self._binding().workspace_root
         return posixpath.relpath(logical, workspace)
 
+    @contextlib.asynccontextmanager
+    async def _provider_scope(self):
+        """Hold the manager-wide gate and the per-tools lock for a provider operation."""
+
+        # Tools lock is outer so existing stale-binding race tests can hold it while a lifecycle
+        # transition takes the manager gate; the provider call itself still holds both.
+        async with self.lock, self.manager.operation_gate(self.task_id):
+            try:
+                yield
+            except asyncio.CancelledError:
+                self.manager.mark_provider_uncertain(self.task_id)
+                raise
+
     async def _execute(self, command: str, *, cwd: str, timeout_seconds: int = 60):
         self.command_count += 1
-        async with self.lock:
-            binding = self._binding()
-            try:
+        try:
+            async with self._provider_scope():
+                binding = self._binding()
                 result = await self.provider.execute(
                     binding.sandbox_handle,
                     SandboxCommand(command=command, cwd=cwd, timeout_seconds=timeout_seconds),
                 )
-            except SandboxLostError:
-                await self.manager.mark_lost(self.task_id)
-                raise
+        except SandboxLostError:
+            await self.manager.mark_lost(self.task_id)
+            raise
         return result
 
     async def file_read(self, validated, context: ToolUseContext) -> ToolResult:
@@ -143,7 +157,7 @@ class SandboxWorkspaceTools:
         self.file_read_count += 1
         try:
             logical = self._logical(validated.path)
-            async with self.lock:
+            async with self._provider_scope():
                 binding = self._binding()
                 result = await self.provider.read_file(binding.sandbox_handle, logical)
             if not result.ok or result.data is None:
@@ -181,7 +195,7 @@ class SandboxWorkspaceTools:
         self.file_write_count += 1
         try:
             logical = self._logical(validated.path)
-            async with self.lock:
+            async with self._provider_scope():
                 binding = self._binding()
                 existed_result = await self.provider.read_file(binding.sandbox_handle, logical)
                 existed = existed_result.ok
@@ -234,7 +248,7 @@ class SandboxWorkspaceTools:
         self.file_edit_count += 1
         try:
             logical = self._logical(validated.path)
-            async with self.lock:
+            async with self._provider_scope():
                 binding = self._binding()
                 read = await self.provider.read_file(binding.sandbox_handle, logical)
                 if not read.ok or read.data is None:

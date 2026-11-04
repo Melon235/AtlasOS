@@ -885,7 +885,7 @@ async def test_m5_durable_binding_survives_manager_recreation(tmp_path: Path) ->
     assert recreated.revision == 1
 
     before_inspect = provider.inspect_calls
-    manager.release_ownership("task-m5")
+    await manager.release_ownership("task-m5")
     manager_b = ProjectSandboxManager(
         provider,
         manager.config,

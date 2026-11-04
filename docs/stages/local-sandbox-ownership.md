@@ -77,8 +77,25 @@ provider control plane, or provider sandbox. Workspace tools call `require_ready
 that this process still holds ownership before any provider operation. Releasing ownership while a
 READY runtime cache remains causes later tool operations to fail closed without provider access.
 
-The existing `asyncio.Lock` remains the in-process operation serializer. The OS lock and the asyncio
-lock are complementary; neither replaces the other.
+The manager-wide per-workload async gate is entered **before** OS ownership is acquired or confirmed.
+`ensure_binding`, `reattach_verified`, `mark_lost`, `close`, `cancel`, explicit ownership release,
+and every provider operation from `SandboxWorkspaceTools` pass through that gate.
+
+`release_ownership()` waits for the gate, so a release cannot complete while a provider call is still
+in flight. The OS ownership lock remains held across individual tool calls; it is not released at the
+end of each call.
+
+If a coroutine is canceled while waiting for the gate, it has not acquired or released OS ownership
+and cannot affect the active owner. If a provider call is canceled after it starts, Atlas does not
+assume the remote side effect stopped. The local ownership remains held and the workload is marked
+in-process **provider-operation-uncertain**; further provider operations and explicit release fail
+closed until `mark_lost` or `close` resolves the workload. This uncertainty marker is not a durable
+M5 lifecycle state.
+
+The uncertainty marker is process-local. If the owning process dies while a remote side effect is
+still uncertain, the OS releases the lock and a later process can attempt verified reattachment; no
+provider API can prove that the earlier in-flight operation has finished. That is an explicit
+fail-closed boundary of this Stage, not a claim of distributed or remote-fencing correctness.
 
 ## Failure classification
 

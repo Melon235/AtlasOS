@@ -74,9 +74,8 @@ class WorkloadOwnershipLock:
     def held(self) -> bool:
         return self._fd is not None
 
-    def acquire(self, *, timeout_seconds: float = 0.0) -> WorkloadOwnershipLock:
-        if self._fd is not None:
-            return self
+    def _open_fd(self) -> int:
+        fd: int | None = None
         try:
             self.state_root.mkdir(parents=True, exist_ok=True)
             fd = os.open(
@@ -84,16 +83,24 @@ class WorkloadOwnershipLock:
                 os.O_RDWR | os.O_CREAT,
                 0o600,
             )
-        except OSError as error:
-            raise SandboxOwnershipUnavailable(
-                f"cannot open local workload lock {self.lock_path}: {error}"
-            ) from error
-
-        try:
             if os.fstat(fd).st_size == 0:
                 os.write(fd, b"\0")
                 os.fsync(fd)
             os.lseek(fd, 0, os.SEEK_SET)
+            return fd
+        except OSError as error:
+            if fd is not None:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
+            raise SandboxOwnershipUnavailable(
+                f"cannot open local workload lock {self.lock_path}: {error}"
+            ) from error
+
+    def acquire(self, *, timeout_seconds: float = 0.0) -> WorkloadOwnershipLock:
+        if self._fd is not None:
+            return self
+        fd = self._open_fd()
+        try:
             deadline = time.monotonic() + max(0.0, timeout_seconds)
             while True:
                 if self._try_lock(fd):
@@ -103,9 +110,15 @@ class WorkloadOwnershipLock:
                     raise SandboxOwnershipBusy(
                         f"workload {self.run_id!r}/{self.task_id!r} is owned by another process"
                     )
+                # Reopen between attempts. On Windows a descriptor that observed a
+                # conflicting byte-range lock can remain unusable for a retry even after
+                # the previous owner closes its descriptor.
+                os.close(fd)
                 time.sleep(min(self.poll_interval_seconds, max(0.0, deadline - time.monotonic())))
+                fd = self._open_fd()
         except BaseException:
-            os.close(fd)
+            with contextlib.suppress(OSError):
+                os.close(fd)
             raise
 
     def _try_lock(self, fd: int) -> bool:
