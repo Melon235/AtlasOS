@@ -81,6 +81,18 @@ class SandboxAttachFailed(SandboxReattachmentError):
     """Verification passed, but the provider could not establish a local connection."""
 
 
+class SandboxNetworkPolicyError(SandboxBindingError):
+    pass
+
+
+class SandboxNetworkPolicyUnavailable(SandboxNetworkPolicyError):
+    """The effective network policy could not be read or proved."""
+
+
+class SandboxNetworkPolicyViolation(SandboxNetworkPolicyError):
+    """The effective network policy does not satisfy Atlas network=none."""
+
+
 @runtime_checkable
 class SandboxReattachmentProvider(Protocol):
     def continuity_identity_digest(self) -> str: ...
@@ -90,6 +102,8 @@ class SandboxReattachmentProvider(Protocol):
     async def attach_existing(self, sandbox_id: str) -> None: ...
 
     async def detach_local(self, sandbox_id: str) -> None: ...
+
+    async def verify_network_none(self, sandbox_id: str) -> None: ...
 
 
 def normalize_remote_state(value: str) -> str:
@@ -159,6 +173,9 @@ __all__ = [
     "SandboxCreatedAtMismatch",
     "SandboxLegacyContinuityUnavailable",
     "SandboxMetadataMismatch",
+    "SandboxNetworkPolicyError",
+    "SandboxNetworkPolicyUnavailable",
+    "SandboxNetworkPolicyViolation",
     "SandboxProviderUnavailable",
     "SandboxReattachmentError",
     "SandboxReattachmentObservation",

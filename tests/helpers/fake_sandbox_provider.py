@@ -25,6 +25,8 @@ from anycode.sandbox import (
 
 from atlasos.sandbox.models import SandboxLostError
 from atlasos.sandbox.reattachment import (
+    SandboxNetworkPolicyUnavailable,
+    SandboxNetworkPolicyViolation,
     SandboxReattachmentObservation,
     SandboxRemoteNotFound,
     atlas_metadata_digest,
@@ -77,6 +79,9 @@ class FakeSandboxProvider:
         self.detach_calls = 0
         self.inspect_error: Exception | None = None
         self.attach_error: Exception | None = None
+        self.network_policies: dict[str, dict[str, object]] = {}
+        self.network_policy_read_calls = 0
+        self.network_policy_error: Exception | None = None
         self.fail_create = False
         self.fail_clone = False
         self.fail_operations = False
@@ -164,6 +169,7 @@ class FakeSandboxProvider:
         self.remote_created_at[handle.id] = datetime.now(UTC)
         self.remote_metadata[handle.id] = metadata
         self.remote_state[handle.id] = "RUNNING"
+        self.network_policies[handle.id] = {"default_action": "deny", "egress": []}
         return SandboxCreateResult(ok=True, handle=handle)
 
     def continuity_identity_digest(self) -> str:
@@ -195,6 +201,28 @@ class FakeSandboxProvider:
     async def detach_local(self, sandbox_id: str) -> None:
         self.detach_calls += 1
         self.attached.discard(sandbox_id)
+
+    async def verify_network_none(self, sandbox_id: str) -> None:
+        self.network_policy_read_calls += 1
+        if self.network_policy_error is not None:
+            raise self.network_policy_error
+        policy = self.network_policies.get(sandbox_id)
+        if policy is None:
+            raise SandboxNetworkPolicyUnavailable(
+                f"fake network policy is unavailable for {sandbox_id!r}"
+            )
+        default_action = policy.get("default_action") or policy.get("defaultAction")
+        if default_action != "deny":
+            raise SandboxNetworkPolicyViolation(
+                f"fake sandbox {sandbox_id!r} default action is {default_action!r}"
+            )
+        rules = policy.get("egress") or []
+        for rule in rules:  # type: ignore[union-attr]
+            action = rule.get("action") if isinstance(rule, dict) else getattr(rule, "action", None)
+            if action != "deny":
+                raise SandboxNetworkPolicyViolation(
+                    f"fake sandbox {sandbox_id!r} has non-deny egress rule {action!r}"
+                )
 
     async def execute(self, handle: SandboxHandle, command: SandboxCommand) -> SandboxCommandResult:
         self.execute_calls += 1

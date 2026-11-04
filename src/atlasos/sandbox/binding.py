@@ -107,6 +107,7 @@ class ProjectSandboxManager:
             "inspect_existing",
             "attach_existing",
             "detach_local",
+            "verify_network_none",
         )
         if not all(callable(getattr(self.provider, name, None)) for name in required):
             raise SandboxReattachmentUnsupported(
@@ -230,6 +231,7 @@ class ProjectSandboxManager:
                     )
                     provider_created_at = normalize_provider_created_at(observation.created_at)
                     provider_metadata_digest = observation.metadata_digest
+                    await reattachment_provider.verify_network_none(handle.id)
 
                 binding = ProjectSandboxBinding(
                     binding_id=binding_id,
@@ -425,6 +427,7 @@ class ProjectSandboxManager:
 
             await provider.attach_existing(durable.sandbox_id)
             try:
+                await provider.verify_network_none(durable.sandbox_id)
                 binding = self._binding_from_durable(durable, context)
                 self.bindings[task_id] = binding
             except BaseException:

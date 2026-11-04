@@ -140,6 +140,31 @@ No replacement sandbox is created anywhere in the path.
 If runtime installation fails after a successful connect, the provider closes only its local client
 and leaves the durable record `READY`; the remote sandbox is not destroyed.
 
+### Network-policy verification after connect
+
+After `Sandbox.connect()` succeeds and before the M5 runtime binding is installed, Atlas reads the
+effective egress policy through the installed OpenSandbox 1.2.0 public API:
+
+```text
+Sandbox.get_egress_policy() -> NetworkPolicy
+```
+
+For `network=none`, all of the following must hold:
+
+```text
+default_action == "deny"
+no egress rule has action == "allow"
+no malformed/unknown egress rule action
+```
+
+A policy read failure, a non-deny default action, any allow rule, or an unprovable policy fails
+closed. Atlas closes only the local SDK client; the remote sandbox is not destroyed and durable
+`READY` remains unchanged.
+
+This check is a point-in-time verification. OpenSandbox policy is mutable, so it proves the observed
+effective policy at attachment time, not that the policy can never change later. Runtime ownership
+locking (Stage C) and future policy-change monitoring are separate concerns.
+
 ## Failure classification
 
 | Condition | Durable state | connect | create |

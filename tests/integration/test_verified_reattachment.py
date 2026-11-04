@@ -22,6 +22,8 @@ from atlasos.sandbox import (
     SandboxLegacyContinuityUnavailable,
     SandboxLostError,
     SandboxMetadataMismatch,
+    SandboxNetworkPolicyUnavailable,
+    SandboxNetworkPolicyViolation,
     SandboxProviderUnavailable,
     SandboxRemoteNotAttachable,
     SandboxWorkspaceTools,
@@ -53,6 +55,7 @@ async def test_b1_verified_reattachment_success(tmp_path: Path) -> None:
         type("V", (), {"path": "/workspace/project/marker.txt", "content": "preserved\n"})(),
         context(),
     )
+    before_policy_reads = provider.network_policy_read_calls
     manager_b = _manager_b(provider, manager, db_path)
     reattached = await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
     assert reattached.binding_id == binding.binding_id
@@ -63,6 +66,7 @@ async def test_b1_verified_reattachment_success(tmp_path: Path) -> None:
     assert manager_b.require_ready("task-m5") is reattached
     assert provider.create_count == 1
     assert provider.attach_calls == 1
+    assert provider.network_policy_read_calls == before_policy_reads + 1
     durable_after = store.get_for_task("run-m5", "task-m5")
     assert durable_after is not None
     assert durable_after.state == "READY"
@@ -77,6 +81,72 @@ async def test_b1_verified_reattachment_success(tmp_path: Path) -> None:
     )
     assert read.is_error is False
     assert "preserved" in str(read.data)
+
+
+async def test_b1a_allow_egress_blocks_reattachment_binding(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del repo, tools, runtime
+    sid = binding.sandbox_handle.id
+    provider.network_policies[sid] = {
+        "default_action": "deny",
+        "egress": [{"action": "allow", "target": "example.com"}],
+    }
+    manager_b = _manager_b(provider, manager, db_path)
+    with pytest.raises(SandboxNetworkPolicyViolation, match="non-deny"):
+        await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
+    durable = store.get(binding.binding_id)
+    assert durable is not None
+    assert durable.state == "READY"
+    assert durable.revision == 1
+    assert manager_b.bindings == {}
+    assert provider.attach_calls == 1
+    assert provider.create_count == 1
+
+
+async def test_b1b_default_allow_blocks_reattachment_binding(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del repo, tools, runtime
+    provider.network_policies[binding.sandbox_handle.id] = {
+        "default_action": "allow",
+        "egress": [],
+    }
+    manager_b = _manager_b(provider, manager, db_path)
+    with pytest.raises(SandboxNetworkPolicyViolation, match="default action"):
+        await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
+    durable = store.get(binding.binding_id)
+    assert durable is not None
+    assert durable.state == "READY"
+    assert manager_b.bindings == {}
+    assert provider.attach_calls == 1
+    assert provider.create_count == 1
+
+
+async def test_b1c_network_policy_read_failure_fails_closed(tmp_path: Path) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = SQLiteSandboxBindingStore(db_path)
+    repo, provider, manager, binding, tools, runtime = await setup_stack(
+        tmp_path, binding_store=store
+    )
+    del repo, tools, runtime
+    provider.network_policy_error = SandboxNetworkPolicyUnavailable("policy read unavailable")
+    manager_b = _manager_b(provider, manager, db_path)
+    with pytest.raises(SandboxNetworkPolicyUnavailable, match="unavailable"):
+        await manager_b.reattach_verified(task_id="task-m5", context=exec_context())
+    durable = store.get(binding.binding_id)
+    assert durable is not None
+    assert durable.state == "READY"
+    assert durable.revision == 1
+    assert manager_b.bindings == {}
+    assert provider.attach_calls == 1
+    assert provider.create_count == 1
 
 
 async def test_b2_lost_never_reattaches(tmp_path: Path) -> None:

@@ -34,6 +34,8 @@ from anycode.security.redaction import safe_exception_message
 from atlasos.sandbox.models import SandboxLostError
 from atlasos.sandbox.reattachment import (
     SandboxAttachFailed,
+    SandboxNetworkPolicyUnavailable,
+    SandboxNetworkPolicyViolation,
     SandboxProviderUnavailable,
     SandboxReattachmentObservation,
     SandboxRemoteNotFound,
@@ -291,6 +293,38 @@ class OpenSandboxProvider:
             return
         with contextlib.suppress(Exception):
             await sandbox.close()
+
+    async def verify_network_none(self, sandbox_id: str) -> None:
+        """Read the effective sidecar policy and prove that no egress is allowed.
+
+        This is a point-in-time check. It does not claim that the policy can never change later.
+        """
+
+        sandbox = self._sandboxes.get(sandbox_id)
+        if sandbox is None:
+            raise SandboxNetworkPolicyUnavailable(
+                f"cannot verify network policy for sandbox {sandbox_id!r}: no connected client"
+            )
+        try:
+            policy = await sandbox.get_egress_policy()
+        except Exception as error:  # noqa: BLE001 - policy read failure is fail-closed
+            raise SandboxNetworkPolicyUnavailable(
+                f"cannot read effective network policy for sandbox {sandbox_id!r}: {error}"
+            ) from error
+        default_action = getattr(policy, "default_action", None)
+        if default_action != "deny":
+            raise SandboxNetworkPolicyViolation(
+                f"sandbox {sandbox_id!r} network default action is "
+                f"{default_action!r}, expected 'deny'"
+            )
+        rules = getattr(policy, "egress", None) or []
+        for rule in rules:
+            action = getattr(rule, "action", None)
+            if action != "deny":
+                raise SandboxNetworkPolicyViolation(
+                    f"sandbox {sandbox_id!r} has a non-deny egress rule "
+                    f"(action={action!r}); network=none requires no allow rules"
+                )
 
     async def create(self, spec: SandboxSpec) -> SandboxCreateResult:
         if spec.snapshot:

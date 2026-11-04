@@ -11,6 +11,8 @@ import pytest
 from atlasos.sandbox.opensandbox_provider import OpenSandboxOptions, OpenSandboxProvider
 from atlasos.sandbox.reattachment import (
     SandboxAttachFailed,
+    SandboxNetworkPolicyUnavailable,
+    SandboxNetworkPolicyViolation,
     SandboxProviderUnavailable,
     SandboxRemoteNotFound,
 )
@@ -168,6 +170,62 @@ async def test_detach_local_closes_only_local_client(monkeypatch) -> None:
     assert closed is True
     assert destroyed is False
     assert provider._sandboxes == {}
+
+
+class _PolicySandbox:
+    def __init__(self, policy=None, error: Exception | None = None) -> None:
+        self.policy = policy
+        self.error = error
+
+    async def get_egress_policy(self):
+        if self.error is not None:
+            raise self.error
+        return self.policy
+
+
+async def test_verify_network_none_accepts_deny_policy() -> None:
+    from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule
+
+    provider = OpenSandboxProvider()
+    provider._sandboxes["sandbox-1"] = _PolicySandbox(
+        NetworkPolicy(
+            defaultAction="deny",
+            egress=[NetworkRule(action="deny", target="example.com")],
+        )
+    )
+    await provider.verify_network_none("sandbox-1")
+
+
+async def test_verify_network_none_rejects_allow_rule() -> None:
+    from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule
+
+    provider = OpenSandboxProvider()
+    provider._sandboxes["sandbox-1"] = _PolicySandbox(
+        NetworkPolicy(
+            defaultAction="deny",
+            egress=[NetworkRule(action="allow", target="example.com")],
+        )
+    )
+    with pytest.raises(SandboxNetworkPolicyViolation, match="non-deny"):
+        await provider.verify_network_none("sandbox-1")
+
+
+async def test_verify_network_none_rejects_default_allow() -> None:
+    from opensandbox.models.sandboxes import NetworkPolicy
+
+    provider = OpenSandboxProvider()
+    provider._sandboxes["sandbox-1"] = _PolicySandbox(
+        NetworkPolicy(defaultAction="allow", egress=[])
+    )
+    with pytest.raises(SandboxNetworkPolicyViolation, match="default action"):
+        await provider.verify_network_none("sandbox-1")
+
+
+async def test_verify_network_none_read_failure_is_unavailable() -> None:
+    provider = OpenSandboxProvider()
+    provider._sandboxes["sandbox-1"] = _PolicySandbox(error=RuntimeError("policy endpoint down"))
+    with pytest.raises(SandboxNetworkPolicyUnavailable, match="cannot read"):
+        await provider.verify_network_none("sandbox-1")
 
 
 def test_control_plane_digest_excludes_credentials_and_client_timeouts() -> None:
