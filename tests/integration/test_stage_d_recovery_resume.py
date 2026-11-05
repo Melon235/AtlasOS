@@ -7,9 +7,11 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 from tests.helpers.stage_d_world import (
     TASK_ID,
     World,
+    close_open_worlds,
     write_policy,
 )
 
@@ -17,6 +19,12 @@ from atlasos.approvals.resume import resume_execution_suspension
 from atlasos.durability.faults import InjectedCrash
 from atlasos.sandbox import SandboxLostError, SandboxNetworkPolicyViolation, SandboxOwnershipBusy
 from atlasos.trusted_recovery import TrustedRecoveryError, TrustedRecoverySession
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _close_stage_d_worlds():
+    yield
+    await close_open_worlds()
 
 
 async def test_d2_approved_resume_executes_original_write_once(tmp_path: Path) -> None:

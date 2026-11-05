@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 from tests.helpers.stage_d_world import (
     PRINCIPAL,
     PROFILE_ID,
@@ -15,6 +16,7 @@ from tests.helpers.stage_d_world import (
     TENANT,
     WORKER_ID,
     World,
+    close_open_worlds,
     config,
     prepared_world,
 )
@@ -24,6 +26,12 @@ from atlasos.trusted_recovery import (
     TrustedRecoveryError,
     TrustedRecoverySession,
 )
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _close_stage_d_worlds():
+    yield
+    await close_open_worlds()
 
 
 async def test_d1_reconstructs_same_worker_runtime_and_sqlite_m4(tmp_path: Path) -> None:

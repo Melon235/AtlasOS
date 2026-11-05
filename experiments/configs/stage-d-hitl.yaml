@@ -1,0 +1,30 @@
+# Stage D real OS-process HITL acceptance configuration.
+# No LLM call is made; the model identity is a deterministic label only.
+provider:
+  name: deepseek
+  model: stage-d-deterministic
+
+tools:
+  mode: progressive
+  search_backend: keyword
+  max_results: 3
+
+trajectory:
+  enabled: true
+  store_root: trajectory
+
+sandbox:
+  enabled: true
+  provider: opensandbox
+  endpoint: localhost:8080
+  protocol: http
+  image: atlas-uat-python:3.12
+  workspace_root: /workspace/project
+  network: none
+  max_bundle_bytes: 67108864
+  timeout_minutes: 20
+  ready_timeout_seconds: 240
+  cpu: "1"
+  memory: "1Gi"
+  use_server_proxy: true
+  retain_on_failure: false

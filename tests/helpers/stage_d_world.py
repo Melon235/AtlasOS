@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 
@@ -68,8 +69,12 @@ def config(tmp_path: Path) -> AtlasConfig:
     )
 
 
+_OPEN_WORLDS: list[World] = []
+
+
 class World:
     def __init__(self, tmp_path: Path) -> None:
+        _OPEN_WORLDS.append(self)
         self.root = tmp_path
         self.state_root = tmp_path / "state"
         self.state_root.mkdir()
@@ -225,6 +230,10 @@ class World:
             runtime_instance_id="stage-d-process-b",
         )
 
+    async def aclose(self) -> None:
+        with contextlib.suppress(Exception):
+            await self.idempotency.teardown()
+
     async def approve(self) -> None:
         await self._resolve("APPROVED")
 
@@ -252,3 +261,9 @@ async def prepared_world(tmp_path: Path) -> tuple[World, TrustedRecoverySession]
     await world.release_a()
     session = await TrustedRecoverySession.prepare(world.recovery_config())
     return world, session
+
+
+async def close_open_worlds() -> None:
+    while _OPEN_WORLDS:
+        world = _OPEN_WORLDS.pop()
+        await world.aclose()
