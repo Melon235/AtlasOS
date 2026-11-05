@@ -291,8 +291,9 @@ class OpenSandboxProvider:
         sandbox = self._sandboxes.pop(sandbox_id, None)
         if sandbox is None:
             return
-        with contextlib.suppress(Exception):
-            await sandbox.close()
+        # Surface local-close failures: ownership release must fail closed rather than hand
+        # off while the old SDK connection may still be live.
+        await sandbox.close()
 
     async def verify_network_none(self, sandbox_id: str) -> None:
         """Read the effective sidecar policy and prove that no egress is allowed.

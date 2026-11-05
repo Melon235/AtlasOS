@@ -88,6 +88,8 @@ class FakeSandboxProvider:
         self.fail_destroy = False
         self.fail_cancel = False
         self.raise_cancel = False
+        self.raise_destroy = False
+        self.detach_error: Exception | None = None
 
     def capabilities(self) -> SandboxCapabilities:
         return self.capabilities_value
@@ -200,6 +202,8 @@ class FakeSandboxProvider:
 
     async def detach_local(self, sandbox_id: str) -> None:
         self.detach_calls += 1
+        if self.detach_error is not None:
+            raise self.detach_error
         self.attached.discard(sandbox_id)
 
     async def verify_network_none(self, sandbox_id: str) -> None:
@@ -314,6 +318,8 @@ class FakeSandboxProvider:
 
     async def destroy(self, handle: SandboxHandle) -> SandboxActionResult:
         self.destroy_count += 1
+        if self.raise_destroy:
+            raise RuntimeError("provider destroy unavailable")
         if self.fail_destroy:
             return SandboxActionResult(ok=False)
         self.lost.add(handle.id)

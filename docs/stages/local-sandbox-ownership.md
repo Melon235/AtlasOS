@@ -68,14 +68,23 @@ acquire Host-local workload lock
 → if absent: provider.create + provision + durable commit under ownership
 → if present READY and explicit recovery requested: Stage B verified reattach
 → keep lock while this process uses the sandbox
-→ close/cancel: provider operation, durable transition, then release
+→ close/cancel: provider operation, confirmed durable terminal transition, then release
 → process exit: OS releases the lock
 ```
 
 `ensure_binding()` and `reattach_verified()` acquire ownership before touching the durable record,
 provider control plane, or provider sandbox. Workspace tools call `require_ready()`, which verifies
-that this process still holds ownership before any provider operation. Releasing ownership while a
-READY runtime cache remains causes later tool operations to fail closed without provider access.
+that this process still holds ownership before any provider operation.
+
+Explicit `release_ownership()` is a handoff, not just an unlock. Under the workload gate it
+invalidates the manager's runtime handle cache and asks the provider for a **local detach only**;
+the remote sandbox is never destroyed. The durable READY record and its continuity identity are
+preserved. After release, the old runtime handle and old WorkspaceTools instance have no execution
+authority. Recovery must reacquire OS ownership and perform a successful Stage B verified
+reattachment; `ensure_binding()` does not reuse the old handle.
+
+If local detach is unavailable or fails, release fails closed: the runtime authority is removed,
+the uncertainty marker is set, and OS ownership is retained rather than handed off.
 
 The manager-wide per-workload async gate is entered **before** OS ownership is acquired or confirmed.
 `ensure_binding`, `reattach_verified`, `mark_lost`, `close`, `cancel`, explicit ownership release,
@@ -112,8 +121,21 @@ lock backend/path unavailable
 → no unlocked fallback
 ```
 
-A lock acquisition failure must not mark the sandbox LOST. A durable LOST/CLOSED record cannot be
-revived by acquiring the lock.
+```text
+close/cancel/mark_lost exception or durable-transition failure
+→ durable READY may still be recoverable
+→ retain OS ownership + provider-operation-uncertain
+→ no handoff to another process
+→ explicit retry/mark_lost/close once terminal state is confirmed
+```
+
+A store-availability failure is not evidence that the sandbox is LOST, and it must not be converted
+into LOST. A lock acquisition failure must not mark the sandbox LOST. A durable LOST/CLOSED record
+cannot be revived by acquiring the lock.
+
+Only a confirmed durable terminal state (or a successfully completed lifecycle operation) allows
+ownership release after a lifecycle error. Provider destroy/cancel exceptions, post-destroy durable
+transition failures, and unreadable store failures all fail closed.
 
 ## Windows / WSL2 boundary
 

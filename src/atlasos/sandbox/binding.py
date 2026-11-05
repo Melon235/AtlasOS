@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -150,7 +151,7 @@ class ProjectSandboxManager:
             lock.release()
 
     async def release_ownership(self, task_id: str) -> None:
-        """Wait for in-flight operations, then release the workload's OS lock."""
+        """Invalidate local runtime authority, detach locally, then release the OS lock."""
 
         async with self._operation_gate(task_id):
             if task_id in self._uncertain_operations:
@@ -158,7 +159,55 @@ class ProjectSandboxManager:
                     f"cannot release ownership for workload {self.run_id!r}/{task_id!r}: "
                     "a provider operation outcome is uncertain; resolve with close or mark_lost"
                 )
+            runtime = self.bindings.get(task_id)
+            if runtime is not None:
+                detach = getattr(self.provider, "detach_local", None)
+                if not callable(detach):
+                    self._uncertain_operations.add(task_id)
+                    self.bindings.pop(task_id, None)
+                    raise SandboxOwnershipError(
+                        "provider has no safe local detach seam; ownership retained and "
+                        "runtime authority invalidated"
+                    )
+                detach_call = cast("Callable[[str], Awaitable[None]]", detach)
+                try:
+                    await detach_call(runtime.sandbox_handle.id)
+                except asyncio.CancelledError:
+                    self._uncertain_operations.add(task_id)
+                    self.bindings.pop(task_id, None)
+                    raise
+                except Exception as error:
+                    self._uncertain_operations.add(task_id)
+                    self.bindings.pop(task_id, None)
+                    raise SandboxOwnershipError(
+                        f"local detach failed for workload {self.run_id!r}/{task_id!r}; "
+                        "ownership retained and runtime authority invalidated"
+                    ) from error
+                # The durable relationship stays READY, but the old runtime handle is no longer
+                # authority. Recovery must reacquire ownership and perform Stage B verification.
+                self.bindings.pop(task_id, None)
             self._release_ownership_locked(task_id)
+
+    def _terminal_state_confirmed(self, task_id: str) -> bool:
+        """Whether a lifecycle failure left durable/runtime authority definitively terminal."""
+
+        try:
+            if self.binding_store is not None:
+                durable = self._durable(task_id)
+                return durable is not None and durable.state in ("LOST", "CLOSED")
+            runtime = self.bindings.get(task_id)
+            return runtime is not None and runtime.state in ("LOST", "CLOSED")
+        except Exception:  # noqa: BLE001 - an unreadable store is not proof of terminal state
+            return False
+
+    def _after_lifecycle_failure(self, task_id: str) -> None:
+        """Fail closed on an unconfirmed lifecycle outcome; never hand off a READY owner."""
+
+        if self._terminal_state_confirmed(task_id):
+            self._resolve_uncertain(task_id)
+            self._release_ownership_locked(task_id)
+            return
+        self.mark_provider_uncertain(task_id)
 
     @contextlib.asynccontextmanager
     async def _operation_gate(self, task_id: str):
@@ -669,7 +718,7 @@ class ProjectSandboxManager:
         if runtime is None:
             raise SandboxReattachmentRequired(
                 f"durable READY binding exists for task {task_id!r} "
-                f"(sandbox {durable.sandbox_id}); verified reattachment is not implemented"
+                f"(sandbox {durable.sandbox_id}); verified reattachment is required"
             )
         self._validate_runtime_identity(runtime, durable)
         if runtime.state != "READY":
@@ -750,9 +799,14 @@ class ProjectSandboxManager:
                 return
             try:
                 await self._mark_lost_impl(task_id)
-            finally:
-                self._resolve_uncertain(task_id)
-                self._release_ownership_locked(task_id)
+            except asyncio.CancelledError:
+                self.mark_provider_uncertain(task_id)
+                raise
+            except BaseException:
+                self._after_lifecycle_failure(task_id)
+                raise
+            self._resolve_uncertain(task_id)
+            self._release_ownership_locked(task_id)
 
     async def _mark_lost_impl(self, task_id: str) -> None:
         runtime = self.bindings.get(task_id)
@@ -793,7 +847,7 @@ class ProjectSandboxManager:
                     self.mark_provider_uncertain(task_id)
                 raise
             except BaseException:
-                self._release_ownership_locked(task_id)
+                self._after_lifecycle_failure(task_id)
                 raise
             self._resolve_uncertain(task_id)
             self._release_ownership_locked(task_id)
@@ -850,7 +904,7 @@ class ProjectSandboxManager:
                     self.mark_provider_uncertain(task_id)
                 raise
             except BaseException:
-                self._release_ownership_locked(task_id)
+                self._after_lifecycle_failure(task_id)
                 raise
             self._resolve_uncertain(task_id)
             self._release_ownership_locked(task_id)

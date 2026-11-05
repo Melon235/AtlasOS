@@ -172,6 +172,18 @@ async def test_detach_local_closes_only_local_client(monkeypatch) -> None:
     assert provider._sandboxes == {}
 
 
+async def test_detach_local_surfaces_close_failure() -> None:
+    class _Client:
+        async def close(self) -> None:
+            raise RuntimeError("local close failed")
+
+    provider = OpenSandboxProvider()
+    provider._sandboxes["sandbox-1"] = _Client()
+    with pytest.raises(RuntimeError, match="local close failed"):
+        await provider.detach_local("sandbox-1")
+    assert provider._sandboxes == {}
+
+
 class _PolicySandbox:
     def __init__(self, policy=None, error: Exception | None = None) -> None:
         self.policy = policy

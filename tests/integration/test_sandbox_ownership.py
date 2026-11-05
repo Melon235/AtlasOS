@@ -19,16 +19,20 @@ from tests.integration.test_project_sandbox import (
 )
 
 from atlasos.sandbox import (
+    DurableSandboxBindingRecord,
     ProjectSandboxManager,
+    SandboxBindingStoreUnavailable,
     SandboxLostError,
     SandboxOwnershipBusy,
     SandboxOwnershipError,
     SandboxProjectConfig,
+    SandboxReattachmentRequired,
     SandboxWorkspaceTools,
     SQLiteSandboxBindingStore,
     WorkloadOwnershipLock,
     workload_lock_identity,
 )
+from atlasos.sandbox.models import DurableBindingState
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -285,14 +289,17 @@ async def test_c6_released_ownership_blocks_stale_runtime_cache(tmp_path: Path) 
         tmp_path, binding_store=store
     )
     del repo, binding, runtime
+    detach_before = provider.detach_calls
     await manager.release_ownership("task-m5")
+    assert manager.bindings == {}
+    assert provider.detach_calls == detach_before + 1
     before_reads = provider.read_calls
     result = await tools.file_read(
         type("V", (), {"path": "/workspace/project/app.py", "offset": None, "limit": None})(),
         context(),
     )
     assert result.is_error is True
-    assert "ownership" in str(result.data).lower()
+    assert "reattachment" in str(result.data).lower()
     assert provider.read_calls == before_reads
 
 
@@ -348,6 +355,38 @@ async def test_c7_terminal_durable_cannot_be_revived_by_new_owner(tmp_path: Path
     assert durable.state == "LOST"
 
 
+class TransitionFailingStore:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.inner = SQLiteSandboxBindingStore(path)
+        self.fail_transition = False
+
+    def create(self, record: DurableSandboxBindingRecord) -> DurableSandboxBindingRecord:
+        return self.inner.create(record)
+
+    def get(self, binding_id: str) -> DurableSandboxBindingRecord | None:
+        return self.inner.get(binding_id)
+
+    def get_for_task(self, run_id: str, task_id: str) -> DurableSandboxBindingRecord | None:
+        return self.inner.get_for_task(run_id, task_id)
+
+    def transition(
+        self,
+        binding_id: str,
+        *,
+        expected_revision: int,
+        new_state: DurableBindingState,
+    ) -> DurableSandboxBindingRecord:
+        if self.fail_transition:
+            raise SandboxBindingStoreUnavailable("injected durable transition failure")
+        return self.inner.transition(
+            binding_id, expected_revision=expected_revision, new_state=new_state
+        )
+
+    def list(self) -> tuple[DurableSandboxBindingRecord, ...]:
+        return self.inner.list()
+
+
 def _manager_for(
     tmp_path: Path, provider: FakeSandboxProvider, db_path: Path | None = None
 ) -> ProjectSandboxManager:
@@ -358,6 +397,273 @@ def _manager_for(
         binding_store=SQLiteSandboxBindingStore(db_path or (tmp_path / "sandbox_bindings.db")),
         ownership_root=tmp_path,
     )
+
+
+async def test_close_provider_exception_retains_ownership_and_ready_truth(
+    tmp_path: Path,
+) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    provider.raise_destroy = True
+    with pytest.raises(RuntimeError, match="destroy unavailable"):
+        await manager.close("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "READY"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is False
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        manager.require_ready("task-m5")
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        await manager.release_ownership("task-m5")
+
+    provider.raise_destroy = False
+    assert await manager.close("task-m5") is True
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "CLOSED"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is True
+
+
+async def test_close_transition_failure_retains_ownership_and_ready_truth(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = TransitionFailingStore(db_path)
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = ProjectSandboxManager(
+        provider,
+        SandboxProjectConfig(provider_name="fake", image="fake@sha256:0123456789abcdef"),
+        run_id="run-m5",
+        binding_store=store,
+        ownership_root=tmp_path,
+    )
+    await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    store.fail_transition = True
+    with pytest.raises(SandboxBindingStoreUnavailable, match="injected"):
+        await manager.close("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "READY"
+    assert provider.destroy_count == 1
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is False
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        await manager.release_ownership("task-m5")
+
+    store.fail_transition = False
+    await manager.mark_lost("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is True
+
+
+async def test_cancel_transition_failure_retains_ownership_and_ready_truth(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = TransitionFailingStore(db_path)
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = ProjectSandboxManager(
+        provider,
+        SandboxProjectConfig(provider_name="fake", image="fake@sha256:0123456789abcdef"),
+        run_id="run-m5",
+        binding_store=store,
+        ownership_root=tmp_path,
+    )
+    await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    provider.raise_cancel = True
+    store.fail_transition = True
+    with pytest.raises(SandboxBindingStoreUnavailable, match="injected"):
+        await manager.cancel("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "READY"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is False
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        await manager.release_ownership("task-m5")
+
+    store.fail_transition = False
+    await manager.mark_lost("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is True
+
+
+async def test_mark_lost_transition_failure_retains_ownership_and_ready_truth(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "sandbox_bindings.db"
+    store = TransitionFailingStore(db_path)
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = ProjectSandboxManager(
+        provider,
+        SandboxProjectConfig(provider_name="fake", image="fake@sha256:0123456789abcdef"),
+        run_id="run-m5",
+        binding_store=store,
+        ownership_root=tmp_path,
+    )
+    await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    store.fail_transition = True
+    with pytest.raises(SandboxBindingStoreUnavailable, match="injected"):
+        await manager.mark_lost("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "READY"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is False
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        await manager.release_ownership("task-m5")
+
+    store.fail_transition = False
+    await manager.mark_lost("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is True
+
+
+async def test_release_invalidates_runtime_and_requires_verified_reattachment(
+    tmp_path: Path,
+) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    binding = await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    detach_before = provider.detach_calls
+    await manager.release_ownership("task-m5")
+    assert manager.bindings == {}
+    assert provider.detach_calls == detach_before + 1
+    assert provider.destroy_count == 0
+    assert binding.sandbox_handle.id in provider.remote_state
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "READY"
+    with pytest.raises(SandboxReattachmentRequired, match="verified reattachment"):
+        await manager.ensure_binding(
+            task_id="task-m5",
+            source_repo=str(repo),
+            context=exec_context(),
+            worker_id="w1",
+        )
+    assert provider.create_count == 1
+    inspect_before = provider.inspect_calls
+    reattached = await manager.reattach_verified(
+        task_id="task-m5",
+        context=exec_context(),
+    )
+    assert reattached.sandbox_handle.id == binding.sandbox_handle.id
+    assert provider.inspect_calls == inspect_before + 1
+    assert provider.attach_calls == 1
+    assert await manager.close("task-m5") is True
+
+
+async def test_release_other_process_block_then_original_reattaches_verified(
+    tmp_path: Path,
+) -> None:
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    binding = await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    await manager.release_ownership("task-m5")
+    inspect_before = provider.inspect_calls
+    ready = tmp_path / "holder.ready"
+    stop = tmp_path / "holder.stop"
+    holder = _spawn_holder(
+        tmp_path,
+        run_id="run-m5",
+        task_id="task-m5",
+        ready=ready,
+        stop=stop,
+    )
+    try:
+        with pytest.raises(SandboxOwnershipBusy):
+            await manager.ensure_binding(
+                task_id="task-m5",
+                source_repo=str(repo),
+                context=exec_context(),
+                worker_id="w1",
+            )
+    finally:
+        _stop_holder(holder, stop)
+    assert provider.inspect_calls == inspect_before
+
+    probe = WorkloadOwnershipLock(tmp_path, run_id="run-m5", task_id="task-m5")
+    probe.acquire(timeout_seconds=5.0)
+    probe.release()
+
+    reattached = await manager.reattach_verified(
+        task_id="task-m5",
+        context=exec_context(),
+    )
+    assert reattached.sandbox_handle.id == binding.sandbox_handle.id
+    assert provider.create_count == 1
+    assert provider.inspect_calls == inspect_before + 1
+    assert provider.attach_calls == 1
+    assert await manager.close("task-m5") is True
+
+
+async def test_release_detach_failure_retains_ownership(tmp_path: Path) -> None:
+    store = SQLiteSandboxBindingStore(tmp_path / "sandbox_bindings.db")
+    repo = make_repo(tmp_path)
+    provider = FakeSandboxProvider(tmp_path / "provider")
+    manager = _manager_for(tmp_path, provider)
+    await manager.ensure_binding(
+        task_id="task-m5",
+        source_repo=str(repo),
+        context=exec_context(),
+        worker_id="w1",
+    )
+    provider.detach_error = RuntimeError("local detach unavailable")
+    with pytest.raises(SandboxOwnershipError, match="local detach failed"):
+        await manager.release_ownership("task-m5")
+    assert manager.bindings == {}
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is False
+    with pytest.raises(SandboxOwnershipError, match="uncertain"):
+        await manager.release_ownership("task-m5")
+
+    provider.detach_error = None
+    await manager.mark_lost("task-m5")
+    durable = store.get_for_task("run-m5", "task-m5")
+    assert durable is not None
+    assert durable.state == "LOST"
+    assert _attempt_lock_in_process(tmp_path, run_id="run-m5", task_id="task-m5") is True
 
 
 async def test_t1_cancel_waiting_coroutine_does_not_release_ownership(
