@@ -174,4 +174,5 @@ replacement sandbox creation
 It also does not make network policy permanent. The Stage B post-connect network check is a
 point-in-time TOCTOU-bounded observation.
 
-Stage D remains true OS-process HITL resume.
+True OS-process HITL resume is implemented explicitly in Stage D; see
+[stage-d-os-process-hitl-resume.md](stage-d-os-process-hitl-resume.md).
