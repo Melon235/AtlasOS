@@ -637,6 +637,9 @@ async def _revalidate_invocation(
     if evaluation.outcome == "ALLOW":
         if evaluation.decision_basis_digest != invocation.decision_basis_digest:
             metrics.stale_decision_basis += 1
+            # A policy/basis change must never turn a suspended REQUIRE_HUMAN action into an
+            # automatically allowed execution.
+            raise _Refusal("stale", "M3 decision basis changed since suspension")
         return _Revalidated(
             invocation=invocation,
             evaluation=evaluation,
