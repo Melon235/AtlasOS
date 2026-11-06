@@ -939,15 +939,35 @@ def _scenario_execution_crash(root: Path, source_repo: Path) -> Scenario:
         dispose=True,
     )
     outcomes = [item.get("outcome") for item in backfill.get("settlement_results", [])]
+    refusal = backfill.get("disposal_refused") or ""
     checks = {
         "uncertain_settled": backfill.get("outcome_status") == "settled",
         "uncertain_outcome": outcomes == ["UNCERTAIN"],
         "uncertain_no_second_write": backfill.get("provider_counts", {}).get("write_file") == 0,
         "uncertain_no_create": backfill.get("provider_counts", {}).get("create") == 0,
         "uncertain_target": backfill.get("target_content") == "approved recovery\n",
+        # S1.1: an UNCERTAIN settlement must not be destroyed by the recovery wrapper. The child
+        # records the refusal instead of turning it into a successful cleanup.
+        "uncertain_disposal_refused": backfill.get("disposed") is False and "UNCERTAIN" in refusal,
+        "uncertain_no_destroy": backfill.get("provider_counts", {}).get("destroy") == 0,
+        "uncertain_ownership_retained": "ownership_unresolved=True"
+        in (backfill.get("disposal_cleanup") or ""),
     }
+    # The evaluator explicitly removes the residual S1 only after recording the refused automatic
+    # disposal. This is an operator cleanup step, not recovery success.
+    cleanup = _cleanup_remote(
+        state,
+        run_id=run_id,
+        task_id=task_id,
+        worker_id=worker_id,
+        policy=policy,
+        source_repo=source_repo,
+    )
+    checks["operator_cleanup"] = cleanup.get("status") == "DESTROYED" and bool(
+        cleanup.get("cleanup")
+    )
     if not all(checks.values()):
-        raise AssertionError(f"execution-crash checks failed: {checks}; {backfill}")
+        raise AssertionError(f"execution-crash checks failed: {checks}; {backfill}; {cleanup}")
     return Scenario(
         name="D3-7-crash-during-side-effect",
         passed=True,
@@ -957,8 +977,8 @@ def _scenario_execution_crash(root: Path, source_repo: Path) -> Scenario:
         sandbox_id=ready["sandbox_id"],
         binding_id=ready["binding_id"],
         continuity_digest=ready["continuity_digest"],
-        status="UNCERTAIN",
-        details={"uncertain": checks},
+        status="UNCERTAIN_DISPOSAL_REFUSED",
+        details={"uncertain": checks, "operator_cleanup": cleanup},
     )
 
 

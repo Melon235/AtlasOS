@@ -68,6 +68,21 @@ class RecoveryCleanupResult:
     reason: str | None = None
     error: BaseException | None = field(default=None, repr=False, compare=False)
 
+    def describe(self) -> str:
+        """Stable one-line projection suitable for an exception note or operator log."""
+
+        details = [
+            f"ownership_released={self.ownership_released}",
+            f"ownership_unresolved={self.ownership_unresolved}",
+            f"runtime_closed={self.runtime_closed}",
+            f"idempotency_closed={self.idempotency_closed}",
+        ]
+        if self.reason:
+            details.append(f"reason={self.reason}")
+        if self.error is not None:
+            details.append(f"error={type(self.error).__name__}: {self.error}")
+        return "cleanup: " + "; ".join(details)
+
 
 class TrustedRecoveryOwnershipUnresolved(TrustedRecoveryError):
     """Recovery produced an outcome while retaining ownership for manual safety review."""
@@ -81,6 +96,34 @@ class TrustedRecoveryOwnershipUnresolved(TrustedRecoveryError):
         self.cleanup = cleanup
         reason = cleanup.reason or "recovery ownership remains unresolved"
         super().__init__(reason)
+
+
+class TrustedRecoveryDisposalError(TrustedRecoveryError):
+    """An explicit sandbox disposal request did not complete safely.
+
+    ``cleanup`` is always populated by the public wrapper. ``disposed`` is False because this
+    exception is only raised when S1 was not confirmed destroyed.
+    """
+
+    def __init__(
+        self,
+        outcome: ResumeOutcome | None,
+        cleanup: RecoveryCleanupResult | None,
+        reason: str,
+    ) -> None:
+        self.outcome = outcome
+        self.cleanup = cleanup
+        self.disposed = False
+        super().__init__(reason)
+
+
+def _annotate_cleanup(error: BaseException, cleanup: RecoveryCleanupResult) -> None:
+    """Expose cleanup beside an original failure without replacing that failure."""
+
+    with contextlib.suppress(Exception):
+        error.add_note(f"Stage D {cleanup.describe()}")
+    with contextlib.suppress(Exception):
+        error.atlas_cleanup = cleanup  # type: ignore[attr-defined]
 
 
 @dataclass(frozen=True)
@@ -511,7 +554,31 @@ class TrustedRecoverySession:
         await self._reattach_for_execution(self.suspension)
 
     async def dispose_sandbox(self) -> bool:
-        """Destroy the original S1 after a terminal settlement; never create a replacement."""
+        """Destroy the original S1 after a terminal settlement; never create a replacement.
+
+        Disposal is refused before any provider/reattachment work when the durable settlement or
+        this process still contains an UNCERTAIN remote outcome. A False return means the provider
+        did not confirm destruction; callers must not report normal cleanup in that case.
+        """
+
+        if self.manager.has_provider_uncertainty(self.config.task_id):
+            raise TrustedRecoveryDisposalError(
+                self._last_outcome,
+                None,
+                "provider operation outcome is UNCERTAIN; refusing to destroy S1",
+            )
+        if self._outcome_has_uncertain(self._last_outcome):
+            raise TrustedRecoveryDisposalError(
+                self._last_outcome,
+                None,
+                "settlement contains UNCERTAIN results; refusing to destroy S1",
+            )
+        if self._durable_settlement_has_uncertain():
+            raise TrustedRecoveryDisposalError(
+                self._last_outcome,
+                None,
+                "durable settlement contains UNCERTAIN results; refusing to destroy S1",
+            )
 
         store = self.manager.binding_store
         if store is not None:
@@ -527,10 +594,42 @@ class TrustedRecoverySession:
         return await self.manager.close(self.config.task_id)
 
     @staticmethod
-    def _outcome_has_uncertain(outcome: ResumeOutcome | None) -> bool:
-        if outcome is None or outcome.settlement is None:
+    def _settlement_has_uncertain(settlement: Any | None) -> bool:
+        if settlement is None:
             return False
-        return any(item.outcome == "UNCERTAIN" for item in outcome.settlement.results)
+        return any(item.outcome == "UNCERTAIN" for item in settlement.results)
+
+    @classmethod
+    def _outcome_has_uncertain(cls, outcome: ResumeOutcome | None) -> bool:
+        if outcome is None:
+            return False
+        if cls._settlement_has_uncertain(outcome.settlement):
+            return True
+        suspension = outcome.suspension
+        return cls._settlement_has_uncertain(
+            suspension.settlement if suspension is not None else None
+        )
+
+    def _durable_settlement_has_uncertain(self) -> bool:
+        """Read the durable settlement, not only the in-process provider marker.
+
+        A resume may run in a new OS process: settlement UNCERTAIN is durable while the prior
+        process's in-memory provider-uncertainty marker is gone. Failure to read the durable truth
+        is treated as uncertain.
+        """
+
+        try:
+            current = self.suspension_store.get(self.config.suspension_id)
+        except Exception:
+            return True
+        return current is not None and self._settlement_has_uncertain(current.settlement)
+
+    def _has_unresolved_remote_outcome(self) -> bool:
+        return (
+            self.manager.has_provider_uncertainty(self.config.task_id)
+            or self._outcome_has_uncertain(self._last_outcome)
+            or self._durable_settlement_has_uncertain()
+        )
 
     async def close(self) -> RecoveryCleanupResult:
         """Release only safe ownership, then close local runtime resources.
@@ -542,9 +641,7 @@ class TrustedRecoverySession:
         if self._cleanup_result is not None:
             return self._cleanup_result
         ownership = self.manager.has_ownership(self.config.task_id)
-        uncertain = self.manager.has_provider_uncertainty(
-            self.config.task_id
-        ) or self._outcome_has_uncertain(self._last_outcome)
+        uncertain = self._has_unresolved_remote_outcome()
         released = not ownership
         unresolved = False
         reason: str | None = None
@@ -632,23 +729,30 @@ async def resume_durable_sandbox_suspension(
         )
     except BaseException as recovery_error:
         cleanup = await session.close()
-        if cleanup.ownership_unresolved:
-            recovery_error.add_note(
-                f"Stage D recovery retained M5 ownership: {cleanup.reason or 'unresolved cleanup'}"
-            )
+        _annotate_cleanup(recovery_error, cleanup)
         raise
 
     if dispose_sandbox_on_settlement and outcome.status in ("settled", "cleared"):
         try:
-            await session.dispose_sandbox()
-        except BaseException as cleanup_error:
+            disposed = await session.dispose_sandbox()
+        except BaseException as disposal_error:
             cleanup = await session.close()
-            if cleanup.ownership_unresolved:
-                cleanup_error.add_note(
-                    "Stage D disposal failed and M5 ownership remains unresolved: "
-                    f"{cleanup.reason or 'unresolved cleanup'}"
-                )
-            raise
+            if not isinstance(disposal_error, Exception):
+                _annotate_cleanup(disposal_error, cleanup)
+                raise
+            raise TrustedRecoveryDisposalError(
+                outcome,
+                cleanup,
+                f"sandbox disposal failed: {disposal_error}",
+            ) from disposal_error
+        if not disposed:
+            cleanup = await session.close()
+            raise TrustedRecoveryDisposalError(
+                outcome,
+                cleanup,
+                "provider did not confirm sandbox destruction; cleanup was not reported as "
+                "successful",
+            )
 
     cleanup = await session.close()
     if cleanup.ownership_unresolved:
