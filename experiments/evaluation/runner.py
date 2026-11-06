@@ -228,6 +228,33 @@ def _project_config(config: AtlasConfig) -> SandboxProjectConfig:
     )
 
 
+def build_deepseek_adapter(
+    model: str,
+    on_call: Any,
+    *,
+    timeout_seconds: float = 45.0,
+) -> DeepSeekAdapter:
+    """Build the existing AtlasOS adapter with a bounded HTTP timeout.
+
+    The evaluation harness must fail a hung provider call instead of blocking an entire round.
+    This still uses the AtlasOS DeepSeek adapter and the same inference path.
+    """
+
+    from openai import AsyncOpenAI
+
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise EvaluationEnvironmentError("DEEPSEEK_API_KEY is not configured")
+    base_url = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+    client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=timeout_seconds,
+        max_retries=0,
+    )
+    return DeepSeekAdapter(client=client, model=model, on_call=on_call)
+
+
 def _estimate_cost(
     observations: list[InferenceObservation], pricing: Pricing | None
 ) -> float | None:
@@ -456,7 +483,7 @@ async def run_sample(
         provider_name = f"atlas-eval-{uuid.uuid4().hex[:12]}"
 
         async def factory(**_: Any) -> ModelRecordingAdapter:
-            inner = DeepSeekAdapter.from_env(on_call=observations.append)
+            inner = build_deepseek_adapter(model, observations.append)
             return ModelRecordingAdapter(inner, resolved_models)
 
         register_provider_factory(provider_name, factory)

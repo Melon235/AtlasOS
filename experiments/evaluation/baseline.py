@@ -39,11 +39,11 @@ from experiments.evaluation.runner import (
     _aggregate_observations,
     _estimate_cost,
     _jsonable,
+    build_deepseek_adapter,
 )
 
 from atlasos.config import load_config
 from atlasos.experiments import git_commit, git_dirty
-from atlasos.integrations.deepseek import DeepSeekAdapter
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASELINE_TOOLS = ["bash", "file_read", "file_write", "file_edit", "grep", "list_files"]
@@ -132,7 +132,10 @@ async def run_baseline_sample(
         provider_name = f"atlas-baseline-{uuid.uuid4().hex[:12]}"
 
         async def factory(**_: Any) -> ModelRecordingAdapter:
-            inner = DeepSeekAdapter.from_env(on_call=observations.append)
+            inner = build_deepseek_adapter(
+                settings.model_override or "deepseek-chat",
+                observations.append,
+            )
             return ModelRecordingAdapter(inner, resolved_models)
 
         register_provider_factory(provider_name, factory)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -11,7 +13,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from experiments.evaluation.inspect_adapter import run_inspect_evaluation
 from experiments.evaluation.runner import RunnerSettings
 from experiments.evaluation.tasks import TASKS, task_by_id
 
@@ -49,32 +50,112 @@ def _selected_tasks(suite: str) -> tuple[Any, ...]:
         return tuple(task_by_id(sample) for sample in SMOKE_SAMPLES)
     if suite == "pilot":
         return tuple(task_by_id(sample) for sample in PILOT_SAMPLES)
-    if suite == "formal":
+    if suite in ("formal", "ablation-tools"):
         return TASKS
     raise ValueError(f"unknown suite: {suite}")
 
 
-def _log_summary(log: Any) -> dict[str, Any]:
-    samples = list(getattr(log, "samples", []) or [])
-    scores = [score for sample in samples for score in (sample.scores or {}).values()]
-    sample_errors = [
-        {
-            "sample_id": sample.id,
-            "error": str(getattr(event, "error", "")),
-        }
-        for sample in samples
-        for event in (sample.events or [])
-        if getattr(event, "event", None) == "error"
+def _run_isolated_sample(
+    *,
+    sample_id: str,
+    repetition_id: int,
+    runs_root: Path,
+    log_dir: Path,
+    max_turns: int,
+    timeout_seconds: int,
+    progressive_tools: bool,
+) -> dict[str, Any]:
+    """Run one sample in its own process with a hard wall-clock kill.
+
+    A hung provider call or MCP subprocess cannot block the rest of a formal round: the parent
+    kills the whole child process tree on timeout and records the sample as a runtime failure.
+    """
+
+    command = [
+        sys.executable,
+        "-m",
+        "experiments.evaluation.cli",
+        "inspect",
+        "--sample",
+        sample_id,
+        "--repetition",
+        str(repetition_id),
+        "--runs-root",
+        str(runs_root),
+        "--log-dir",
+        str(log_dir),
+        "--max-turns",
+        str(max_turns),
+        "--timeout",
+        str(timeout_seconds),
+        "--max-samples",
+        "1",
     ]
-    passed = sum(1 for score in scores if float(score.value or 0) >= 1.0)
-    return {
-        "status": str(getattr(log, "status", "unknown")),
-        "location": str(getattr(log, "location", "")) or None,
-        "sample_count": len(samples),
-        "scored_sample_count": len(scores),
-        "passed_sample_count": passed,
-        "sample_errors": sample_errors,
+    if not progressive_tools:
+        command.append("--no-progressive-tools")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    stdout_path = log_dir / f"{sample_id}-r{repetition_id}.stdout.txt"
+    stderr_path = log_dir / f"{sample_id}-r{repetition_id}.stderr.txt"
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join([str(REPO_ROOT / "src"), str(REPO_ROOT)]),
+        "PYTHONDONTWRITEBYTECODE": "1",
     }
+    process = subprocess.Popen(  # noqa: S603 - fixed command, no shell
+        command,
+        cwd=REPO_ROOT,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    timed_out = False
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds + 180)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                capture_output=True,
+                check=False,
+            )
+        else:
+            process.kill()
+        stdout, stderr = process.communicate()
+    stdout_path.write_text(stdout or "", encoding="utf-8")
+    stderr_path.write_text(stderr or "", encoding="utf-8")
+    summary: dict[str, Any] = {
+        "sample_id": sample_id,
+        "repetition_id": repetition_id,
+        "timed_out": timed_out,
+        "returncode": process.returncode,
+        "stdout_path": str(stdout_path),
+        "stderr_path": str(stderr_path),
+    }
+    parsed: dict[str, Any] | None = None
+    for line in reversed((stdout or "").splitlines()):
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            candidate = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict) and "inspect_status" in candidate:
+            parsed = candidate
+            break
+    summary.update(parsed or {})
+    summary["passed"] = bool(
+        not timed_out
+        and parsed
+        and parsed.get("inspect_status") in ("success", "completed")
+        and parsed.get("passed_samples") == 1
+        and parsed.get("sample_errors") == 0
+    )
+    return summary
 
 
 def run_suite(
@@ -85,6 +166,7 @@ def run_suite(
     max_turns: int,
     timeout_seconds: int,
     max_samples: int,
+    progressive_tools: bool = True,
 ) -> dict[str, Any]:
     tasks = _selected_tasks(suite)
     round_id = f"{suite}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
@@ -96,6 +178,7 @@ def run_suite(
         runs_root=runs_root,
         timeout_seconds=timeout_seconds,
         max_turns=max_turns,
+        progressive_tools=progressive_tools,
     )
     manifest: dict[str, Any] = {
         "round_id": round_id,
@@ -124,26 +207,26 @@ def run_suite(
     started = time.perf_counter()
     for repetition in range(repetitions):
         rep_started = time.perf_counter()
-        logs = run_inspect_evaluation(
-            settings=settings,
-            repetition_id=repetition,
-            tasks=tasks,
-            log_dir=str(log_dir),
-            max_samples=max_samples,
-        )
-        summaries = [_log_summary(log) for log in logs]
+        summaries = [
+            _run_isolated_sample(
+                sample_id=task.sample_id,
+                repetition_id=repetition,
+                runs_root=runs_root,
+                log_dir=log_dir,
+                max_turns=max_turns,
+                timeout_seconds=timeout_seconds,
+                progressive_tools=progressive_tools,
+            )
+            for task in tasks
+        ]
         manifest["repetitions"].append(
             {
                 "repetition_id": repetition,
                 "elapsed_seconds": round(time.perf_counter() - rep_started, 3),
-                "logs": summaries,
-                "passed": all(
-                    summary["status"] in ("success", "completed")
-                    and summary["scored_sample_count"] == summary["sample_count"]
-                    and summary["passed_sample_count"] == summary["sample_count"]
-                    and not summary["sample_errors"]
-                    for summary in summaries
-                ),
+                "samples": summaries,
+                "passed": all(summary["passed"] for summary in summaries),
+                "passed_samples": sum(1 for summary in summaries if summary["passed"]),
+                "sample_count": len(summaries),
             }
         )
         (round_root / "manifest.json").write_text(
@@ -164,11 +247,12 @@ def run_suite(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="atlas-eval-round")
-    parser.add_argument("suite", choices=("smoke", "pilot", "formal"))
+    parser.add_argument("suite", choices=("smoke", "pilot", "formal", "ablation-tools"))
     parser.add_argument("--repetitions", type=int, default=1)
     parser.add_argument("--max-turns", type=int, default=14)
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--max-samples", type=int, default=1)
+    parser.add_argument("--no-progressive-tools", action="store_true")
     parser.add_argument("--results-root", default=str(RESULTS_ROOT))
     args = parser.parse_args(argv)
     manifest = run_suite(
@@ -178,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
         max_turns=args.max_turns,
         timeout_seconds=args.timeout,
         max_samples=args.max_samples,
+        progressive_tools=not args.no_progressive_tools,
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0 if manifest["all_repetitions_passed"] else 1
