@@ -37,6 +37,18 @@ PILOT_SAMPLES = (
     "longcontext-003-module-map",
     "longcontext-005-requirements",
 )
+ABLATION_SAMPLES = (
+    "bugfix-001-slugify",
+    "bugfix-007-toposort",
+    "feature-001-todo-store",
+    "feature-003-line-diff",
+    "tool-001-fare",
+    "tool-003-currency",
+    "multiworker-001-handoff",
+    "multiworker-003-pipeline",
+    "longcontext-001-buried-constant",
+    "longcontext-003-module-map",
+)
 
 
 @dataclass(frozen=True)
@@ -51,8 +63,10 @@ def _selected_tasks(suite: str) -> tuple[Any, ...]:
         return tuple(task_by_id(sample) for sample in SMOKE_SAMPLES)
     if suite == "pilot":
         return tuple(task_by_id(sample) for sample in PILOT_SAMPLES)
-    if suite in ("formal", "ablation-tools"):
+    if suite == "formal":
         return TASKS
+    if suite == "ablation-tools":
+        return tuple(task_by_id(sample) for sample in ABLATION_SAMPLES)
     if suite == "baseline":
         return tuple(task for task in TASKS if task.category != "tool_discovery")
     raise ValueError(f"unknown suite: {suite}")
