@@ -163,7 +163,8 @@ async def run_baseline_sample(
         title_by_id = {step.task_id: f"{task.sample_id}-{step.task_id}" for step in task.workers}
         environment_note = (
             f"The disposable workspace root is {workspace}. Use relative paths and "
-            "Windows-compatible shell commands (`dir`, `type`, `python`)."
+            "Windows-compatible shell commands (`dir`, `type`, `python`). Any "
+            "`/workspace/project/...` path in the task text refers to this workspace root."
         )
         specs = [
             TaskSpec(
