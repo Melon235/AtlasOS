@@ -145,7 +145,8 @@ def _baseline(args: argparse.Namespace) -> int:
     else:
         tasks = [task for task in TASKS if task.category != "tool_discovery"]
     baseline_root = Path(args.runs_root).resolve()
-    for repetition in range(args.repetitions):
+    for offset in range(args.repetitions):
+        repetition = args.repetition + offset
         results = asyncio.run(
             run_baseline_suite(
                 settings=settings,
@@ -212,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     baseline_parser.add_argument("--sample")
     baseline_parser.add_argument("--samples")
     baseline_parser.add_argument("--repetitions", type=int, default=1)
+    baseline_parser.add_argument("--repetition", type=int, default=0)
     baseline_parser.add_argument("--max-turns", type=int, default=14)
     baseline_parser.add_argument("--timeout", type=int, default=600)
     baseline_parser.add_argument(

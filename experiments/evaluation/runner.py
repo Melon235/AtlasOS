@@ -26,7 +26,12 @@ from anycode.identity.context import ExecutionContext
 from anycode.plugins.registry import register_provider_factory
 from anycode.runstore.store import FilesystemRunStore
 from anycode.tools.idempotency import SQLiteToolIdempotencyStore
-from anycode.types import MCPServerConfig, ToolSecurityPolicy
+from anycode.types import (
+    MCPServerConfig,
+    ProviderResilienceConfig,
+    RetryPolicy,
+    ToolSecurityPolicy,
+)
 from dotenv import load_dotenv
 from experiments.evaluation.fixtures import (
     materialize_fixture,
@@ -172,6 +177,22 @@ def _config_digest(path: Path) -> str:
     if not path.is_file():
         return "missing"
     return canonical_digest(load_config(path).model_dump(mode="json"))
+
+
+def evaluation_resilience() -> ProviderResilienceConfig:
+    """One bounded attempt per model call; the outer per-sample timeout is the hard stop."""
+
+    return ProviderResilienceConfig(
+        enabled=True,
+        retry=RetryPolicy(
+            max_attempts=1,
+            base_delay_seconds=0.1,
+            max_delay_seconds=1.0,
+            jitter=False,
+            call_timeout_seconds=60.0,
+        ),
+        max_concurrency=1,
+    )
 
 
 def _coding_policy() -> ActionPolicy:
@@ -591,6 +612,7 @@ async def run_sample(
                     "max_turns": step.max_turns or settings.max_turns,
                     "max_tokens": settings.max_tokens,
                     "temperature": settings.temperature,
+                    "provider_resilience": evaluation_resilience(),
                     "tool_security": ToolSecurityPolicy(
                         workspace_root=project_config.workspace_root
                     ),

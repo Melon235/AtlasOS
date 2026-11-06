@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from experiments.evaluation.baseline import summarize_baseline
 from experiments.evaluation.runner import RunnerSettings
 from experiments.evaluation.tasks import TASKS, task_by_id
 
@@ -52,6 +53,8 @@ def _selected_tasks(suite: str) -> tuple[Any, ...]:
         return tuple(task_by_id(sample) for sample in PILOT_SAMPLES)
     if suite in ("formal", "ablation-tools"):
         return TASKS
+    if suite == "baseline":
+        return tuple(task for task in TASKS if task.category != "tool_discovery")
     raise ValueError(f"unknown suite: {suite}")
 
 
@@ -158,6 +161,87 @@ def _run_isolated_sample(
     return summary
 
 
+def _run_isolated_baseline(
+    *,
+    sample_id: str,
+    repetition_id: int,
+    baseline_root: Path,
+    max_turns: int,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        "-m",
+        "experiments.evaluation.cli",
+        "baseline",
+        "--sample",
+        sample_id,
+        "--repetition",
+        str(repetition_id),
+        "--repetitions",
+        "1",
+        "--runs-root",
+        str(baseline_root),
+        "--max-turns",
+        str(max_turns),
+        "--timeout",
+        str(timeout_seconds),
+    ]
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join([str(REPO_ROOT / "src"), str(REPO_ROOT)]),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    process = subprocess.Popen(  # noqa: S603 - fixed command, no shell
+        command,
+        cwd=REPO_ROOT,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    timed_out = False
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds + 120)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                capture_output=True,
+                check=False,
+            )
+        else:
+            process.kill()
+        stdout, stderr = process.communicate()
+    parsed: dict[str, Any] | None = None
+    for line in reversed((stdout or "").splitlines()):
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            candidate = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict) and "sample_id" in candidate and "success" in candidate:
+            parsed = candidate
+            break
+    return {
+        "sample_id": sample_id,
+        "repetition_id": repetition_id,
+        "timed_out": timed_out,
+        "returncode": process.returncode,
+        "success": bool(parsed.get("success")) if parsed else False,
+        "failure_class": (parsed or {}).get("failure_class"),
+        "passed": bool(
+            not timed_out and process.returncode == 0 and parsed and parsed.get("success") is True
+        ),
+        "stderr_tail": (stderr or "")[-2000:],
+    }
+
+
 def run_suite(
     suite: str,
     *,
@@ -207,18 +291,31 @@ def run_suite(
     started = time.perf_counter()
     for repetition in range(repetitions):
         rep_started = time.perf_counter()
-        summaries = [
-            _run_isolated_sample(
-                sample_id=task.sample_id,
-                repetition_id=repetition,
-                runs_root=runs_root,
-                log_dir=log_dir,
-                max_turns=max_turns,
-                timeout_seconds=timeout_seconds,
-                progressive_tools=progressive_tools,
-            )
-            for task in tasks
-        ]
+        if suite == "baseline":
+            baseline_root = round_root / "baseline-runs"
+            summaries = [
+                _run_isolated_baseline(
+                    sample_id=task.sample_id,
+                    repetition_id=repetition,
+                    baseline_root=baseline_root,
+                    max_turns=max_turns,
+                    timeout_seconds=timeout_seconds,
+                )
+                for task in tasks
+            ]
+        else:
+            summaries = [
+                _run_isolated_sample(
+                    sample_id=task.sample_id,
+                    repetition_id=repetition,
+                    runs_root=runs_root,
+                    log_dir=log_dir,
+                    max_turns=max_turns,
+                    timeout_seconds=timeout_seconds,
+                    progressive_tools=progressive_tools,
+                )
+                for task in tasks
+            ]
         manifest["repetitions"].append(
             {
                 "repetition_id": repetition,
@@ -238,6 +335,8 @@ def run_suite(
     manifest["all_repetitions_passed"] = all(
         repetition["passed"] for repetition in manifest["repetitions"]
     )
+    if suite == "baseline":
+        manifest["baseline_summary"] = summarize_baseline(round_root / "baseline-runs")
     (round_root / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -247,7 +346,7 @@ def run_suite(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="atlas-eval-round")
-    parser.add_argument("suite", choices=("smoke", "pilot", "formal", "ablation-tools"))
+    parser.add_argument("suite", choices=("smoke", "pilot", "formal", "ablation-tools", "baseline"))
     parser.add_argument("--repetitions", type=int, default=1)
     parser.add_argument("--max-turns", type=int, default=14)
     parser.add_argument("--timeout", type=int, default=900)

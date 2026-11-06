@@ -40,6 +40,7 @@ from experiments.evaluation.runner import (
     _estimate_cost,
     _jsonable,
     build_deepseek_adapter,
+    evaluation_resilience,
 )
 
 from atlasos.config import load_config
@@ -150,6 +151,7 @@ async def run_baseline_sample(
                 max_turns=step.max_turns or settings.max_turns,
                 max_tokens=settings.max_tokens,
                 temperature=settings.temperature,
+                provider_resilience=evaluation_resilience(),
                 tool_security=ToolSecurityPolicy(workspace_root=str(workspace)),
             )
             for step in task.workers
