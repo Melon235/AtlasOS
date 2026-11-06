@@ -427,16 +427,19 @@ def _comparison_chart(
         for label, item in comparison.items()
         if isinstance(item, dict) and "task_success_rate" in item
     }
-    labels = ["AtlasOS full", *comparable.keys()]
+    labels = [
+        f"AtlasOS full (n={metrics['task_success_rate']['denominator']})",
+        *(f"{label} (n={item.get('runs', '?')})" for label, item in comparable.items()),
+    ]
     values = [metrics["task_success_rate"]["value"] or 0.0]
     values.extend(float(item.get("task_success_rate") or 0.0) for item in comparable.values())
-    fig, ax = plt.subplots(figsize=(9.0, 4.2))
+    fig, ax = plt.subplots(figsize=(11.0, 4.4))
     bars = ax.bar(
         labels, values, color=[_COLORS["pass"], *([_COLORS["neutral"]] * (len(labels) - 1))]
     )
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("task success rate")
-    ax.set_title("AtlasOS vs baseline / ablations")
+    ax.set_title("AtlasOS vs baseline / ablations (scope in labels)")
     ax.tick_params(axis="x", rotation=15)
     for bar, value in zip(bars, values, strict=True):
         ax.text(bar.get_x() + bar.get_width() / 2, value + 0.02, f"{value:.2f}", ha="center")
