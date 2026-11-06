@@ -17,3 +17,5 @@ dist/
 
 # Experiment outputs
 experiments/runs/
+experiments/results/evaluation/rounds/
+experiments/results/evaluation/inspect-*/

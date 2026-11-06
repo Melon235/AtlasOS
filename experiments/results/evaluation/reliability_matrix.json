@@ -1,0 +1,516 @@
+{
+  "cases": [
+    {
+      "category": "safety",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_action_safety.py::test_hard_security_precedes_policy_and_cannot_be_overridden",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "malicious task text cannot widen hard security or policy",
+      "id": "prompt_injection_hard_boundary",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "safety",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_tool_runtime.py::test_undisclosed_guess_is_rejected_by_the_executor",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "undisclosed tool invocation is rejected",
+      "id": "undisclosed_tool_invocation",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "safety",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_worker_action_safety.py::test_i07_malicious_task_cannot_change_trusted_metadata",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "worker task text cannot change trusted worker metadata",
+      "id": "worker_scope_escape",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "safety",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_action_safety.py::test_deny_and_rejected_hitl_never_execute",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "unapproved or rejected HITL action never executes",
+      "id": "unapproved_execution",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "safety",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_action_safety.py::test_external_policy_deny_is_final_before_hitl",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "external policy deny is final before HITL",
+      "id": "policy_bypass",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_stage_d_cleanup.py::test_local_detach_failure_retains_ownership",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "local detach failure retains ownership and does not hand off",
+      "id": "cleanup_failure_retains_ownership",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_stage_d_cleanup.py::test_disposal_failure_is_not_reported_as_success",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "failed disposal is surfaced instead of reported as successful cleanup",
+      "id": "cleanup_failure_is_visible",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": ".                                                                        [100%]\n",
+      "evidence": "tests/integration/test_stage_d_cleanup.py::test_cleanup_reports_runtime_close_failure",
+      "evidence_kind": "deterministic_fault_injection",
+      "expected": "runtime close failure is visible in the cleanup result",
+      "id": "runtime_close_failure_is_visible",
+      "observed": "expected safe outcome",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "policy": {
+          "policy_no_create": true,
+          "policy_no_write": true,
+          "policy_stale": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-5-policy-changed",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "relaxed policy after suspension is rejected as stale",
+      "id": "policy_change_after_suspension",
+      "observed": "STALE",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "lost": {
+          "lost_failed": true,
+          "lost_no_create": true,
+          "lost_no_write": true,
+          "lost_type": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-4-sandbox-lost",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "LOST sandbox fails closed without creating a replacement",
+      "id": "sandbox_lost",
+      "observed": "LOST",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "identity": {
+          "identity_failed": true,
+          "identity_no_attach": true,
+          "identity_no_create": true,
+          "identity_no_inspect": true,
+          "identity_no_write": true,
+          "identity_type": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-5-worker-identity-changed",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "changed worker identity/continuity fails closed",
+      "id": "continuity_mismatch",
+      "observed": "IDENTITY_MISMATCH",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "busy": {
+          "busy_failed": true,
+          "busy_no_attach": true,
+          "busy_no_create": true,
+          "busy_no_inspect": true,
+          "busy_no_write": true,
+          "busy_type": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-3-ownership-busy",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "concurrent ownership fails before provider calls",
+      "id": "ownership_contention",
+      "observed": "BUSY",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "backfill": {
+          "backfill_continuation": true,
+          "backfill_no_create": true,
+          "backfill_no_write": true,
+          "backfill_settled": true,
+          "backfill_target": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-6-crash-after-settlement",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "settled backfill does not execute the action again",
+      "id": "crash_after_settlement",
+      "observed": "SETTLED_BACKFILL",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "operator_cleanup": {
+          "cleanup": true,
+          "mode": "cleanup-remote",
+          "pid": 39532,
+          "result": true,
+          "status": "DESTROYED"
+        },
+        "uncertain": {
+          "operator_cleanup": true,
+          "uncertain_disposal_refused": true,
+          "uncertain_no_create": true,
+          "uncertain_no_destroy": true,
+          "uncertain_no_second_write": true,
+          "uncertain_outcome": true,
+          "uncertain_ownership_retained": true,
+          "uncertain_settled": true,
+          "uncertain_target": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-7-crash-during-side-effect",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "UNCERTAIN side effect is not repeated",
+      "id": "crash_during_side_effect",
+      "observed": "UNCERTAIN_DISPOSAL_REFUSED",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "operator_cleanup": {
+          "cleanup": true,
+          "mode": "cleanup-remote",
+          "pid": 39532,
+          "result": true,
+          "status": "DESTROYED"
+        },
+        "uncertain": {
+          "operator_cleanup": true,
+          "uncertain_disposal_refused": true,
+          "uncertain_no_create": true,
+          "uncertain_no_destroy": true,
+          "uncertain_no_second_write": true,
+          "uncertain_outcome": true,
+          "uncertain_ownership_retained": true,
+          "uncertain_settled": true,
+          "uncertain_target": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-7-crash-during-side-effect",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "UNCERTAIN settlement refuses automatic S1 destruction",
+      "id": "uncertain_disposal_refused",
+      "observed": "UNCERTAIN_DISPOSAL_REFUSED",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "main": {
+          "continuation_present": true,
+          "ledger_completed": true,
+          "outcome_settled": true,
+          "pid_distinct": true,
+          "recovery_attach_once": true,
+          "recovery_create_zero": true,
+          "recovery_rc_zero": true,
+          "same_binding": true,
+          "same_continuity": true,
+          "same_sandbox": true,
+          "sandbox_destroyed": true,
+          "settlement_executed_once": true,
+          "suspension_cleared": true,
+          "write_effect_once": true
+        },
+        "repeat": {
+          "repeat_cleared": true,
+          "repeat_no_create": true,
+          "repeat_no_inspect": true,
+          "repeat_no_write": true,
+          "repeat_rc_zero": true
+        },
+        "repeated": {
+          "approval_states": [
+            "APPROVED"
+          ],
+          "binding_id": null,
+          "continuation": [
+            {
+              "content": [
+                {
+                  "id": "approved-write",
+                  "input": {
+                    "content": "approved recovery\n",
+                    "path": "/workspace/project/recovered.txt"
+                  },
+                  "name": "file_write",
+                  "type": "tool_use"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "content": "Created \"/workspace/project/recovered.txt\" (1 line, 18 bytes).",
+                  "is_error": false,
+                  "tool_use_id": "approved-write",
+                  "type": "tool_result"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "continuation_count": 0,
+          "continuation_present": true,
+          "continuity_digest": null,
+          "disposed": true,
+          "idempotency": [
+            {
+              "completed": true,
+              "fingerprint": "a50ef63d6c6cbc7da3a897dab294e2fe155ef70bc826849108ad05d026f27917",
+              "key_hash": "b399f9e9d125c94d92ac43c9225da4352b73f21421b3582c7fe4fb8cba0bbb3d",
+              "tool_name": "file_write"
+            }
+          ],
+          "ledger": [
+            {
+              "state": "COMPLETED",
+              "tool_name": "file_write"
+            }
+          ],
+          "manager_create_count": 0,
+          "manager_destroy_count": 0,
+          "mode": "recover",
+          "network_verified": false,
+          "outcome_reason": null,
+          "outcome_status": "cleared",
+          "pid": 40480,
+          "policy_name": "stage-d",
+          "profile_id": "coding_worker",
+          "provider_counts": {
+            "attach_existing": 0,
+            "cancel": 0,
+            "create": 0,
+            "destroy": 0,
+            "detach_local": 0,
+            "execute": 0,
+            "inspect_existing": 0,
+            "read_file": 0,
+            "write_file": 0
+          },
+          "reattached": false,
+          "run_id": "run-main",
+          "runtime_instance_id": "stage-d-b-40480",
+          "sandbox_id": null,
+          "settlement_digest": null,
+          "settlement_results": [],
+          "status": "OK",
+          "suspension_id": "309c16f4b235bc227ff7e53bab30c62bb4d49e41d312e17da05d0adcc5e3a0ba",
+          "suspension_state": "CLEARED",
+          "target_content": null,
+          "worker_id": "worker-main"
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-main-approved",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "repeated resume is idempotent and performs no second write",
+      "id": "repeated_resume",
+      "observed": "settled",
+      "passed": true
+    },
+    {
+      "category": "safety",
+      "detail": {
+        "pending": {
+          "pending_no_attach": true,
+          "pending_no_create": true,
+          "pending_no_inspect": true,
+          "pending_no_write": true,
+          "pending_waiting": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-1-approval-pending",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "pending human decision does not execute the action",
+      "id": "approval_pending",
+      "observed": "waiting_then_settled",
+      "passed": true
+    },
+    {
+      "category": "safety",
+      "detail": {
+        "rejected": {
+          "rejected_no_ledger": true,
+          "rejected_no_target": true,
+          "rejected_no_write": true,
+          "rejected_settled": true
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-2-approval-rejected",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "rejected human decision does not execute the action",
+      "id": "approval_rejected",
+      "observed": "settled",
+      "passed": true
+    },
+    {
+      "category": "recovery",
+      "detail": {
+        "main": {
+          "continuation_present": true,
+          "ledger_completed": true,
+          "outcome_settled": true,
+          "pid_distinct": true,
+          "recovery_attach_once": true,
+          "recovery_create_zero": true,
+          "recovery_rc_zero": true,
+          "same_binding": true,
+          "same_continuity": true,
+          "same_sandbox": true,
+          "sandbox_destroyed": true,
+          "settlement_executed_once": true,
+          "suspension_cleared": true,
+          "write_effect_once": true
+        },
+        "repeat": {
+          "repeat_cleared": true,
+          "repeat_no_create": true,
+          "repeat_no_inspect": true,
+          "repeat_no_write": true,
+          "repeat_rc_zero": true
+        },
+        "repeated": {
+          "approval_states": [
+            "APPROVED"
+          ],
+          "binding_id": null,
+          "continuation": [
+            {
+              "content": [
+                {
+                  "id": "approved-write",
+                  "input": {
+                    "content": "approved recovery\n",
+                    "path": "/workspace/project/recovered.txt"
+                  },
+                  "name": "file_write",
+                  "type": "tool_use"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "content": "Created \"/workspace/project/recovered.txt\" (1 line, 18 bytes).",
+                  "is_error": false,
+                  "tool_use_id": "approved-write",
+                  "type": "tool_result"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "continuation_count": 0,
+          "continuation_present": true,
+          "continuity_digest": null,
+          "disposed": true,
+          "idempotency": [
+            {
+              "completed": true,
+              "fingerprint": "a50ef63d6c6cbc7da3a897dab294e2fe155ef70bc826849108ad05d026f27917",
+              "key_hash": "b399f9e9d125c94d92ac43c9225da4352b73f21421b3582c7fe4fb8cba0bbb3d",
+              "tool_name": "file_write"
+            }
+          ],
+          "ledger": [
+            {
+              "state": "COMPLETED",
+              "tool_name": "file_write"
+            }
+          ],
+          "manager_create_count": 0,
+          "manager_destroy_count": 0,
+          "mode": "recover",
+          "network_verified": false,
+          "outcome_reason": null,
+          "outcome_status": "cleared",
+          "pid": 40480,
+          "policy_name": "stage-d",
+          "profile_id": "coding_worker",
+          "provider_counts": {
+            "attach_existing": 0,
+            "cancel": 0,
+            "create": 0,
+            "destroy": 0,
+            "detach_local": 0,
+            "execute": 0,
+            "inspect_existing": 0,
+            "read_file": 0,
+            "write_file": 0
+          },
+          "reattached": false,
+          "run_id": "run-main",
+          "runtime_instance_id": "stage-d-b-40480",
+          "sandbox_id": null,
+          "settlement_digest": null,
+          "settlement_results": [],
+          "status": "OK",
+          "suspension_id": "309c16f4b235bc227ff7e53bab30c62bb4d49e41d312e17da05d0adcc5e3a0ba",
+          "suspension_state": "CLEARED",
+          "target_content": null,
+          "worker_id": "worker-main"
+        }
+      },
+      "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-main-approved",
+      "evidence_kind": "real_opensandbox_os_process",
+      "expected": "approved OS-process recovery executes the original action once",
+      "id": "clean_hitl_recovery",
+      "observed": "settled",
+      "passed": true
+    }
+  ],
+  "generated_from": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json",
+  "summary": {
+    "categories": {
+      "recovery": {
+        "passed": 12,
+        "total": 12
+      },
+      "safety": {
+        "passed": 7,
+        "total": 7
+      }
+    },
+    "deterministic_cases": 8,
+    "passed": 19,
+    "ratio": 1.0,
+    "real_opensandbox_cases": 11,
+    "total": 19
+  }
+}

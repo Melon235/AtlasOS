@@ -31,6 +31,11 @@ sandbox = [
     "opensandbox>=1.2,<2",
     "daytona>=0.197,<1",
 ]
+# Inspect AI is an external evaluation harness, not an AtlasOS runtime dependency.
+evaluation = [
+    "inspect-ai>=0.3.287",
+    "matplotlib>=3.9",
+]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
