@@ -1,0 +1,211 @@
+[
+  {
+    "category": "bugfix",
+    "failure_class": "ORACLE_FAILURE",
+    "failure_reason": "hidden tests failed with exit code 1",
+    "final_output": "",
+    "oracle_checks": {
+      "forbidden_paths_unchanged": true,
+      "hidden_tests_passed": false,
+      "host_fixture_unchanged": true,
+      "only_allowed_paths_changed": true,
+      "required_artifacts_present": true
+    },
+    "oracle_failures": [
+      "hidden tests failed with exit code 1"
+    ],
+    "run_dir": "D:\\Work\\AtlasOS\\experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\runs\\atlasos-agentbench-v1\\bugfix-007-toposort\\r0-eval-84ea4ee8f06d",
+    "run_id": "eval-84ea4ee8f06d",
+    "sample_id": "bugfix-007-toposort",
+    "tool_trace": [
+      {
+        "input": "{'command': 'cd /workspace/project && ls -R | head -50 && grep -rn \"topological_order\" --include=*.py .'}",
+        "output": ".:teststoposort.py\n./tests:test_public.py./tests/test_public.py:3:from toposort import topological_order./tests/test_public.py:7:    assert topological_order({\"a\": [\"b\"], \"b\": [\"c\"], \"c\": []}) == [\"a\", \"b\", \"c\"]./toposort.py:6:def topological_order(graph: Mapping[str, list[str]]) -> list[str]:",
+        "tool": "bash"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && cat toposort.py && echo ---- && cat tests/test_public.py && echo ---- && cat teststoposort.py'}",
+        "output": "from __future__ import annotations\nfrom collections.abc import Mapping\n\ndef topological_order(graph: Mapping[str, list[str]]) -> list[str]:    \"\"\"Return a deterministic topological order of graph nodes.\"\"\"\n    indegree = {node: 0 for node in graph}    for node, neighbours in graph.items():        for neighbour in neighbours:            indegree.setdefault(neighbour, 0)            indegree[neighbour] += 1    ready = sorted(node for node, count in indegree.items() if count == 0)    order: list[str",
+        "tool": "bash"
+      }
+    ]
+  },
+  {
+    "category": "feature",
+    "failure_class": "ORACLE_FAILURE",
+    "failure_reason": "hidden tests failed with exit code 1",
+    "final_output": "",
+    "oracle_checks": {
+      "forbidden_paths_unchanged": true,
+      "hidden_tests_passed": false,
+      "host_fixture_unchanged": true,
+      "only_allowed_paths_changed": true,
+      "required_artifacts_present": true
+    },
+    "oracle_failures": [
+      "hidden tests failed with exit code 1"
+    ],
+    "run_dir": "D:\\Work\\AtlasOS\\experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\runs\\atlasos-agentbench-v1\\feature-003-line-diff\\r0-eval-500acba1bc06",
+    "run_id": "eval-500acba1bc06",
+    "sample_id": "feature-003-line-diff",
+    "tool_trace": [
+      {
+        "input": "{'command': 'find /workspace/project -type f -not -path \\'*/.git/*\\' | head -50; echo \"---\"; cat /workspace/project/textdiff.py'}",
+        "output": "/workspace/project/tests/test_public.py/workspace/project/textdiff.py---from __future__ import annotations\nfrom collections.abc import Sequence\n\ndef unified_diff_lines(    old: Sequence[str],    new: Sequence[str],    *,    context: int = 1,) -> list[str]:    \"\"\"Return a minimal unified-style line diff without trailing newline markers.\"\"\"\n    raise NotImplementedError(\"unified_diff_lines\")",
+        "tool": "bash"
+      },
+      {
+        "input": "{'path': '/workspace/project'}",
+        "output": "tests/test_public.pytextdiff.py\n\n(1 file, backend: sandbox)",
+        "tool": "list_files"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && cat -A textdiff.py | head -20; echo \"=== TESTS ===\"; cat tests/test_public.py'}",
+        "output": "from __future__ import annotations$$from collections.abc import Sequence$$$def unified_diff_lines($    old: Sequence[str],$    new: Sequence[str],$    *,$    context: int = 1,$) -> list[str]:$    \"\"\"Return a minimal unified-style line diff without trailing newline markers.\"\"\"$$    raise NotImplementedError(\"unified_diff_lines\")$=== TESTS ===from __future__ import annotations\nfrom textdiff import unified_diff_lines\n\ndef test_identical() -> None:    assert unified_diff_lines(['a', 'b'], ['a', 'b']",
+        "tool": "bash"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && cat -A tests/test_public.py; echo \"===\"; ls -la; ls -la tests; cat pytest.ini setup.cfg pyproject.toml 2>/dev/null'}",
+        "output": "from __future__ import annotations$$from textdiff import unified_diff_lines$$$def test_identical() -> None:$    assert unified_diff_lines(['a', 'b'], ['a', 'b']) == []$===total 20drwxr-xr-x 4 root root 4096 Nov  6 13:22 .drwxr-xr-x 3 root root 4096 Nov  6 13:22 ..drwxr-xr-x 8 root root 4096 Nov  6 13:22 .gitdrwxr-xr-x 2 root root 4096 Nov  6 13:22 tests-rw-r--r-- 1 root root  330 Nov  6 13:22 textdiff.pytotal 12drwxr-xr-x 2 root root 4096 Nov  6 13:22 .drwxr-xr-x 4 root root 4096 Nov  6 13:22 ..",
+        "tool": "bash"
+      }
+    ]
+  },
+  {
+    "category": "long_context",
+    "failure_class": "ORACLE_FAILURE",
+    "failure_reason": "hidden tests failed with exit code 1",
+    "final_output": "I'll start by exploring the repository structure.",
+    "oracle_checks": {
+      "forbidden_paths_unchanged": true,
+      "hidden_tests_passed": false,
+      "host_fixture_unchanged": true,
+      "only_allowed_paths_changed": true,
+      "required_artifacts_present": true
+    },
+    "oracle_failures": [
+      "hidden tests failed with exit code 1"
+    ],
+    "run_dir": "D:\\Work\\AtlasOS\\experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\runs\\atlasos-agentbench-v1\\longcontext-003-module-map\\r0-eval-4765330910b4",
+    "run_id": "eval-4765330910b4",
+    "sample_id": "longcontext-003-module-map",
+    "tool_trace": [
+      {
+        "input": "{'command': 'cd /workspace/project && ls -la && echo \"---\" && cat docs/module_map.md'}",
+        "output": "total 24drwxr-xr-x 5 root root 4096 Nov  6 13:31 .drwxr-xr-x 3 root root 4096 Nov  6 13:31 ..drwxr-xr-x 8 root root 4096 Nov  6 13:31 .gitdrwxr-xr-x 3 root root 4096 Nov  6 13:31 docsdrwxr-xr-x 2 root root 4096 Nov  6 13:31 modules-rw-r--r-- 1 root root  169 Nov  6 13:31 pipeline.py---# Module map\nThe active pipeline uses exactly these module value providers, in this order:\n- modules/m03.py- modules/m11.py- modules/m22.py\nAll other modules are retained for historical pipelines and must not be us",
+        "tool": "bash"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && cat pipeline.py && echo \"--- TESTS ---\" && ls tests/ && cat tests/*.py 2>/dev/null | head -100'}",
+        "output": "from __future__ import annotations\n\ndef pipeline_total() -> int:    \"\"\"Return the sum of the active module values.\"\"\"\n    raise NotImplementedError(\"pipeline_total\")--- TESTS ---\n-- stderr --\nls: cannot access 'tests/': No such file or directory\n\n(exit code 2)",
+        "tool": "bash"
+      }
+    ]
+  },
+  {
+    "category": "multi_worker",
+    "failure_class": "ORACLE_FAILURE",
+    "failure_reason": "missing required artifacts: ['part_b.py']; one or more workers produced no output; hidden tests failed with exit code 2",
+    "final_output": "Done.\n\n**Created:** `/workspace/project/part_a.py` (only file added; `part_b.py` was not created)\n\n**Implementation** \u2014 `normalize_name(value: str) -> str`:\n1. `value.strip().lower()`\n2. underscores (`_+`) \u2192 `-`\n3. runs of spaces (` +`) \u2192 `-`\n4. repeated hyphens (`-+`) \u2192 `-`\n\nRaises `TypeError` for non-`str` input. Uses only stdlib `re`.\n\n**Verification run** (Python 3, in `/workspace/project`):\n- 12 assertions passed, covering: surrounding whitespace, mixed case, single/double underscores, multi-space runs, `\"a - b\"` \u2192 `\"a-b\"`, `\"a--b\"` \u2192 `\"a-b\"`, `\"A_-_B\"` \u2192 `\"a-b\"`, empty/whitespace-only strings, already-normalized input, and leading/trailing separators (`\"_lead_\"` \u2192 `\"-lead-\"`).\n- `TypeError` confirmed for `None`.\n- `ast.parse` syntax check passed; test-generated `__pycache__` removed and file permissions set to 644.\n\n**Note on semantics:** only ASCII space runs are converted to hyphens (per spec); tabs/newlines are not treated as spaces, and leading/trailing underscores become leading/trailing hyphens rather than being stripped.",
+    "oracle_checks": {
+      "all_workers_produced_output": false,
+      "distinct_workers_executed": true,
+      "forbidden_paths_unchanged": true,
+      "hidden_tests_passed": false,
+      "host_fixture_unchanged": true,
+      "only_allowed_paths_changed": true,
+      "required_artifacts_present": false
+    },
+    "oracle_failures": [
+      "missing required artifacts: ['part_b.py']",
+      "one or more workers produced no output",
+      "hidden tests failed with exit code 2"
+    ],
+    "run_dir": "D:\\Work\\AtlasOS\\experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\runs\\atlasos-agentbench-v1\\multiworker-001-handoff\\r0-eval-e889adee1255",
+    "run_id": "eval-e889adee1255",
+    "sample_id": "multiworker-001-handoff",
+    "tool_trace": [
+      {
+        "input": "{'command': 'ls -la /workspace/project 2>&1 | head -50'}",
+        "output": "total 16drwxr-xr-x 3 root root 4096 Nov  6 13:26 .drwxr-xr-x 3 root root 4096 Nov  6 13:26 ..drwxr-xr-x 8 root root 4096 Nov  6 13:26 .git-rw-r--r-- 1 root root   80 Nov  6 13:26 README.md",
+        "tool": "bash"
+      },
+      {
+        "input": "{'command': 'cat /workspace/project/README.md'}",
+        "output": "# Two-worker handoff\nWorker alpha produces part_a.py; worker beta consumes it.",
+        "tool": "bash"
+      },
+      {
+        "input": "{'content': '\"\"\"Name normalization helper (worker alpha).\"\"\"\\n\\nimport re\\n\\n__all__ = [\"normalize_name\"]\\n\\n_UNDERSCORES = re.compile(r\"_+\")\\n_SPACES = re.compile(r\" +\")\\n_HYPHENS = re.compile(r\"-+\")\\n\\n\\ndef normalize_name(value: str) -> str:\\n    \"\"\"Normalize a name for comparison.\\n\\n    Surroun",
+        "output": "Created \"/workspace/project/part_a.py\" (25 lines, 664 bytes).",
+        "tool": "file_write"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && python3 - <<\\'EOF\\'\\nfrom part_a import normalize_name as n\\ncases = [\\n    (\"  Hello World  \", \"hello-world\"),\\n    (\"foo_bar\", \"foo-bar\"),\\n    (\"foo__bar\", \"foo-bar\"),\\n    (\"a   b\", \"a-b\"),\\n    (\"a - b\", \"a-b\"),\\n    (\"a--b\", \"a-b\"),\\n    (\"A_-_B\", \"a-b\"),\\",
+        "output": "all 12 cases passedTypeError ok: value must be a strtotal 24drwxr-xr-x 4 root root 4096 Nov  6 13:27 .drwxr-xr-x 3 root root 4096 Nov  6 13:26 ..drwxr-xr-x 8 root root 4096 Nov  6 13:26 .git-rw-r--r-- 1 root root   80 Nov  6 13:26 README.mddrwxr-xr-x 2 root root 4096 Nov  6 13:27 __pycache__-r---w---- 1 root root  664 Nov  6 13:27 part_a.py",
+        "tool": "bash"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && rm -rf __pycache__ && chmod 644 part_a.py && ls -la && python3 -c \"import ast;ast.parse(open(\\'part_a.py\\').read());print(\\'syntax ok\\')\"'}",
+        "output": "total 20drwxr-xr-x 3 root root 4096 Nov  6 13:27 .drwxr-xr-x 3 root root 4096 Nov  6 13:26 ..drwxr-xr-x 8 root root 4096 Nov  6 13:26 .git-rw-r--r-- 1 root root   80 Nov  6 13:26 README.md-rw-r--r-- 1 root root  664 Nov  6 13:27 part_a.pysyntax ok",
+        "tool": "bash"
+      },
+      {
+        "input": "{'command': 'ls -la /workspace/project && echo \"---\" && cat /workspace/project/part_a.py'}",
+        "output": "total 20drwxr-xr-x 3 root root 4096 Nov  6 13:27 .drwxr-xr-x 3 root root 4096 Nov  6 13:26 ..drwxr-xr-x 8 root root 4096 Nov  6 13:26 .git-rw-r--r-- 1 root root   80 Nov  6 13:26 README.md-rw-r--r-- 1 root root  664 Nov  6 13:27 part_a.py---\"\"\"Name normalization helper (worker alpha).\"\"\"\nimport re\n__all__ = [\"normalize_name\"]\n_UNDERSCORES = re.compile(r\"_+\")_SPACES = re.compile(r\" +\")_HYPHENS = re.compile(r\"-+\")\n\ndef normalize_name(value: str) -> str:    \"\"\"Normalize a name for comparison.\n    S",
+        "tool": "bash"
+      },
+      {
+        "input": "{'path': '/workspace/project'}",
+        "output": "README.mdpart_a.py\n\n(1 file, backend: sandbox)",
+        "tool": "list_files"
+      },
+      {
+        "input": "{'path': '/workspace/project/part_a.py'}",
+        "output": "1\t\"\"\"Name normalization helper (worker alpha).\"\"\"\n2\t\n3\timport re\n4\t\n5\t__all__ = [\"normalize_name\"]\n6\t\n7\t_UNDERSCORES = re.compile(r\"_+\")\n8\t_SPACES = re.compile(r\" +\")\n9\t_HYPHENS = re.compile(r\"-+\")\n10\t\n11\t\n12\tdef normalize_name(value: str) -> str:\n13\t    \"\"\"Normalize a name for comparison.\n14\t\n15\t    Surrounding whitespace is stripped, the text is lowercased, underscores\n16\t    and runs of spaces become a single hyphen, and repeated hyphens collapse.\n17\t    \"\"\"\n18\t    if not isinstance(value, st",
+        "tool": "file_read"
+      }
+    ]
+  },
+  {
+    "category": "bugfix",
+    "failure_class": "ORACLE_FAILURE",
+    "failure_reason": "hidden tests failed with exit code 1",
+    "final_output": "Done.\n\n**Change** (`/workspace/project/toposort.py`):\n- Rewrote the file (it had been collapsed onto single lines, which was syntactically broken) into a clean, readable implementation.\n- Kept Kahn's algorithm with lexicographic tie-breaking (`sorted` initial ready set + `ready.sort()` after each insertion).\n- Nodes appearing only as edge targets are still added via `indegree.setdefault(neighbour, 0)`.\n- Added a post-processing check: if `len(order) != len(indegree)`, raise `ValueError` listing the remaining (cyclic) nodes in sorted order.\n\n**Verification**:\n- `python3 -m pytest tests -q` \u2192 `1 passed`.\n- Manual checks: `{'b':['c'],'a':['c']}` \u2192 `['a','b','c']`; `{'a':['b'],'b':['a']}` \u2192 `ValueError`; partial cycle `{'a':['b'],'b':['c'],'c':['b'],'d':[]}` \u2192 `ValueError` naming `'b', 'c'`; empty graph \u2192 `[]`.\n- `tests/` was not modified.",
+    "oracle_checks": {
+      "forbidden_paths_unchanged": true,
+      "hidden_tests_passed": false,
+      "host_fixture_unchanged": true,
+      "only_allowed_paths_changed": true,
+      "required_artifacts_present": true
+    },
+    "oracle_failures": [
+      "hidden tests failed with exit code 1"
+    ],
+    "run_dir": "D:\\Work\\AtlasOS\\experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\runs\\atlasos-agentbench-v1\\bugfix-007-toposort\\r1-eval-fef7c94d0851",
+    "run_id": "eval-fef7c94d0851",
+    "sample_id": "bugfix-007-toposort",
+    "tool_trace": [
+      {
+        "input": "{'command': 'cd /workspace/project && ls -R | head -50 && grep -rn \"topological_order\" --include=*.py . | head -30'}",
+        "output": ".:teststoposort.py\n./tests:test_public.py./tests/test_public.py:3:from toposort import topological_order./tests/test_public.py:7:    assert topological_order({\"a\": [\"b\"], \"b\": [\"c\"], \"c\": []}) == [\"a\", \"b\", \"c\"]./toposort.py:6:def topological_order(graph: Mapping[str, list[str]]) -> list[str]:",
+        "tool": "bash"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && cat toposort.py && echo ---- && cat tests/test_public.py'}",
+        "output": "from __future__ import annotations\nfrom collections.abc import Mapping\n\ndef topological_order(graph: Mapping[str, list[str]]) -> list[str]:    \"\"\"Return a deterministic topological order of graph nodes.\"\"\"\n    indegree = {node: 0 for node in graph}    for node, neighbours in graph.items():        for neighbour in neighbours:            indegree.setdefault(neighbour, 0)            indegree[neighbour] += 1    ready = sorted(node for node, count in indegree.items() if count == 0)    order: list[str",
+        "tool": "bash"
+      },
+      {
+        "input": "{'content': 'from __future__ import annotations\\nfrom collections.abc import Mapping\\n\\n\\ndef topological_order(graph: Mapping[str, list[str]]) -> list[str]:\\n    \"\"\"Return a deterministic topological order of graph nodes.\\n\\n    Nodes are ordered so that every node appears before the nodes it point",
+        "output": "Overwrote \"/workspace/project/toposort.py\" (40 lines, 1417 bytes).",
+        "tool": "file_write"
+      },
+      {
+        "input": "{'command': 'cd /workspace/project && python3 -m pytest tests -q 2>&1 | tail -5; python3 -c \"\\nfrom toposort import topological_order\\nprint(topological_order({\\'b\\':[\\'c\\'],\\'a\\':[\\'c\\']}))\\nprint(topological_order({\\'a\\':[\\'b\\'],\\'b\\':[\\'a\\']}) if False else \\'skip\\')\\ntry:\\n    topological_order(",
+        "output": ".                                                                        [100%]1 passed in 0.00s['a', 'b', 'c']skipValueError: graph contains a cycle; could not order nodes: 'a', 'b'ValueError: graph contains a cycle; could not order nodes: 'b', 'c'[]",
+        "tool": "bash"
+      }
+    ]
+  }
+]

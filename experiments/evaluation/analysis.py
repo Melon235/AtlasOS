@@ -422,9 +422,14 @@ def _comparison_chart(
 ) -> list[str]:
     if not comparison:
         return []
-    labels = ["AtlasOS full", *comparison.keys()]
+    comparable = {
+        label: item
+        for label, item in comparison.items()
+        if isinstance(item, dict) and "task_success_rate" in item
+    }
+    labels = ["AtlasOS full", *comparable.keys()]
     values = [metrics["task_success_rate"]["value"] or 0.0]
-    values.extend(float(item.get("task_success_rate") or 0.0) for item in comparison.values())
+    values.extend(float(item.get("task_success_rate") or 0.0) for item in comparable.values())
     fig, ax = plt.subplots(figsize=(9.0, 4.2))
     bars = ax.bar(
         labels, values, color=[_COLORS["pass"], *([_COLORS["neutral"]] * (len(labels) - 1))]

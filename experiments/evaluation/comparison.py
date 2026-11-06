@@ -70,10 +70,16 @@ def build_comparison(
     baseline_rows = _load_results(baseline_root / "baseline-runs")
     ablation_rows = _load_results(ablation_root / "runs") if ablation_root else []
     matched_formal = [row for row in formal_rows if row.get("category") != "tool_discovery"]
+    matched_rep0 = [
+        row for row in matched_formal if (row.get("identity") or {}).get("repetition_id") == 0
+    ]
     tool_formal = [row for row in formal_rows if row.get("category") == "tool_discovery"]
     comparison: dict[str, Any] = {
-        "AtlasOS full": _summary(formal_rows, scope="30 tasks"),
-        "AtlasOS matched non-tool": _summary(matched_formal, scope="25 non-tool tasks"),
+        "AtlasOS full": _summary(formal_rows, scope="30 tasks, 3 repetitions"),
+        "AtlasOS matched non-tool": _summary(
+            matched_formal, scope="25 non-tool tasks, 3 repetitions"
+        ),
+        "AtlasOS matched rep0": _summary(matched_rep0, scope="25 non-tool tasks, repetition 0"),
         "AtlasOS tool discovery": _summary(tool_formal, scope="5 tool-discovery tasks"),
         "AnyCode baseline": _summary(baseline_rows, scope="25 non-tool tasks"),
         "tool_discovery_baseline": (
@@ -81,12 +87,24 @@ def build_comparison(
         ),
     }
     if ablation_rows:
+        ablation_non_tool = [
+            row for row in ablation_rows if row.get("category") != "tool_discovery"
+        ]
+        ablation_ids = {row.get("sample_id") for row in ablation_non_tool}
+        atlas_ablation_subset = [row for row in formal_rows if row.get("sample_id") in ablation_ids]
         comparison["No progressive discovery"] = _summary(
-            ablation_rows, scope="30 tasks, all tools native"
+            ablation_rows, scope="10-task cross-category subset, all tools native"
         )
-        comparison["No progressive discovery tool discovery"] = _summary(
-            [row for row in ablation_rows if row.get("category") == "tool_discovery"],
-            scope="5 tool-discovery tasks, all tools native",
+        comparison["No progressive discovery non-tool"] = _summary(
+            ablation_non_tool, scope="8 non-tool subset tasks, all tools native"
+        )
+        comparison["AtlasOS ablation subset non-tool"] = _summary(
+            atlas_ablation_subset,
+            scope="same 8 non-tool tasks, full AtlasOS",
+        )
+        comparison["No progressive discovery tool discovery"] = (
+            "NOT_EVALUATED: the progressive-discovery oracle requires tool.search; direct "
+            "native MCP invocation succeeded but is not scored as the same contract"
         )
     return comparison
 
