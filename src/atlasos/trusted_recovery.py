@@ -54,6 +54,36 @@ class TrustedRecoveryError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class RecoveryCleanupResult:
+    """Observable outcome of session resource cleanup.
+
+    ``ownership_unresolved`` means the M5 OS lock is still held by this process because the
+    remote effect is uncertain or local detach failed. The caller must not assume a safe handoff.
+    """
+
+    ownership_released: bool
+    ownership_unresolved: bool
+    runtime_closed: bool
+    idempotency_closed: bool
+    reason: str | None = None
+    error: BaseException | None = field(default=None, repr=False, compare=False)
+
+
+class TrustedRecoveryOwnershipUnresolved(TrustedRecoveryError):
+    """Recovery produced an outcome while retaining ownership for manual safety review."""
+
+    def __init__(
+        self,
+        outcome: ResumeOutcome | None,
+        cleanup: RecoveryCleanupResult,
+    ) -> None:
+        self.outcome = outcome
+        self.cleanup = cleanup
+        reason = cleanup.reason or "recovery ownership remains unresolved"
+        super().__init__(reason)
+
+
+@dataclass(frozen=True)
 class TrustedRecoveryConfig:
     """Deployment-controlled inputs for reconstructing one suspended runtime.
 
@@ -202,6 +232,8 @@ class TrustedRecoverySession:
     sandbox_id: str | None = None
     binding_id: str | None = None
     continuity_digest: str | None = None
+    _last_outcome: ResumeOutcome | None = field(default=None, init=False, repr=False)
+    _cleanup_result: RecoveryCleanupResult | None = field(default=None, init=False, repr=False)
 
     @classmethod
     async def prepare(cls, config: TrustedRecoveryConfig) -> TrustedRecoverySession:
@@ -352,6 +384,23 @@ class TrustedRecoverySession:
     ) -> ResumeOutcome:
         """Resume through the existing M6 path, reattaching S1 only when needed."""
 
+        outcome = await self._resume_impl(
+            owner=owner,
+            lease_seconds=lease_seconds,
+            commit_continuation=commit_continuation,
+            fault_hook=fault_hook,
+        )
+        self._last_outcome = outcome
+        return outcome
+
+    async def _resume_impl(
+        self,
+        *,
+        owner: str | None = None,
+        lease_seconds: float = 60.0,
+        commit_continuation: bool = True,
+        fault_hook: Any | None = None,
+    ) -> ResumeOutcome:
         current = self.suspension_store.get(self.config.suspension_id)
         if current is None:
             raise TrustedRecoveryError("suspension disappeared during recovery")
@@ -477,10 +526,85 @@ class TrustedRecoverySession:
             await self._reattach_for_execution(self.suspension)
         return await self.manager.close(self.config.task_id)
 
-    async def close(self) -> None:
-        await self.runtime.close()
-        with contextlib.suppress(Exception):
+    @staticmethod
+    def _outcome_has_uncertain(outcome: ResumeOutcome | None) -> bool:
+        if outcome is None or outcome.settlement is None:
+            return False
+        return any(item.outcome == "UNCERTAIN" for item in outcome.settlement.results)
+
+    async def close(self) -> RecoveryCleanupResult:
+        """Release only safe ownership, then close local runtime resources.
+
+        Cleanup is idempotent. It never destroys S1 and never force-unlocks ownership when the
+        remote result is uncertain or local detach fails.
+        """
+
+        if self._cleanup_result is not None:
+            return self._cleanup_result
+        ownership = self.manager.has_ownership(self.config.task_id)
+        uncertain = self.manager.has_provider_uncertainty(
+            self.config.task_id
+        ) or self._outcome_has_uncertain(self._last_outcome)
+        released = not ownership
+        unresolved = False
+        reason: str | None = None
+        error: BaseException | None = None
+        if ownership and uncertain:
+            unresolved = True
+            reason = (
+                "provider operation outcome is uncertain; M5 ownership retained for manual "
+                "safety review"
+            )
+            error = TrustedRecoveryError(reason)
+        elif ownership and self._last_outcome is None:
+            unresolved = True
+            reason = (
+                "recovery exited by exception with unconfirmed remote state; M5 ownership "
+                "retained for manual safety review"
+            )
+            error = TrustedRecoveryError(reason)
+        elif ownership:
+            try:
+                # Stage C gate/drain + local detach + runtime-cache invalidation happen here.
+                await self.manager.release_ownership(self.config.task_id)
+            except Exception as cleanup_error:
+                unresolved = True
+                reason = (
+                    "local detach or ownership release failed; M5 ownership retained and not "
+                    "handed off"
+                )
+                error = cleanup_error
+            else:
+                released = True
+
+        runtime_closed = False
+        try:
+            await self.runtime.close()
+            runtime_closed = True
+        except Exception as runtime_error:
+            if error is None:
+                error = runtime_error
+                reason = f"runtime close failed: {runtime_error}"
+
+        idempotency_closed = False
+        try:
             await self.idempotency.teardown()
+            idempotency_closed = True
+        except Exception as idempotency_error:
+            if error is None:
+                error = idempotency_error
+                reason = f"idempotency close failed: {idempotency_error}"
+
+        result = RecoveryCleanupResult(
+            ownership_released=released,
+            ownership_unresolved=unresolved,
+            runtime_closed=runtime_closed,
+            idempotency_closed=idempotency_closed,
+            reason=reason,
+            error=error,
+        )
+        self._cleanup_result = result
+        return result
 
 
 async def resume_durable_sandbox_suspension(
@@ -506,11 +630,30 @@ async def resume_durable_sandbox_suspension(
             commit_continuation=commit_continuation,
             fault_hook=fault_hook,
         )
-        if dispose_sandbox_on_settlement and outcome.status in ("settled", "cleared"):
+    except BaseException as recovery_error:
+        cleanup = await session.close()
+        if cleanup.ownership_unresolved:
+            recovery_error.add_note(
+                f"Stage D recovery retained M5 ownership: {cleanup.reason or 'unresolved cleanup'}"
+            )
+        raise
+
+    if dispose_sandbox_on_settlement and outcome.status in ("settled", "cleared"):
+        try:
             await session.dispose_sandbox()
-        return outcome
-    finally:
-        await session.close()
+        except BaseException as cleanup_error:
+            cleanup = await session.close()
+            if cleanup.ownership_unresolved:
+                cleanup_error.add_note(
+                    "Stage D disposal failed and M5 ownership remains unresolved: "
+                    f"{cleanup.reason or 'unresolved cleanup'}"
+                )
+            raise
+
+    cleanup = await session.close()
+    if cleanup.ownership_unresolved:
+        raise TrustedRecoveryOwnershipUnresolved(outcome, cleanup)
+    return outcome
 
 
 def _require_recovery_files(config: TrustedRecoveryConfig) -> None:

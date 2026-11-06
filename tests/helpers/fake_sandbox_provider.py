@@ -90,6 +90,7 @@ class FakeSandboxProvider:
         self.raise_cancel = False
         self.raise_destroy = False
         self.detach_error: Exception | None = None
+        self.raise_write_after_effect = False
 
     def capabilities(self) -> SandboxCapabilities:
         return self.capabilities_value
@@ -290,6 +291,8 @@ class FakeSandboxProvider:
         target = self._map(handle, path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
+        if self.raise_write_after_effect:
+            raise RuntimeError("provider write result unavailable after effect")
         return SandboxFileResult(ok=True, data=data)
 
     async def read_file(self, handle: SandboxHandle, path: str) -> SandboxFileResult:

@@ -135,6 +135,16 @@ class ProjectSandboxManager:
         lock = self._ownership.get(task_id)
         return lock is not None and lock.held
 
+    def has_ownership(self, task_id: str) -> bool:
+        """Observation only: whether this manager still holds the workload lock."""
+
+        return self._has_ownership(task_id)
+
+    def has_provider_uncertainty(self, task_id: str) -> bool:
+        """Observation only: whether a provider outcome is unresolved in this process."""
+
+        return task_id in self._uncertain_operations
+
     def require_ownership(self, task_id: str) -> None:
         if self.ownership_root is None:
             return

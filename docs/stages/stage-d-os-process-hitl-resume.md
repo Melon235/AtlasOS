@@ -76,6 +76,31 @@ in-progress claim and classifies the action as `UNCERTAIN`. It does not remove t
 not blindly retry a potential side effect. A durable completed settlement is replayed/backfilled
 through the existing continuation path.
 
+## Recovery session cleanup
+
+The public wrapper defaults to `dispose_sandbox_on_settlement=False`. `TrustedRecoverySession.close()`
+is idempotent and performs a Stage C safe handoff when ownership can be released:
+
+```text
+wait for in-flight operations through the existing workload gate
+→ local detach
+→ invalidate runtime handle cache
+→ release OS workload lock
+```
+
+It never destroys S1 and never converts the durable READY binding to CLOSED. A later process must
+use verified reattachment to use S1 again.
+
+If the M6 settlement contains an `UNCERTAIN` result, the manager still reports provider
+uncertainty, or local detach fails, cleanup retains ownership and sets
+`RecoveryCleanupResult.ownership_unresolved`. It does not force unlock. The public wrapper raises
+`TrustedRecoveryOwnershipUnresolved` with the recovery outcome and cleanup result so callers can
+perform explicit reconciliation.
+
+If recovery already failed, cleanup does not replace the original exception; unresolved ownership
+is attached as a Python exception note. `close()` can be called repeatedly and returns the same
+cached cleanup result.
+
 ## Stage C interaction
 
 The pending execution interval holds M5 OS workload ownership. Normal cleanup uses the Stage C
