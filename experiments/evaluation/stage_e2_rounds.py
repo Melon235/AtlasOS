@@ -126,6 +126,8 @@ def _run_one(
         result["mean_assignment_locality"] = detail.get("mean_assignment_locality")
         result["dependency_agent_switches"] = detail.get("dependency_agent_switches")
         result["total_logical_handoff_refs"] = detail.get("total_logical_handoff_refs")
+        result["prompts"] = detail.get("prompts")
+        result["expected"] = detail.get("expected")
         result["git_commit"] = detail.get("git_commit")
         result["git_dirty"] = detail.get("git_dirty")
     return result
