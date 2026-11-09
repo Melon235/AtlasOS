@@ -203,21 +203,29 @@ def collect_evidence(run_dir: str | Path) -> dict[str, Any]:
                     }
                 )
                 continue
-            in_prompt = upstream_output.strip() in downstream_prompt
+            # AnyCode may truncate a long dependency projection. Measure the actual upstream
+            # prefix present in the downstream prompt instead of claiming the full output moved.
+            normalized = upstream_output.strip()
+            matched_chars = 0
+            for length in range(len(normalized), 0, -1):
+                if normalized[:length] in downstream_prompt:
+                    matched_chars = length
+                    break
             downstream_tool_text = "\n".join(
                 f"{call.get('input')}\n{call.get('output')}" for call in downstream_calls
             )
-            token = upstream_output.strip()[:160]
+            token = normalized[:160]
             consumed_by_tool = bool(token and token in downstream_tool_text)
+            complete = matched_chars >= min(120, len(normalized))
             edges.append(
                 {
                     "from": dependency,
                     "to": row["step_task_id"],
-                    "handoff_bytes": len(upstream_output.encode("utf-8")) if in_prompt else 0,
-                    "handoff_complete": bool(in_prompt),
-                    "consumed": bool(in_prompt or consumed_by_tool),
+                    "handoff_bytes": len(normalized[:matched_chars].encode("utf-8")),
+                    "handoff_complete": bool(complete),
+                    "consumed": bool(complete or consumed_by_tool),
                     "consumed_via": "prompt"
-                    if in_prompt
+                    if complete
                     else ("tool" if consumed_by_tool else None),
                 }
             )
