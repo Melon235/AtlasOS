@@ -202,7 +202,9 @@ def main(argv: list[str] | None = None) -> int:
         "",
         "## Aggregate",
         "",
-        "| configuration | runs | correct | prompt tokens | cache hit | cache miss | hit ratio | cost USD | p50 latency ms | dedup calls | block chars removed | transform ms | switches | locality |",
+        "| configuration | runs | correct | prompt tokens | cache hit | cache miss | hit ratio "
+        "| cost USD | p50 latency ms | dedup calls | block chars removed | transform ms "
+        "| switches | locality |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for key, item in summary.items():
@@ -227,8 +229,8 @@ def main(argv: list[str] | None = None) -> int:
             "ratio differences are observations, not causal cache improvements.",
             "- Dedup calls and block-char removal are measured from real inference records; zero "
             "means the transform did not remove a block in these workloads.",
-            "- P0/P1 use C1 context with capability_only vs context_locality placement; 4 tasks x 3 "
-            "repetitions.",
+            "- P0/P1 use C1 context with capability_only vs context_locality placement; "
+            "4 tasks x 3 repetitions.",
             "",
         ]
     )
