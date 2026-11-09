@@ -112,9 +112,12 @@ class RunnerSettings:
     max_turns: int = 14
     max_tokens: int = 4096
     token_budget: int = 120_000
+    max_tool_calls: int = 40
     progressive_tools: bool = True
     model_override: str | None = None
     retain_sandbox_on_failure: bool = False
+    variant: str = "default"
+    capture_evidence: bool = False
 
     def digest(self) -> str:
         return canonical_digest(
@@ -126,8 +129,11 @@ class RunnerSettings:
                 "max_turns": self.max_turns,
                 "max_tokens": self.max_tokens,
                 "token_budget": self.token_budget,
+                "max_tool_calls": self.max_tool_calls,
                 "progressive_tools": self.progressive_tools,
                 "model_override": self.model_override,
+                "variant": self.variant,
+                "capture_evidence": self.capture_evidence,
                 "config": _config_digest(self.config_path),
             }
         )
@@ -459,6 +465,8 @@ async def run_sample(
     agent_success = False
     tool_calls: list[dict[str, Any]] = []
     worker_results: dict[str, Any] = {}
+    task_events: list[dict[str, Any]] = []
+    team_lifecycle_events: list[Any] = []
     workspace_export: Path | None = None
     patch_digest: str | None = None
     oracle = None
@@ -472,7 +480,10 @@ async def run_sample(
         "max_turns": settings.max_turns,
         "max_tokens": settings.max_tokens,
         "token_budget": settings.token_budget,
+        "max_tool_calls": settings.max_tool_calls,
         "progressive_tools": settings.progressive_tools,
+        "variant": settings.variant,
+        "capture_evidence": settings.capture_evidence,
     }
     provider = None
     manager: ProjectSandboxManager | None = None
@@ -592,6 +603,19 @@ async def run_sample(
         title_by_id = {step.task_id: f"{task.sample_id}-{step.task_id}" for step in task.workers}
 
         def on_progress(event: Any) -> None:
+            if settings.capture_evidence:
+                recorded = {
+                    "ts": datetime.now(UTC).isoformat(),
+                    "type": str(event.type),
+                }
+                data = getattr(event, "data", None)
+                if data is not None:
+                    recorded["title"] = getattr(data, "title", None)
+                    recorded["assignee"] = getattr(data, "assignee", None)
+                if event.type == "task_complete":
+                    recorded["task"] = str(getattr(event, "task", "") or "")
+                    recorded["task_status"] = str(getattr(event, "status", "") or "")
+                task_events.append(recorded)
             if event.type == "task_start" and getattr(event, "data", None) is not None:
                 title = getattr(event.data, "title", None)
                 for task_id, expected_title in title_by_id.items():
@@ -640,6 +664,7 @@ async def run_sample(
         )
         environment["agent_latency_ms"] = round((time.perf_counter() - agent_started) * 1000.0, 3)
         agent_success = bool(result.success)
+        team_lifecycle_events = _jsonable(getattr(result, "lifecycle_events", []))
         tool_calls, worker_results = _collect_tool_calls(result.agent_results)
         final_output = "\n".join(
             str(item.get("output", "")) for item in worker_results.values() if item.get("output")
@@ -770,6 +795,11 @@ async def run_sample(
                 f"token usage exceeded budget: "
                 f"{metrics.prompt_tokens + metrics.completion_tokens} > {settings.token_budget}"
             )
+        if failure_class is None and metrics.tool_calls > settings.max_tool_calls:
+            failure_class = "BUDGET_EXCEEDED"
+            failure_reason = (
+                f"tool call budget exceeded: {metrics.tool_calls} > {settings.max_tool_calls}"
+            )
 
         if workspace_export is not None and workspace_export.is_dir():
             oracle_outcome = evaluate_oracle(
@@ -838,6 +868,28 @@ async def run_sample(
                 "workspace_digest": workspace_digest(fixture_dir),
             },
         )
+        if settings.capture_evidence:
+            _write_json(
+                run_dir / "stage_e_evidence.json",
+                {
+                    "identity": identity.as_dict(),
+                    "task": {
+                        **task.public_metadata(),
+                        "workers": [
+                            {
+                                "task_id": step.task_id,
+                                "title": step.title,
+                                "depends_on": list(step.depends_on),
+                            }
+                            for step in task.workers
+                        ],
+                    },
+                    "task_events": task_events,
+                    "anycode_lifecycle_events": team_lifecycle_events,
+                    "worker_results": worker_results,
+                    "tool_calls": tool_calls,
+                },
+            )
         ledger_path = settings.runs_root / settings.benchmark_id / "runs.jsonl"
         ledger_path.parent.mkdir(parents=True, exist_ok=True)
         with ledger_path.open("a", encoding="utf-8") as handle:
