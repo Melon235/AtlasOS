@@ -80,7 +80,7 @@ def test_approve_and_reject_record_real_m6_decisions(tmp_path: Path) -> None:
     assert approvals2.get(second_id).state == "REJECTED"  # type: ignore[union-attr]
 
 
-def test_web_approval_endpoint_uses_same_authority(tmp_path: Path) -> None:
+def test_web_approval_endpoints_use_same_authority(tmp_path: Path) -> None:
     from fastapi.testclient import TestClient
 
     from atlasos.app.web import create_app
@@ -95,6 +95,14 @@ def test_web_approval_endpoint_uses_same_authority(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.json()["state"] == "APPROVED"
     assert approvals.get(approval_id).state == "APPROVED"  # type: ignore[union-attr]
+
+    service2, approvals2, second_id = _world(tmp_path / "reject")
+    del service2
+    client2 = TestClient(create_app(runs_root=tmp_path / "reject" / "runs"))
+    response = client2.post(f"/api/approvals/{second_id}/reject")
+    assert response.status_code == 200
+    assert response.json()["state"] == "REJECTED"
+    assert approvals2.get(second_id).state == "REJECTED"  # type: ignore[union-attr]
 
 
 def test_recovery_status_is_projected_but_resume_needs_trusted_harness(tmp_path: Path) -> None:

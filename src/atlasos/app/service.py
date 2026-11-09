@@ -497,11 +497,12 @@ class AtlasApplicationService:
                 {
                     "task_id": item.get("task_id"),
                     "title": item.get("title"),
-                    "assignee": item.get("assignee"),
+                    "assignee": item.get("assignee") or item.get("agent"),
                     "status": item.get("status"),
                     "output": item.get("output"),
                     "prompt_tokens": item.get("prompt_tokens"),
                     "completion_tokens": item.get("completion_tokens"),
+                    "duration_ms": item.get("duration_ms"),
                 }
                 for item in record.result.get("tasks") or []
             ]
