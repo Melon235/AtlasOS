@@ -120,6 +120,15 @@ def test_approval_projection_never_resolves_without_authority(tmp_path: Path) ->
     assert store.get("approval-1").state == "PENDING"  # type: ignore[union-attr]
 
 
+def test_concurrent_service_instances_read_same_run(tmp_path: Path) -> None:
+    _seeded_run(tmp_path)
+    first = AtlasApplicationService(runs_root=tmp_path)
+    second = AtlasApplicationService(runs_root=tmp_path)
+    assert first.detail("app-seeded")["final_output"] == "persisted answer"
+    assert second.detail("app-seeded")["final_output"] == "persisted answer"
+    assert first.events("app-seeded") == second.events("app-seeded")
+
+
 def test_cleanup_error_is_visible_not_masked(tmp_path: Path) -> None:
     root = tmp_path / "runs"
     run = root / "app-cleanup"

@@ -503,6 +503,7 @@ class AtlasApplicationService:
                     "prompt_tokens": item.get("prompt_tokens"),
                     "completion_tokens": item.get("completion_tokens"),
                     "duration_ms": item.get("duration_ms"),
+                    "depends_on": ["research"] if item.get("task_id") == "review" else [],
                 }
                 for item in record.result.get("tasks") or []
             ]

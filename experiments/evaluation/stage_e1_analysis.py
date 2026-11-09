@@ -41,15 +41,28 @@ def _p50(values: list[float]) -> float | None:
 
 
 def _metrics(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    for item in runs:
+        if "_model_turns" not in item:
+            detail = _run_result(item)
+            metrics = detail.get("metrics") or {}
+            item["_model_turns"] = int(metrics.get("model_turns") or 0)
+            item["_cache_hit"] = int(metrics.get("cache_hit_tokens") or 0)
+            item["_cache_miss"] = int(metrics.get("cache_miss_tokens") or 0)
     latency = [float(item.get("latency_ms") or 0.0) for item in runs]
     prompt = [int(item.get("prompt_tokens") or 0) for item in runs]
     completion = [int(item.get("completion_tokens") or 0) for item in runs]
     cost = [float(item.get("cost") or 0.0) for item in runs]
     tools = [int(item.get("tool_calls") or 0) for item in runs]
+    turns = [int(item.get("_model_turns") or 0) for item in runs]
+    cache_hit = [int(item.get("_cache_hit") or 0) for item in runs]
+    cache_miss = [int(item.get("_cache_miss") or 0) for item in runs]
     return {
         "runs": len(runs),
         "success": sum(1 for item in runs if item.get("success")),
         "prompt_tokens": sum(prompt),
+        "model_turns": sum(turns),
+        "cache_hit_tokens": sum(cache_hit),
+        "cache_miss_tokens": sum(cache_miss),
         "completion_tokens": sum(completion),
         "cost": round(sum(cost), 8),
         "latency_p50_ms": _p50(latency),
@@ -59,6 +72,10 @@ def _metrics(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "cost_mean": statistics.mean(cost) if cost else None,
         "latency_mean_ms": statistics.mean(latency) if latency else None,
         "tool_calls_mean": statistics.mean(tools) if tools else None,
+        "model_turns_mean": statistics.mean(turns) if turns else None,
+        "cache_hit_ratio": (sum(cache_hit) / (sum(cache_hit) + sum(cache_miss)))
+        if (sum(cache_hit) + sum(cache_miss))
+        else None,
     }
 
 
@@ -90,6 +107,10 @@ def _collect_evidence(runs: list[dict[str, Any]]) -> dict[str, Any]:
     edges: list[dict[str, Any]] = []
     steps: list[dict[str, Any]] = []
     profiles: set[str] = set()
+    dag_nodes: list[int] = []
+    critical_paths: list[int] = []
+    all_success_task_failed = 0
+    stop_codes: dict[str, int] = {}
     for run in runs:
         run_dir = run.get("run_dir")
         if not run_dir or not Path(run_dir).is_dir():
@@ -97,9 +118,21 @@ def _collect_evidence(runs: list[dict[str, Any]]) -> dict[str, Any]:
         evidence = collect_evidence(run_dir)
         edges.extend(evidence["edges"])
         steps.extend(evidence["steps"])
+        step_states = [step.get("agent_success") for step in evidence["steps"]]
+        if step_states and all(state is True for state in step_states) and not run.get("success"):
+            all_success_task_failed += 1
+        detail_path = Path(run_dir) / "result.json"
+        if detail_path.is_file():
+            detail = json.loads(detail_path.read_text(encoding="utf-8"))
+            for worker in (detail.get("worker_results") or {}).values():
+                code = str((worker.get("stop_reason") or {}).get("code") or "unknown")
+                stop_codes[code] = stop_codes.get(code, 0) + 1
+        dag_nodes.append(int(evidence["dag_nodes"]))
+        critical_paths.append(int(evidence["critical_path_nodes"]))
         for step in evidence["steps"]:
             if step.get("profile_id"):
                 profiles.add(str(step["profile_id"]))
+    step_by_id = {str(step.get("step_task_id")): step for step in steps}
     return {
         "edges": len(edges),
         "handoff_complete_edges": sum(1 for edge in edges if edge.get("handoff_complete")),
@@ -108,6 +141,16 @@ def _collect_evidence(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "worker_steps": len(steps),
         "worker_failures": sum(1 for step in steps if step.get("agent_success") is False),
         "worker_successes": sum(1 for step in steps if step.get("agent_success") is True),
+        "all_workers_success_task_failed": all_success_task_failed,
+        "worker_stop_codes": stop_codes,
+        "upstream_success_downstream_failure": sum(
+            1
+            for edge in edges
+            if step_by_id.get(edge["from"], {}).get("agent_success") is True
+            and step_by_id.get(edge["to"], {}).get("agent_success") is False
+        ),
+        "dag_nodes_mean": statistics.mean(dag_nodes) if dag_nodes else None,
+        "critical_path_nodes_mean": statistics.mean(critical_paths) if critical_paths else None,
         "profiles": sorted(profiles),
         "edges_detail": edges,
     }
@@ -212,11 +255,26 @@ def main(argv: list[str] | None = None) -> int:
             )
     evidence = _collect_evidence(a1)
     metrics = {"A0": _metrics(a0), "A1": _metrics(a1)}
+    infra = [
+        {
+            "definition": pair["definition"],
+            "variant": variant,
+            "repetition": pair["repetition"],
+        }
+        for pair in pairs
+        for variant in ("a0", "a1")
+        if pair["runs"][variant].get("success") is None
+        and pair["runs"][variant].get("failure_class") is None
+    ]
     summary = {
         "source_manifest": str(manifest_path),
         "git_commit": manifest.get("git_commit"),
         "git_dirty": manifest.get("git_dirty"),
         "metrics": metrics,
+        "infra_interruptions": infra,
+        "a0_adjusted_success": metrics["A0"]["success"],
+        "a0_adjusted_runs": metrics["A0"]["runs"]
+        - len([item for item in infra if item["variant"] == "a0"]),
         "paired": _paired(pairs),
         "families": family_metrics,
         "evidence": {key: value for key, value in evidence.items() if key != "edges_detail"},
@@ -236,14 +294,15 @@ def main(argv: list[str] | None = None) -> int:
         "",
         "## Overall",
         "",
-        "| variant | runs | success | prompt tokens | completion tokens | cost USD "
-        "| p50 latency ms | tool calls |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "| variant | runs | success | prompt tokens | completion tokens | turns | cache ratio "
+        "| cost USD | p50 latency ms | tool calls |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for variant, item in metrics.items():
         lines.append(
             f"| {variant} | {item['runs']} | {item['success']}/{item['runs']} | "
-            f"{item['prompt_tokens']} | {item['completion_tokens']} | {item['cost']:.6f} | "
+            f"{item['prompt_tokens']} | {item['completion_tokens']} | {item['model_turns']} | "
+            f"{item['cache_hit_ratio'] or 0.0:.4f} | {item['cost']:.6f} | "
             f"{item['latency_p50_ms'] or 0.0:.1f} | {item['tool_calls']} |"
         )
     lines.extend(
@@ -260,6 +319,10 @@ def main(argv: list[str] | None = None) -> int:
             "",
             "Small paired samples; the CI is descriptive, not a significance claim.",
             "",
+            f"- infrastructure interruptions (excluded from adjusted A0 denominator): "
+            f"{len([item for item in infra if item['variant'] == 'a0'])}; "
+            f"A0 adjusted: {summary['a0_adjusted_success']}/{summary['a0_adjusted_runs']}",
+            "",
             "## Collaboration evidence",
             "",
             f"- A1 worker steps observed: {evidence['worker_steps']}",
@@ -270,6 +333,13 @@ def main(argv: list[str] | None = None) -> int:
             f"- handoff consumed edges: {evidence['handoff_consumed_edges']}",
             f"- transmitted handoff bytes (actual prefix): {evidence['handoff_bytes']}",
             f"- worker profiles: {', '.join(evidence['profiles']) or 'none'}",
+            f"- mean DAG nodes / critical path: {evidence['dag_nodes_mean']} / "
+            f"{evidence['critical_path_nodes_mean']}",
+            f"- all workers reported success but task failed: "
+            f"{evidence['all_workers_success_task_failed']} runs",
+            f"- upstream success -> downstream failure edges: "
+            f"{evidence['upstream_success_downstream_failure']}",
+            f"- worker stop codes: {evidence['worker_stop_codes']}",
             "",
             "## Families",
             "",

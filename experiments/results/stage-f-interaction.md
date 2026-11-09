@@ -6,11 +6,11 @@ application layer.
 ## 1. Architecture
 
 ```
-atlas CLI ─┐
-           ├─> AtlasApplicationService ─> existing AtlasRuntime (workflow mode)
-Web UI ────┘                          └─> existing experiments.uat_cli subprocess (coding mode)
-                                                │
-                                                └─> AnyCode + Atlas M1-M7 + OpenSandbox
+atlas CLI --\
+             +--> AtlasApplicationService --> existing AtlasRuntime (workflow mode)
+Web UI -----/                              \-> existing experiments.uat_cli subprocess (coding mode)
+                                                  |
+                                                  +--> AnyCode + Atlas M1-M7 + OpenSandbox
 ```
 
 The service is a thin application layer:
@@ -109,8 +109,9 @@ Pages/sections:
 - **History**: persisted runs, status, failure reason; survives service restart.
 - **Approvals**: pending approvals from the authoritative store, including the trusted review
   projection; Approve/Reject require an explicit click and confirmation.
-- **Run Detail**: status, metrics, task/worker table, tool operations, artifacts, final output,
-  events, approvals, recovery state.
+- **Run Detail**: status, metrics, task/worker table (including explicit dependencies for the
+  two-stage workflow), tool operations, artifacts, final output, events, approvals, recovery
+  state.
 
 SSE endpoint: `GET /api/runs/{id}/stream`; reconnect uses `Last-Event-ID` and the server sends only
 events after that id. SSE reconnect never resubmits a task.
@@ -153,14 +154,21 @@ Security boundaries:
 - Metrics: prompt 428, completion 804, cache hit 0, cache miss 428, cost $0.0010932
 - SSE: first stream received ids 1-2; reconnect with `Last-Event-ID: 2` received ids 3-10 with no
   duplicates; final status `COMPLETED`.
+- A second run on the restarted UI (`app-6168fc33a59a`) projected the real assignees
+  `researcher`/`reviewer` and both tasks as `completed`.
 
 ### Approval authority path
 
 A test fixture created a real M6 active suspension with one `REQUIRE_HUMAN` pending invocation and
-a derived approval challenge. The Web/API projection listed it as `PENDING`; an explicit
-`POST /api/approvals/{id}/approve` resolved it through `ApprovalCoordinator` to `APPROVED`.
-An approval without an active suspension is refused with HTTP 409 and remains `PENDING`.
-The UI never calls approve/reject on load, polling, refresh, or SSE reconnect.
+a derived approval challenge. On the final Web service the projection listed it as `PENDING`; an
+explicit `POST /api/approvals/{id}/approve` resolved it through `ApprovalCoordinator` to
+`APPROVED` (version 1, actor `host:user:web`). An approval without an active suspension is refused
+with HTTP 409 and remains `PENDING`. The UI never calls approve/reject on load, polling, refresh,
+or SSE reconnect.
+
+The same suspension projected as `RECOVERY_REQUIRED`; a resume request was refused with HTTP 409
+because the app has no trusted Stage D reattachment/destruction authority. The projection contains
+no `canonical_input` or held model message.
 
 This fixture validates the application authority path; it is not claimed as an agent-generated
 approval.
@@ -168,7 +176,8 @@ approval.
 ## 7. Test results
 
 - `pytest tests/unit/test_app_service.py tests/unit/test_app_cli.py tests/unit/test_app_approvals.py tests/integration/test_app_web.py -q`:
-  **17 passed**
+  **18 passed**
+- Full offline suite: **461 passed**
 - Ruff: pass
 - Pyright: 0 errors
 - Real CLI coding, Web coding, Web workflow, and SSE reconnect runs recorded above.
@@ -186,3 +195,4 @@ approval.
   per tool call; the app reports what the session actually contains.
 - The Web UI is local and unauthenticated by design; it must stay on loopback unless an
   authentication layer is added.
+

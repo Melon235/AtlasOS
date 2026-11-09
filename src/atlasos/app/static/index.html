@@ -187,18 +187,28 @@
   }
 
   async function historyView() {
-    app.innerHTML = `<h1>History</h1><p class="muted">Persisted run projections; survives service restart.</p><div id="runs"><p class="muted">Loading…</p></div>`;
+    app.innerHTML = `<h1>History</h1><p class="muted">Persisted run projections; survives service restart.</p>
+      <label for="history-filter">Filter by Run ID or task</label>
+      <input id="history-filter" placeholder="app-… or task text" />
+      <div id="runs" style="margin-top:14px"><p class="muted">Loading…</p></div>`;
     try {
       const runs = await api("/api/runs");
       const holder = document.getElementById("runs");
       if (!runs.length) { holder.innerHTML = `<div class="panel muted">No runs yet.</div>`; return; }
       holder.innerHTML = `<div class="cards">${runs.map((run) => `
-        <div class="card" data-run="${esc(run.run_id)}">
+        <div class="card" data-run="${esc(run.run_id)}" data-search="${esc((run.run_id + " " + run.task).toLowerCase())}">
           <div class="row"><strong class="mono">${esc(run.run_id)}</strong>${statusBadge(run.status)}</div>
           <div class="small muted" style="margin-top:4px">${esc(run.mode)} · ${esc(run.created_at)}</div>
           <div style="margin-top:8px">${esc(run.task)}</div>
           ${run.error ? `<div class="error small" style="margin-top:8px">${esc(run.error)}</div>` : ""}
         </div>`).join("")}</div>`;
+      const filter = document.getElementById("history-filter");
+      filter.addEventListener("input", () => {
+        const needle = filter.value.trim().toLowerCase();
+        holder.querySelectorAll("[data-search]").forEach((el) => {
+          el.classList.toggle("hidden", needle !== "" && !el.dataset.search.includes(needle));
+        });
+      });
       holder.querySelectorAll("[data-run]").forEach((el) => el.addEventListener("click", () => {
         location.href = `/runs/${encodeURIComponent(el.dataset.run)}`;
       }));
@@ -272,8 +282,8 @@
             <h2 style="margin-top:18px">Final result</h2>
             <pre>${esc(detail.final_output || "(not available yet)")}</pre>
             <h2 style="margin-top:18px">Workers / tasks</h2>
-            <table><thead><tr><th>Worker</th><th>Task</th><th>Status</th><th>Title</th><th>Duration ms</th></tr></thead><tbody>
-              ${tasks.map((task) => `<tr><td class="mono">${fmt(task.assignee)}</td><td class="mono">${fmt(task.task_id)}</td><td>${fmt(task.status)}</td><td>${fmt(task.title)}</td><td>${fmt(task.duration_ms)}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No tasks yet.</td></tr>`}
+            <table><thead><tr><th>Worker</th><th>Task</th><th>Status</th><th>Depends on</th><th>Title</th><th>Duration ms</th></tr></thead><tbody>
+              ${tasks.map((task) => `<tr><td class="mono">${fmt(task.assignee)}</td><td class="mono">${fmt(task.task_id)}</td><td>${fmt(task.status)}</td><td class="mono">${esc((task.depends_on || []).join(",")) || "—"}</td><td>${fmt(task.title)}</td><td>${fmt(task.duration_ms)}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">No tasks yet.</td></tr>`}
             </tbody></table>
             <h2 style="margin-top:18px">Latest tool operations</h2>
             <div class="log">${toolCalls.slice(-20).map((call) => `<div><strong>${esc(call.tool_name || call.tool || "tool")}</strong> ${esc(call.agent || "")} <span class="muted">${esc(JSON.stringify(call.input || call.arguments || {}))}</span></div>`).join("") || `<span class="muted">No tool calls projected.</span>`}</div>
