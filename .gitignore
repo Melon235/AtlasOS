@@ -19,3 +19,5 @@ dist/
 experiments/runs/
 experiments/results/evaluation/rounds/
 experiments/results/evaluation/inspect-*/
+experiments/results/stage-e1/
+experiments/results/stage-e2/
