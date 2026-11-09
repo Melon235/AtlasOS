@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AtlasOS</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1117; --panel: #161b22; --panel2: #21262d;
+      --text: #e6edf3; --muted: #8b949e; --line: #30363d;
+      --accent: #58a6ff; --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+      font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+    header { display: flex; align-items: center; gap: 20px; padding: 14px 24px;
+      border-bottom: 1px solid var(--line); background: #010409; position: sticky; top: 0; z-index: 2; }
+    .brand { font-weight: 700; letter-spacing: .3px; }
+    .brand span { color: var(--accent); }
+    nav { display: flex; gap: 14px; }
+    nav a { color: var(--muted); text-decoration: none; }
+    nav a:hover, nav a.active { color: var(--text); }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    h2 { font-size: 16px; margin: 0 0 12px; }
+    p.muted, .muted { color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 18px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    label { display: block; color: var(--muted); margin: 12px 0 5px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    textarea, input, select { width: 100%; background: #0d1117; color: var(--text);
+      border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; font: inherit; }
+    textarea { min-height: 150px; resize: vertical; }
+    input[type=checkbox] { width: auto; }
+    button { background: var(--accent); color: #04101f; border: 0; border-radius: 7px;
+      padding: 9px 14px; font-weight: 700; cursor: pointer; }
+    button.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+    button.danger { background: var(--bad); color: #fff; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .status { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+    .COMPLETED { background: #1f3b2a; color: var(--ok); }
+    .FAILED, .SANDBOX_LOST, .CLEANUP_UNRESOLVED { background: #4a1f22; color: var(--bad); }
+    .RUNNING { background: #1f2d3d; color: var(--accent); }
+    .WAITING_APPROVAL, .RECOVERY_REQUIRED, .RECOVERY_UNCERTAIN { background: #3d331f; color: var(--warn); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    pre { background: #0d1117; border: 1px solid var(--line); border-radius: 7px;
+      padding: 12px; overflow: auto; max-height: 420px; white-space: pre-wrap; word-break: break-word; }
+    code, .mono { font-family: var(--mono); }
+    .log { font-family: var(--mono); font-size: 12px; max-height: 320px; overflow: auto;
+      border: 1px solid var(--line); border-radius: 7px; padding: 10px; background: #0d1117; }
+    .log div { padding: 2px 0; border-bottom: 1px solid #1b222b; }
+    .notice { border-left: 3px solid var(--warn); background: #211d12; padding: 10px 12px; border-radius: 5px; }
+    .error { border-left: 3px solid var(--bad); background: #2b1618; padding: 10px 12px; border-radius: 5px; white-space: pre-wrap; }
+    .ok { border-left: 3px solid var(--ok); background: #14251a; padding: 10px 12px; border-radius: 5px; }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 13px; }
+    .kv div:nth-child(odd) { color: var(--muted); }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 12px; cursor: pointer; }
+    .card:hover { border-color: var(--accent); }
+    .small { font-size: 12px; }
+    a { color: var(--accent); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand">Atlas<span>OS</span></div>
+  <nav>
+    <a href="/" data-nav="new">New Task</a>
+    <a href="/history" data-nav="history">History</a>
+    <a href="/approvals" data-nav="approvals">Approvals</a>
+  </nav>
+  <span class="muted small" style="margin-left:auto">local runtime · loopback</span>
+</header>
+<main id="app">
+  <p class="muted">Loading…</p>
+</main>
+<script>
+(() => {
+  const app = document.getElementById("app");
+  const esc = (value) => String(value ?? "");
+  const statusBadge = (status) => `<span class="status ${esc(status)}">${esc(status)}</span>`;
+  const fmt = (value) => value == null ? "—" : esc(value);
+
+  async function api(path, options = {}) {
+    const response = await fetch(path, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+    });
+    const text = await response.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch { body = { raw: text }; }
+    if (!response.ok) {
+      const error = new Error((body && (body.error || body.detail)) || `HTTP ${response.status}`);
+      error.status = response.status;
+      error.body = body;
+      throw error;
+    }
+    return body;
+  }
+
+  function nav() {
+    const key = location.pathname.startsWith("/history") ? "history"
+      : location.pathname.startsWith("/approvals") ? "approvals"
+      : location.pathname.startsWith("/runs/") ? "" : "new";
+    document.querySelectorAll("nav a").forEach((el) => el.classList.toggle("active", el.dataset.nav === key));
+  }
+
+  function newTaskView() {
+    app.innerHTML = `
+      <div class="grid">
+        <section class="panel">
+          <h1>Start a task</h1>
+          <p class="muted">Workflow mode runs a static two-stage AtlasOS DAG through the real DeepSeek model. Coding mode runs the existing real-sandbox UAT path and requires an OpenSandbox-compatible workspace.</p>
+          <label for="task">Task</label>
+          <textarea id="task" placeholder="e.g. Fix the CSV parser so quoted commas are preserved."></textarea>
+          <div class="row" style="margin-top:12px">
+            <div style="flex:1">
+              <label for="mode">Mode</label>
+              <select id="mode">
+                <option value="workflow">workflow — DeepSeek DAG, no tools</option>
+                <option value="coding">coding — real OpenSandbox UAT</option>
+              </select>
+            </div>
+            <div style="width:150px">
+              <label for="turns">Max turns</label>
+              <input id="turns" type="number" min="1" max="30" value="12" />
+            </div>
+          </div>
+          <div id="workspace-wrap" class="hidden">
+            <label for="workspace">Workspace (under experiments/fixtures)</label>
+            <input id="workspace" value="uat_repo" />
+            <p class="small muted">Coding mode currently supports UAT-compatible fixtures with csv_parser.py. Arbitrary host paths are rejected.</p>
+          </div>
+          <div class="row" style="margin-top:16px">
+            <button id="submit">Submit task</button>
+            <span id="submit-note" class="muted small"></span>
+          </div>
+          <div id="submit-error" class="error hidden" style="margin-top:12px"></div>
+        </section>
+        <aside class="panel">
+          <h2>Execution boundary</h2>
+          <p class="muted">The UI projects existing runtime state. It does not schedule agents, execute tools, approve actions, or resume sandboxes.</p>
+          <div class="kv">
+            <div>Workflow</div><div>AtlasRuntime static DAG, real DeepSeek, no tool execution</div>
+            <div>Coding</div><div>Existing UAT composition, real OpenSandbox, one worker</div>
+            <div>Profiles</div><div>workflow: researcher → reviewer; coding: coding_worker</div>
+            <div>Approvals</div><div>Read-only projection; resolution requires a live M6 coordinator</div>
+            <div>Recovery</div><div>Trusted M5/M6 authority only; ordinary failures are not resumable</div>
+          </div>
+        </aside>
+      </div>`;
+    const mode = document.getElementById("mode");
+    mode.addEventListener("change", () => {
+      document.getElementById("workspace-wrap").classList.toggle("hidden", mode.value !== "coding");
+    });
+    document.getElementById("submit").addEventListener("click", async () => {
+      const button = document.getElementById("submit");
+      const error = document.getElementById("submit-error");
+      error.classList.add("hidden");
+      const task = document.getElementById("task").value.trim();
+      if (!task) { error.textContent = "Enter a task."; error.classList.remove("hidden"); return; }
+      button.disabled = true;
+      document.getElementById("submit-note").textContent = "submitting…";
+      try {
+        const run = await api("/api/runs", {
+          method: "POST",
+          body: JSON.stringify({
+            task,
+            mode: mode.value,
+            max_turns: Number(document.getElementById("turns").value || 12),
+            workspace: mode.value === "coding" ? document.getElementById("workspace").value : null,
+          }),
+        });
+        location.href = `/runs/${encodeURIComponent(run.run_id)}`;
+      } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("hidden");
+        document.getElementById("submit-note").textContent = "";
+      } finally { button.disabled = false; }
+    });
+  }
+
+  async function historyView() {
+    app.innerHTML = `<h1>History</h1><p class="muted">Persisted run projections; survives service restart.</p><div id="runs"><p class="muted">Loading…</p></div>`;
+    try {
+      const runs = await api("/api/runs");
+      const holder = document.getElementById("runs");
+      if (!runs.length) { holder.innerHTML = `<div class="panel muted">No runs yet.</div>`; return; }
+      holder.innerHTML = `<div class="cards">${runs.map((run) => `
+        <div class="card" data-run="${esc(run.run_id)}">
+          <div class="row"><strong class="mono">${esc(run.run_id)}</strong>${statusBadge(run.status)}</div>
+          <div class="small muted" style="margin-top:4px">${esc(run.mode)} · ${esc(run.created_at)}</div>
+          <div style="margin-top:8px">${esc(run.task)}</div>
+          ${run.error ? `<div class="error small" style="margin-top:8px">${esc(run.error)}</div>` : ""}
+        </div>`).join("")}</div>`;
+      holder.querySelectorAll("[data-run]").forEach((el) => el.addEventListener("click", () => {
+        location.href = `/runs/${encodeURIComponent(el.dataset.run)}`;
+      }));
+    } catch (err) { document.getElementById("runs").innerHTML = `<div class="error">${esc(err.message)}</div>`; }
+  }
+
+  async function approvalsView() {
+    app.innerHTML = `<h1>Approvals</h1><p class="muted">Read-only projection of the authoritative M6 approval store. The UI never approves on load, refresh, SSE reconnect, or polling.</p><div id="approvals"><p class="muted">Loading…</p></div>`;
+    try {
+      const values = await api("/api/approvals");
+      const holder = document.getElementById("approvals");
+      if (!values.length) { holder.innerHTML = `<div class="panel muted">No pending approvals. The current workflow mode exposes no tools; coding mode uses the existing allow-all UAT policy and does not create approvals.</div>`; return; }
+      holder.innerHTML = `<div class="panel"><table><thead><tr><th>Approval</th><th>Tool</th><th>Action</th><th>Scope / parameters</th><th>Status</th><th>Decision</th></tr></thead><tbody>
+        ${values.map((item) => `<tr>
+          <td class="mono">${esc(item.approval_id || item.id || "")}</td>
+          <td>${fmt(item.tool_id || item.tool_name)}</td>
+          <td>${fmt(item.action)}</td>
+          <td class="mono small">${esc(JSON.stringify(item.trusted_review_projection || {}))}</td>
+          <td>${fmt(item.status || "pending")}</td>
+          <td><button class="secondary" data-approve="${esc(item.approval_id || item.id || "")}">Approve</button>
+              <button class="danger" data-reject="${esc(item.approval_id || item.id || "")}">Reject</button></td>
+        </tr>`).join("")}</tbody></table></div>`;
+      holder.querySelectorAll("[data-approve]").forEach((el) => el.addEventListener("click", () => decision(el.dataset.approve, "approve")));
+      holder.querySelectorAll("[data-reject]").forEach((el) => el.addEventListener("click", () => decision(el.dataset.reject, "reject")));
+    } catch (err) { document.getElementById("approvals").innerHTML = `<div class="error">${esc(err.message)}</div>`; }
+  }
+
+  async function decision(id, action) {
+    const verb = action === "approve" ? "Approve" : "Reject";
+    if (!confirm(`${verb} ${id}? This calls the backend authority, not a UI-only toggle.`)) return;
+    try {
+      const result = await api(`/api/approvals/${encodeURIComponent(id)}/${action}`, { method: "POST" });
+      alert(JSON.stringify(result, null, 2));
+    } catch (err) {
+      alert(`${verb} rejected by backend:\n\n${err.message}`);
+    }
+  }
+
+  function runDetailView(runId) {
+    app.innerHTML = `<h1 class="mono">${esc(runId)}</h1><div id="detail"><p class="muted">Loading…</p></div>`;
+    let source = null;
+    let lastEvent = 0;
+    let closed = false;
+    const terminal = new Set(["COMPLETED", "FAILED", "CANCELLED", "SANDBOX_LOST", "CLEANUP_UNRESOLVED"]);
+
+    async function refresh() {
+      try {
+        const detail = await api(`/api/runs/${encodeURIComponent(runId)}`);
+        render(detail);
+        if (terminal.has(detail.status) && source) { source.close(); source = null; }
+      } catch (err) {
+        document.getElementById("detail").innerHTML = `<div class="error">${esc(err.message)}</div>`;
+      }
+    }
+
+    function render(detail) {
+      const metrics = detail.metrics || {};
+      const tasks = detail.tasks || [];
+      const approvals = detail.approvals || [];
+      const recovery = detail.recovery || {};
+      const toolCalls = detail.tool_calls || [];
+      document.getElementById("detail").innerHTML = `
+        <div class="row" style="margin-bottom:14px">${statusBadge(detail.status)}
+          <span class="muted">${esc(detail.mode)} · ${esc(detail.model)} · ${esc(detail.created_at)}</span>
+          <button class="secondary" id="refresh">Refresh</button></div>
+        <div class="grid">
+          <section class="panel">
+            <h2>Task</h2><p>${esc(detail.task)}</p>
+            ${detail.error ? `<div class="error" style="margin-top:12px">${esc(detail.error)}</div>` : ""}
+            ${detail.cleanup_error ? `<div class="error" style="margin-top:12px">Cleanup: ${esc(detail.cleanup_error)}</div>` : ""}
+            <h2 style="margin-top:18px">Final result</h2>
+            <pre>${esc(detail.final_output || "(not available yet)")}</pre>
+            <h2 style="margin-top:18px">Workers / tasks</h2>
+            <table><thead><tr><th>Worker</th><th>Task</th><th>Status</th><th>Title</th></tr></thead><tbody>
+              ${tasks.map((task) => `<tr><td class="mono">${fmt(task.assignee)}</td><td class="mono">${fmt(task.task_id)}</td><td>${fmt(task.status)}</td><td>${fmt(task.title)}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No tasks yet.</td></tr>`}
+            </tbody></table>
+            <h2 style="margin-top:18px">Latest tool operations</h2>
+            <div class="log">${toolCalls.slice(-20).map((call) => `<div><strong>${esc(call.tool_name || call.tool || "tool")}</strong> ${esc(call.agent || "")} <span class="muted">${esc(JSON.stringify(call.input || call.arguments || {}))}</span></div>`).join("") || `<span class="muted">No tool calls projected.</span>`}</div>
+            <h2 style="margin-top:18px">Artifacts</h2>
+            ${(detail.artifacts || []).length ? `<ul>${detail.artifacts.map((item) => `<li class="mono small">${esc(item.kind)}: ${esc(item.path)}</li>`).join("")}</ul>` : `<p class="muted small">No exported workspace artifact; workflow mode has no tool filesystem.</p>`}
+          </section>
+          <aside>
+            <section class="panel">
+              <h2>Metrics</h2>
+              <div class="kv">
+                <div>Prompt tokens</div><div>${fmt(metrics.prompt_tokens ?? metrics.total_prompt_tokens)}</div>
+                <div>Completion</div><div>${fmt(metrics.completion_tokens ?? metrics.total_completion_tokens)}</div>
+                <div>Cache hit</div><div>${fmt(metrics.cache_hit_tokens ?? metrics.total_cache_hit_tokens)}</div>
+                <div>Cache miss</div><div>${fmt(metrics.cache_miss_tokens ?? metrics.total_cache_miss_tokens)}</div>
+                <div>Tool calls</div><div>${fmt(metrics.tool_calls)}</div>
+                <div>Latency ms</div><div>${fmt(metrics.latency_ms ?? metrics.total_latency_ms)}</div>
+                <div>Cost USD</div><div>${fmt(metrics.estimated_cost_usd ?? metrics.estimated_cost)}</div>
+              </div>
+            </section>
+            <section class="panel" style="margin-top:14px">
+              <h2>Approvals</h2>
+              ${approvals.length ? approvals.map((item) => `<div class="notice small" style="margin-bottom:8px">
+                <div class="mono">${esc(item.approval_id || item.id || "")}</div>
+                <div>${fmt(item.tool_id || item.tool_name)} · ${fmt(item.action)}</div>
+                <button class="secondary" data-approve="${esc(item.approval_id || item.id || "")}">Approve</button>
+                <button class="danger" data-reject="${esc(item.approval_id || item.id || "")}">Reject</button>
+              </div>`).join("") : `<p class="muted small">No pending approvals for this run.</p>`}
+              <p class="muted small">Buttons call the backend authority; the page never auto-approves.</p>
+            </section>
+            <section class="panel" style="margin-top:14px">
+              <h2>Recovery</h2>
+              <div class="small">state: <span class="mono">${esc(recovery.state || "NONE")}</span></div>
+              ${recovery.state && recovery.state !== "NONE" ? `<button class="secondary" id="resume" style="margin-top:8px">Request trusted resume</button>` : `<p class="muted small">No active trusted suspension.</p>`}
+            </section>
+            <section class="panel" style="margin-top:14px">
+              <h2>Events</h2>
+              <div id="events" class="log"></div>
+            </section>
+          </aside>
+        </div>`;
+      document.getElementById("refresh").addEventListener("click", refresh);
+      document.querySelectorAll("[data-approve]").forEach((el) => el.addEventListener("click", () => decision(el.dataset.approve, "approve")));
+      document.querySelectorAll("[data-reject]").forEach((el) => el.addEventListener("click", () => decision(el.dataset.reject, "reject")));
+      const resume = document.getElementById("resume");
+      if (resume) resume.addEventListener("click", async () => {
+        if (!confirm("Request trusted recovery for this run?")) return;
+        try { alert(JSON.stringify(await api(`/api/runs/${encodeURIComponent(runId)}/resume`, { method: "POST" }), null, 2)); }
+        catch (err) { alert(`Recovery refused:\n\n${err.message}`); }
+      });
+      const eventBox = document.getElementById("events");
+      (detail.events || []).slice(-80).forEach((event) => appendEvent(eventBox, event));
+    }
+
+    function appendEvent(box, event) {
+      if (!box) return;
+      const div = document.createElement("div");
+      div.textContent = `${event.timestamp || ""} ${event.type || ""} ${JSON.stringify(event.data || {})}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function connect() {
+      if (closed) return;
+      source = new EventSource(`/api/runs/${encodeURIComponent(runId)}/stream?after=${lastEvent}`);
+      source.onopen = () => { refresh(); };
+      source.onerror = () => { /* EventSource reconnects with Last-Event-ID; do not resubmit. */ };
+      ["run_submitted","runtime_event","coding_started","run_completed","run_failed"].forEach((type) => {
+        source.addEventListener(type, (message) => {
+          try {
+            const event = JSON.parse(message.data);
+            lastEvent = Math.max(lastEvent, Number(event.id || 0));
+            appendEvent(document.getElementById("events"), event);
+            refresh();
+          } catch { /* ignore malformed event */ }
+        });
+      });
+    }
+
+    refresh().then(connect);
+    window.addEventListener("beforeunload", () => { closed = true; if (source) source.close(); });
+  }
+
+  function route() {
+    nav();
+    const run = location.pathname.match(/^\/runs\/([^/]+)$/);
+    if (run) return runDetailView(decodeURIComponent(run[1]));
+    if (location.pathname.startsWith("/history")) return historyView();
+    if (location.pathname.startsWith("/approvals")) return approvalsView();
+    newTaskView();
+  }
+
+  route();
+})();
+</script>
+</body>
+</html>
