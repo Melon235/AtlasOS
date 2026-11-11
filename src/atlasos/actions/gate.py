@@ -87,6 +87,7 @@ class ActionSafetyGate:
         max_modified_attempts: int = 2,
         tool_sources: Mapping[str, str] | None = None,
         trajectory_recorder: TrajectoryRecorder | None = None,
+        external_denial_retry_safe: bool = False,
     ) -> None:
         self._executor = executor
         self._registry = registry
@@ -99,6 +100,10 @@ class ActionSafetyGate:
         self.tool_sources = dict(tool_sources or {})
         self.policy_digest = canonical_digest(policy.model_dump(mode="json"))
         self.trajectory_recorder = trajectory_recorder
+        #: Stage R1-1: an external-policy deny happens before the tool body, so the call has no
+        #: side effect and the worker may continue. Defaults to False to keep the pre-R1-1
+        #: failure semantics for every existing caller.
+        self.external_denial_retry_safe = external_denial_retry_safe
         self.audits: list[ActionAudit] = []
         self.preflight_evaluations: list[ActionEvaluation] = []
 
@@ -222,7 +227,10 @@ class ActionSafetyGate:
                     executed=False,
                 )
                 return _failure(
-                    "action_denied: " + ", ".join(evaluation.reason_codes or ("denied",))
+                    "action_denied: " + ", ".join(evaluation.reason_codes or ("denied",)),
+                    retry_safe=(
+                        self.external_denial_retry_safe and _denied_by_external_policy(evaluation)
+                    ),
                 )
 
             if evaluation.outcome == "REQUIRE_HUMAN":
@@ -403,6 +411,7 @@ class ActionSafetyGate:
                     tool_id=tool_id,
                     worker_id=(action_context.worker_id if action_context is not None else None),
                     profile_id=(action_context.profile_id if action_context is not None else None),
+                    task_id=(action_context.task_id if action_context is not None else None),
                 ),
             )
         except Exception:  # noqa: BLE001 - evidence must never change runtime behavior
@@ -739,6 +748,11 @@ class ActionSafetyGate:
             audit.digest,
             audit.executed,
         )
+
+
+def _denied_by_external_policy(evaluation: ActionEvaluation) -> bool:
+    decision = evaluation.decision
+    return decision is not None and decision.external_policy_outcome == "deny"
 
 
 def _canonical_agent(name: str) -> str:
