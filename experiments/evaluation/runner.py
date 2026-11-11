@@ -129,6 +129,9 @@ from atlasos.workers.routing import capabilities_from_catalog
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO_ROOT / "experiments" / "configs" / "eval-benchmark.yaml"
 MCP_SERVER_DIR = REPO_ROOT / "experiments" / "evaluation" / "mcp_servers"
+#: Stage R1-2A verification modes. ``observe`` adds findings; it never feeds back into the run.
+VERIFICATION_MODES = ("off", "observe")
+
 _SANDBOX_TOOLS = frozenset({"file_read", "file_write", "file_edit", "grep", "list_files", "bash"})
 _CONTROL_TOOLS = frozenset({"tool.search", "tool_search", "dispatch_action"})
 _EVAL_MCP_TOOLS = (
@@ -183,6 +186,8 @@ class RunnerSettings:
     ownership_mode: str = "off"
     #: Stage R1-1: durable tool-event evidence (private payload corpus + worker stop events).
     execution_integrity_mode: str = "off"
+    #: Stage R1-2A: deterministic deliverable verification (``off`` or observation only).
+    verification_mode: str = "off"
     delegation_route_mode: str = "off"
     #: Stage R0.5: which frozen routing policy the selective arm must use.
     delegation_policy_version: str = "r0.1.0"
@@ -210,6 +215,7 @@ class RunnerSettings:
                 "worker_contract_mode": self.worker_contract_mode,
                 "ownership_mode": self.ownership_mode,
                 "execution_integrity_mode": self.execution_integrity_mode,
+                "verification_mode": self.verification_mode,
                 "delegation_route_mode": self.delegation_route_mode,
                 "delegation_policy_version": self.delegation_policy_version,
                 "config": _config_digest(self.config_path),
@@ -467,6 +473,64 @@ def _classify_exception(error: BaseException) -> FailureClass:
     return "RUNTIME_FAILURE"
 
 
+async def _observe_verification(
+    *,
+    task: Any,
+    workspace: Path | None,
+    baseline_hashes: dict[str, str],
+    run_dir: Path,
+) -> dict[str, Any] | None:
+    """Verify the exported workspace against the trusted contract, without executing its code."""
+
+    from experiments.evaluation.stage_r1_2_contracts import spec_for_sample
+
+    from atlasos.verification.engine import VerificationEngine
+
+    if workspace is None:
+        return None
+    spec = spec_for_sample(task.sample_id)
+    if spec is None:
+        return None
+    try:
+        result = await VerificationEngine(None).verify_async(
+            spec, Path(workspace), baseline_digests=baseline_hashes
+        )
+    except Exception as error:  # noqa: BLE001 - verification must never break a run
+        payload = {
+            "spec_id": spec.spec_id,
+            "spec_digest": spec.declared_digest,
+            "verification_overall": "UNKNOWN",
+            "mode": "observe",
+            "error": f"{type(error).__name__}: {error}",
+        }
+        _write_json(Path(run_dir) / "verification_summary.json", payload)
+        return payload
+    payload = result.as_dict()
+    payload["mode"] = "observe"
+    payload["dynamic_mode"] = "unavailable"
+    summary = {
+        "spec_id": result.spec_id,
+        "spec_version": result.spec_version,
+        "spec_digest": result.spec_digest,
+        "artifact_digest": result.artifact_digest,
+        "mode": "observe",
+        "dynamic_mode": "unavailable",
+        "verification_wall_ms": result.verification_wall_ms,
+        "verification_cpu_ms": result.verification_cpu_ms,
+        **result.category_statuses(),
+        "verification_overall": result.overall,
+        "failed_checks": [item.check_id for item in result.failures()],
+        "unknown_checks": [item.check_id for item in result.unknowns()],
+    }
+    _persist_verification(Path(run_dir), payload, summary)
+    return payload
+
+
+def _persist_verification(run_dir: Path, payload: dict[str, Any], summary: dict[str, Any]) -> None:
+    _write_json(run_dir / "verification.json", payload)
+    _write_json(run_dir / "verification_summary.json", summary)
+
+
 def _jsonable(value: Any) -> Any:
     if isinstance(value, Path):
         return str(value)
@@ -621,6 +685,7 @@ async def run_sample(
         "worker_contract_mode": settings.worker_contract_mode,
         "ownership_mode": settings.ownership_mode,
         "execution_integrity_mode": settings.execution_integrity_mode,
+        "verification_mode": settings.verification_mode,
         "delegation_route_mode": settings.delegation_route_mode,
         "delegation_policy_version": settings.delegation_policy_version,
     }
@@ -710,6 +775,12 @@ async def run_sample(
             settings.execution_integrity_mode
             if settings.execution_integrity_mode in EXECUTION_INTEGRITY_MODES
             else EXECUTION_INTEGRITY_OFF
+        )
+        # Stage R1-2A: ``off`` runs no verifier at all; ``observe`` records findings only.
+        verification_mode = (
+            settings.verification_mode
+            if settings.verification_mode in VERIFICATION_MODES
+            else "off"
         )
         ownership_manifest = None
         ownership_policy = None
@@ -1196,6 +1267,24 @@ async def run_sample(
                 failure_reasons=["sandbox workspace was not exported"],
             )
         oracle = oracle_outcome
+        # Stage R1-2A: verification is measurement only. It runs after the export, reads the
+        # snapshot, and never touches the oracle verdict or the run's failure classification.
+        if verification_mode == "observe":
+            verification = await _observe_verification(
+                task=task,
+                workspace=workspace_export,
+                baseline_hashes=baseline_hashes,
+                run_dir=run_dir,
+            )
+            if verification is not None:
+                metrics.extra["verification"] = {
+                    key: value
+                    for key, value in verification.items()
+                    if key in {"spec_id", "spec_digest", "verification_overall", "artifact_digest"}
+                    or key.endswith("_status")
+                    or key.endswith("_validity")
+                    or key == "deliverable_presence"
+                }
         if failure_class is None and not oracle.passed:
             failure_class = "ORACLE_FAILURE"
             failure_reason = "; ".join(oracle.failure_reasons)[:2000] or "oracle failed"
