@@ -276,7 +276,11 @@ class RunRecord:
             "overlap_pair_count": self.timeline.get("overlap_pair_count"),
             "sum_worker_duration_ms": self.timeline.get("sum_worker_duration_ms"),
             "total_run_wall_time_ms": self.timeline.get("total_run_wall_time_ms"),
-            "parallel_marker": self.timeline.get("marker") or "",
+            # A single-worker run cannot overlap with itself; the marker only describes runs whose
+            # plan asked for more than one worker.
+            "parallel_marker": (self.timeline.get("marker") or "")
+            if self.workers_started > 1
+            else "",
             "network_markers": self.integrity.get("network_markers", 0),
             "oracle_markers": self.integrity.get("oracle_markers", 0),
             "integrity_passed": self.integrity.get("isolation_passed"),
@@ -294,10 +298,13 @@ def _tool_text(result: dict[str, Any]) -> str:
 def _integrity(result: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
     text = _tool_text(result) + "\n" + _tool_text(evidence).lower()
     integrity = (result.get("metrics") or {}).get("integrity") or {}
+    passed = (
+        integrity.get("isolation_checks_passed", integrity.get("passed")) if integrity else None
+    )
     return {
         "network_markers": sum(text.count(marker) for marker in _NETWORK_MARKERS),
         "oracle_markers": sum(text.count(marker) for marker in _ORACLE_MARKERS),
-        "isolation_passed": (integrity.get("passed") if integrity else None),
+        "isolation_passed": passed,
     }
 
 
@@ -587,7 +594,7 @@ def parallel_evidence(records: list[RunRecord]) -> dict[str, Any]:
                 "sum_worker_ms": record.timeline.get("sum_worker_duration_ms"),
                 "wall_ms": record.timeline.get("total_run_wall_time_ms"),
                 "latency_ms": record.latency_ms,
-                "marker": record.timeline.get("marker"),
+                "marker": record.timeline.get("marker") if record.workers_started > 1 else None,
             }
         )
     multi = [row for row in rows if (row["scheduler_started"] or 0) > 1]
