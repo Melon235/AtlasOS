@@ -44,11 +44,19 @@ from experiments.evaluation.models import (
     BenchmarkTask,
     EvalRunResult,
     FailureClass,
+    OracleOutcome,
     RunIdentity,
     RuntimeMetrics,
     canonical_digest,
 )
 from experiments.evaluation.oracle import evaluate_oracle
+from experiments.evaluation.sandboxed_oracle import (
+    ORACLE_MODE_SANDBOX,
+    ORACLE_MODES,
+    OracleSandboxConfig,
+    evaluate_oracle_isolated,
+    oracle_failure_class,
+)
 from experiments.evaluation.stage_g3_4a_integrity import (
     FIXTURE_COMMIT_LABEL,
     enforce_evaluation_isolation,
@@ -188,6 +196,8 @@ class RunnerSettings:
     execution_integrity_mode: str = "off"
     #: Stage R1-2A: deterministic deliverable verification (``off`` or observation only).
     verification_mode: str = "off"
+    #: Stage R1-2H: hidden tests run in an isolated sandbox. ``host`` only reproduces old numbers.
+    oracle_mode: str = "sandbox"
     delegation_route_mode: str = "off"
     #: Stage R0.5: which frozen routing policy the selective arm must use.
     delegation_policy_version: str = "r0.1.0"
@@ -216,6 +226,7 @@ class RunnerSettings:
                 "ownership_mode": self.ownership_mode,
                 "execution_integrity_mode": self.execution_integrity_mode,
                 "verification_mode": self.verification_mode,
+                "oracle_mode": self.oracle_mode,
                 "delegation_route_mode": self.delegation_route_mode,
                 "delegation_policy_version": self.delegation_policy_version,
                 "config": _config_digest(self.config_path),
@@ -782,6 +793,10 @@ async def run_sample(
             if settings.verification_mode in VERIFICATION_MODES
             else "off"
         )
+        # Stage R1-2H: unknown values fall back to the isolated oracle, never to Host execution.
+        oracle_mode = (
+            settings.oracle_mode if settings.oracle_mode in ORACLE_MODES else ORACLE_MODE_SANDBOX
+        )
         ownership_manifest = None
         ownership_policy = None
         external_policy = None
@@ -1249,24 +1264,57 @@ async def run_sample(
             )
 
         if workspace_export is not None and workspace_export.is_dir():
-            oracle_outcome = evaluate_oracle(
-                task,
-                workspace=workspace_export,
-                baseline_hashes=baseline_hashes,
-                tool_calls=tool_calls,
-                worker_results=worker_results,
-                run_dir=run_dir,
-                host_fixture_unchanged=host_unchanged,
-            )
+            # Stage R1-2H: hidden tests run in their own disposable sandbox by default. The Host
+            # never imports the exported deliverable, and the worker sandbox is already destroyed.
+            if oracle_mode == ORACLE_MODE_SANDBOX and provider is not None:
+                oracle_outcome = await evaluate_oracle_isolated(
+                    task,
+                    workspace=workspace_export,
+                    baseline_hashes=baseline_hashes,
+                    tool_calls=tool_calls,
+                    worker_results=worker_results,
+                    run_dir=run_dir,
+                    provider=provider,
+                    config=OracleSandboxConfig(image=config.sandbox.image),
+                    host_fixture_unchanged=host_unchanged,
+                    run_id=run_id,
+                )
+            elif oracle_mode == ORACLE_MODE_SANDBOX:
+                oracle_outcome = OracleOutcome(
+                    passed=False,
+                    checks={"oracle_sandbox_available": False},
+                    failure_reasons=["no sandbox provider was available for the isolated oracle"],
+                    execution_mode=ORACLE_MODE_SANDBOX,
+                    failure_kind="SANDBOX_PROVISIONING_FAILURE",
+                    environment_failure=True,
+                )
+            else:
+                oracle_outcome = evaluate_oracle(
+                    task,
+                    workspace=workspace_export,
+                    baseline_hashes=baseline_hashes,
+                    tool_calls=tool_calls,
+                    worker_results=worker_results,
+                    run_dir=run_dir,
+                    host_fixture_unchanged=host_unchanged,
+                )
         else:
-            from experiments.evaluation.models import OracleOutcome
-
             oracle_outcome = OracleOutcome(
                 passed=False,
                 checks={"workspace_exported": False},
                 failure_reasons=["sandbox workspace was not exported"],
+                environment_failure=True,
+                failure_kind="WORKSPACE_NOT_EXPORTED",
             )
         oracle = oracle_outcome
+        metrics.extra["oracle"] = {
+            "mode": oracle.execution_mode,
+            "failure_kind": oracle.failure_kind,
+            "environment_failure": oracle.environment_failure,
+            "cleanup_failure": oracle.cleanup_failure,
+            "timings_ms": oracle.timings_ms,
+            "digests": oracle.digests,
+        }
         # Stage R1-2A: verification is measurement only. It runs after the export, reads the
         # snapshot, and never touches the oracle verdict or the run's failure classification.
         if verification_mode == "observe":
@@ -1285,8 +1333,10 @@ async def run_sample(
                     or key.endswith("_validity")
                     or key == "deliverable_presence"
                 }
-        if failure_class is None and not oracle.passed:
-            failure_class = "ORACLE_FAILURE"
+        if failure_class is None and (oracle_class := oracle_failure_class(oracle)) is not None:
+            # An oracle environment defect is not a model failure: a missing pytest session, a
+            # timeout or a dead sandbox must never be scored as a wrong deliverable.
+            failure_class = oracle_class
             failure_reason = "; ".join(oracle.failure_reasons)[:2000] or "oracle failed"
         if failure_class is None:
             failure_class = "TASK_SUCCESS"
