@@ -16,6 +16,9 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+atlas = "atlasos.app.cli:app"
+
 [project.optional-dependencies]
 # ContextPilot pulls a heavy scientific stack; install it only for the
 # context-optimization spikes and ablations.
@@ -30,6 +33,19 @@ tools = [
 sandbox = [
     "opensandbox>=1.2,<2",
     "daytona>=0.197,<1",
+]
+# Inspect AI is an external evaluation harness, not an AtlasOS runtime dependency.
+evaluation = [
+    "inspect-ai>=0.3.287",
+    "matplotlib>=3.9",
+]
+# Local interaction layer. FastAPI/uvicorn/typer/rich are intentionally optional.
+app = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "typer>=0.12",
+    "rich>=13.7",
+    "httpx>=0.27",
 ]
 dev = [
     "pytest>=8.3",
@@ -53,6 +69,10 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer declares CLI options in default arguments by design.
+"src/atlasos/app/cli.py" = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

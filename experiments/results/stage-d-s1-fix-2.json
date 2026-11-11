@@ -1,0 +1,306 @@
+{
+  "all_passed": true,
+  "experiment": "V2-stage-d-os-process-hitl-resume",
+  "provider": "opensandbox",
+  "python": "3.12.15 (main, Oct 21 2026, 17:48:33) [MSC v.1944 64 bit (AMD64)]",
+  "scenarios": [
+    {
+      "a_pid": 28724,
+      "b_pid": 24232,
+      "binding_id": "7976b33b4cc402fb7be9ff9d951ff3ad98343bbae5e8b11f720f79083042321d",
+      "c_pid": null,
+      "continuity_digest": "sha256:d3a919f3365a18f404b8428e227e93f45bc6f5690af1a1a3cb0f50ffafff6446",
+      "details": {
+        "main": {
+          "continuation_present": true,
+          "ledger_completed": true,
+          "outcome_settled": true,
+          "pid_distinct": true,
+          "recovery_attach_once": true,
+          "recovery_create_zero": true,
+          "recovery_rc_zero": true,
+          "same_binding": true,
+          "same_continuity": true,
+          "same_sandbox": true,
+          "sandbox_destroyed": true,
+          "settlement_executed_once": true,
+          "suspension_cleared": true,
+          "write_effect_once": true
+        },
+        "repeat": {
+          "repeat_cleared": true,
+          "repeat_no_create": true,
+          "repeat_no_inspect": true,
+          "repeat_no_write": true,
+          "repeat_rc_zero": true
+        },
+        "repeated": {
+          "approval_states": [
+            "APPROVED"
+          ],
+          "binding_id": null,
+          "continuation": [
+            {
+              "content": [
+                {
+                  "id": "approved-write",
+                  "input": {
+                    "content": "approved recovery\n",
+                    "path": "/workspace/project/recovered.txt"
+                  },
+                  "name": "file_write",
+                  "type": "tool_use"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": [
+                {
+                  "content": "Created \"/workspace/project/recovered.txt\" (1 line, 18 bytes).",
+                  "is_error": false,
+                  "tool_use_id": "approved-write",
+                  "type": "tool_result"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "continuation_count": 0,
+          "continuation_present": true,
+          "continuity_digest": null,
+          "disposed": true,
+          "idempotency": [
+            {
+              "completed": true,
+              "fingerprint": "a50ef63d6c6cbc7da3a897dab294e2fe155ef70bc826849108ad05d026f27917",
+              "key_hash": "b399f9e9d125c94d92ac43c9225da4352b73f21421b3582c7fe4fb8cba0bbb3d",
+              "tool_name": "file_write"
+            }
+          ],
+          "ledger": [
+            {
+              "state": "COMPLETED",
+              "tool_name": "file_write"
+            }
+          ],
+          "manager_create_count": 0,
+          "manager_destroy_count": 0,
+          "mode": "recover",
+          "network_verified": false,
+          "outcome_reason": null,
+          "outcome_status": "cleared",
+          "pid": 40480,
+          "policy_name": "stage-d",
+          "profile_id": "coding_worker",
+          "provider_counts": {
+            "attach_existing": 0,
+            "cancel": 0,
+            "create": 0,
+            "destroy": 0,
+            "detach_local": 0,
+            "execute": 0,
+            "inspect_existing": 0,
+            "read_file": 0,
+            "write_file": 0
+          },
+          "reattached": false,
+          "run_id": "run-main",
+          "runtime_instance_id": "stage-d-b-40480",
+          "sandbox_id": null,
+          "settlement_digest": null,
+          "settlement_results": [],
+          "status": "OK",
+          "suspension_id": "309c16f4b235bc227ff7e53bab30c62bb4d49e41d312e17da05d0adcc5e3a0ba",
+          "suspension_state": "CLEARED",
+          "target_content": null,
+          "worker_id": "worker-main"
+        }
+      },
+      "error": null,
+      "name": "D3-main-approved",
+      "passed": true,
+      "sandbox_id": "a9ef464c-eda0-4727-a68a-e1460482cf9e",
+      "status": "settled"
+    },
+    {
+      "a_pid": 13404,
+      "b_pid": 34508,
+      "binding_id": "da0ba4d1050ec04b26071f599d3f69dbdc3dc45990f069cffe87d8dfc2413027",
+      "c_pid": null,
+      "continuity_digest": "sha256:9f648199fbbf7e52e1451380cb3a6a3359bb1d7687b3820d443004e9bc4e4829",
+      "details": {
+        "pending": {
+          "pending_no_attach": true,
+          "pending_no_create": true,
+          "pending_no_inspect": true,
+          "pending_no_write": true,
+          "pending_waiting": true
+        }
+      },
+      "error": null,
+      "name": "D3-1-approval-pending",
+      "passed": true,
+      "sandbox_id": "8dd539bb-a252-43d3-ae21-1543b1053f4d",
+      "status": "waiting_then_settled"
+    },
+    {
+      "a_pid": 41200,
+      "b_pid": 15696,
+      "binding_id": "bf2fa3c18326c6c85448fe64670e9fd1cc02aa132b12e10e77c754cdf8adcea3",
+      "c_pid": null,
+      "continuity_digest": "sha256:2339cd33ed6b622b7dabcd154711756153c5a772c9ac750105e71529c1f5e8ae",
+      "details": {
+        "rejected": {
+          "rejected_no_ledger": true,
+          "rejected_no_target": true,
+          "rejected_no_write": true,
+          "rejected_settled": true
+        }
+      },
+      "error": null,
+      "name": "D3-2-approval-rejected",
+      "passed": true,
+      "sandbox_id": "9d6885fa-dd8e-456a-bcba-ca12641f5343",
+      "status": "settled"
+    },
+    {
+      "a_pid": 20012,
+      "b_pid": 17224,
+      "binding_id": "b132e01c052d17db1943e39a57da44021121e10547ef203bdb22d2b8f1f311b0",
+      "c_pid": null,
+      "continuity_digest": "sha256:c0feb7411b5f15a766dc788f9817722e3b4b6b4f25fb882422051277844c84cd",
+      "details": {
+        "busy": {
+          "busy_failed": true,
+          "busy_no_attach": true,
+          "busy_no_create": true,
+          "busy_no_inspect": true,
+          "busy_no_write": true,
+          "busy_type": true
+        }
+      },
+      "error": null,
+      "name": "D3-3-ownership-busy",
+      "passed": true,
+      "sandbox_id": "54108607-180e-4686-a390-a8b9493250f4",
+      "status": "BUSY"
+    },
+    {
+      "a_pid": 5220,
+      "b_pid": 19808,
+      "binding_id": "72f0a330c262b6429d0d055c80ca541656b65572408d6551735b70794029b7bb",
+      "c_pid": null,
+      "continuity_digest": "sha256:f0c4b87dd157b13fd6fc85a9c7cc560e0284863ef3d23b3b0ba2fedfbee73dc0",
+      "details": {
+        "lost": {
+          "lost_failed": true,
+          "lost_no_create": true,
+          "lost_no_write": true,
+          "lost_type": true
+        }
+      },
+      "error": null,
+      "name": "D3-4-sandbox-lost",
+      "passed": true,
+      "sandbox_id": "3bc4ad63-cb7b-42e8-94cf-eebd21a19e1c",
+      "status": "LOST"
+    },
+    {
+      "a_pid": 16904,
+      "b_pid": 19312,
+      "binding_id": "8c289bcb0615b5c81910eddbeaf16b5b9e24fd1137dd98d10cb2fac3b52987f6",
+      "c_pid": null,
+      "continuity_digest": "sha256:b8d28dcf9b0f349509b0a2b8174a5ff2094cf8a273e6f90e1ff0b7585b731f1d",
+      "details": {
+        "policy": {
+          "policy_no_create": true,
+          "policy_no_write": true,
+          "policy_stale": true
+        }
+      },
+      "error": null,
+      "name": "D3-5-policy-changed",
+      "passed": true,
+      "sandbox_id": "9039791e-86f8-4e84-b42f-17227f031983",
+      "status": "STALE"
+    },
+    {
+      "a_pid": 19788,
+      "b_pid": 20712,
+      "binding_id": "5168697a64490e2ea93d852c6c462ae11cfc2865fdde5a6dd4b70351eada1bae",
+      "c_pid": null,
+      "continuity_digest": "sha256:91a36da8abb2432a221adc024a575fb96ad4ffc2577d937c211faf917344a667",
+      "details": {
+        "identity": {
+          "identity_failed": true,
+          "identity_no_attach": true,
+          "identity_no_create": true,
+          "identity_no_inspect": true,
+          "identity_no_write": true,
+          "identity_type": true
+        }
+      },
+      "error": null,
+      "name": "D3-5-worker-identity-changed",
+      "passed": true,
+      "sandbox_id": "ed59905a-9e15-41ca-b214-adc2633fbe27",
+      "status": "IDENTITY_MISMATCH"
+    },
+    {
+      "a_pid": 21180,
+      "b_pid": 9092,
+      "binding_id": "2417244a09990f0bad0d323c6d4c07020508842a5cc0efe2bc6bc869a9fae6c1",
+      "c_pid": 40000,
+      "continuity_digest": "sha256:a43b26ec417b94342a884a8e292d77af70a7465541894e9cfc3f93b918f00c89",
+      "details": {
+        "backfill": {
+          "backfill_continuation": true,
+          "backfill_no_create": true,
+          "backfill_no_write": true,
+          "backfill_settled": true,
+          "backfill_target": true
+        }
+      },
+      "error": null,
+      "name": "D3-6-crash-after-settlement",
+      "passed": true,
+      "sandbox_id": "0ddf338c-fe69-4835-89df-24478244e9f8",
+      "status": "SETTLED_BACKFILL"
+    },
+    {
+      "a_pid": 39836,
+      "b_pid": 304,
+      "binding_id": "ce756efe74adfeddef83b2862a6f7846c4d9d2940766ecfb4a33515718f34337",
+      "c_pid": 21852,
+      "continuity_digest": "sha256:f635bd315466cccd2ad9c8392f2a8aa560878deac245e304ee7ced96c6f60d64",
+      "details": {
+        "operator_cleanup": {
+          "cleanup": true,
+          "mode": "cleanup-remote",
+          "pid": 39532,
+          "result": true,
+          "status": "DESTROYED"
+        },
+        "uncertain": {
+          "operator_cleanup": true,
+          "uncertain_disposal_refused": true,
+          "uncertain_no_create": true,
+          "uncertain_no_destroy": true,
+          "uncertain_no_second_write": true,
+          "uncertain_outcome": true,
+          "uncertain_ownership_retained": true,
+          "uncertain_settled": true,
+          "uncertain_target": true
+        }
+      },
+      "error": null,
+      "name": "D3-7-crash-during-side-effect",
+      "passed": true,
+      "sandbox_id": "7de8fab2-36f7-4bb2-96a6-f0069d1dc271",
+      "status": "UNCERTAIN_DISPOSAL_REFUSED"
+    }
+  ],
+  "status": "PASS",
+  "timestamp": "2026-11-06T12:18:08.576175+00:00"
+}

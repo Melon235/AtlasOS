@@ -1,0 +1,232 @@
+{
+  "AnyCode baseline": {
+    "by_category": {
+      "bugfix": {
+        "runs": 10,
+        "task_success_rate": 0.9
+      },
+      "feature": {
+        "runs": 5,
+        "task_success_rate": 0.8
+      },
+      "long_context": {
+        "runs": 5,
+        "task_success_rate": 1.0
+      },
+      "multi_worker": {
+        "runs": 5,
+        "task_success_rate": 0.4
+      }
+    },
+    "completion_tokens": 37862,
+    "estimated_cost_usd": 0.06590944,
+    "latency_p50_ms": 10263.491,
+    "latency_p95_ms": 20411.425,
+    "prompt_tokens": 501269,
+    "runs": 25,
+    "scope": "25 non-tool tasks",
+    "success": 20,
+    "task_success_rate": 0.8
+  },
+  "AtlasOS ablation subset non-tool": {
+    "by_category": {
+      "bugfix": {
+        "runs": 6,
+        "task_success_rate": 0.5
+      },
+      "feature": {
+        "runs": 6,
+        "task_success_rate": 0.8333333333333334
+      },
+      "long_context": {
+        "runs": 6,
+        "task_success_rate": 0.8333333333333334
+      },
+      "multi_worker": {
+        "runs": 6,
+        "task_success_rate": 0.8333333333333334
+      }
+    },
+    "completion_tokens": 32532,
+    "estimated_cost_usd": 0.05544458,
+    "latency_p50_ms": 29160.0535,
+    "latency_p95_ms": 51111.865,
+    "prompt_tokens": 471148,
+    "runs": 24,
+    "scope": "same 8 non-tool tasks, full AtlasOS",
+    "success": 18,
+    "task_success_rate": 0.75
+  },
+  "AtlasOS full": {
+    "by_category": {
+      "bugfix": {
+        "runs": 30,
+        "task_success_rate": 0.9
+      },
+      "feature": {
+        "runs": 15,
+        "task_success_rate": 0.9333333333333333
+      },
+      "long_context": {
+        "runs": 15,
+        "task_success_rate": 0.9333333333333333
+      },
+      "multi_worker": {
+        "runs": 15,
+        "task_success_rate": 0.9333333333333333
+      },
+      "tool_discovery": {
+        "runs": 15,
+        "task_success_rate": 1.0
+      }
+    },
+    "completion_tokens": 109093,
+    "estimated_cost_usd": 0.19115155,
+    "latency_p50_ms": 29629.8405,
+    "latency_p95_ms": 42655.13,
+    "prompt_tokens": 1702051,
+    "runs": 90,
+    "scope": "30 tasks, 3 repetitions",
+    "success": 84,
+    "task_success_rate": 0.9333333333333333
+  },
+  "AtlasOS matched non-tool": {
+    "by_category": {
+      "bugfix": {
+        "runs": 30,
+        "task_success_rate": 0.9
+      },
+      "feature": {
+        "runs": 15,
+        "task_success_rate": 0.9333333333333333
+      },
+      "long_context": {
+        "runs": 15,
+        "task_success_rate": 0.9333333333333333
+      },
+      "multi_worker": {
+        "runs": 15,
+        "task_success_rate": 0.9333333333333333
+      }
+    },
+    "completion_tokens": 102447,
+    "estimated_cost_usd": 0.17756843,
+    "latency_p50_ms": 32088.9,
+    "latency_p95_ms": 42731.293,
+    "prompt_tokens": 1566197,
+    "runs": 75,
+    "scope": "25 non-tool tasks, 3 repetitions",
+    "success": 69,
+    "task_success_rate": 0.92
+  },
+  "AtlasOS matched rep0": {
+    "by_category": {
+      "bugfix": {
+        "runs": 10,
+        "task_success_rate": 0.9
+      },
+      "feature": {
+        "runs": 5,
+        "task_success_rate": 0.8
+      },
+      "long_context": {
+        "runs": 5,
+        "task_success_rate": 0.8
+      },
+      "multi_worker": {
+        "runs": 5,
+        "task_success_rate": 0.8
+      }
+    },
+    "completion_tokens": 32083,
+    "estimated_cost_usd": 0.05874825,
+    "latency_p50_ms": 32530.388,
+    "latency_p95_ms": 39535.779,
+    "prompt_tokens": 499255,
+    "runs": 25,
+    "scope": "25 non-tool tasks, repetition 0",
+    "success": 21,
+    "task_success_rate": 0.84
+  },
+  "AtlasOS tool discovery": {
+    "by_category": {
+      "tool_discovery": {
+        "runs": 15,
+        "task_success_rate": 1.0
+      }
+    },
+    "completion_tokens": 6646,
+    "estimated_cost_usd": 0.01358312,
+    "latency_p50_ms": 22192.856,
+    "latency_p95_ms": 23273.844,
+    "prompt_tokens": 135854,
+    "runs": 15,
+    "scope": "5 tool-discovery tasks",
+    "success": 15,
+    "task_success_rate": 1.0
+  },
+  "No progressive discovery": {
+    "by_category": {
+      "bugfix": {
+        "runs": 2,
+        "task_success_rate": 0.5
+      },
+      "feature": {
+        "runs": 2,
+        "task_success_rate": 1.0
+      },
+      "long_context": {
+        "runs": 2,
+        "task_success_rate": 1.0
+      },
+      "multi_worker": {
+        "runs": 2,
+        "task_success_rate": 1.0
+      },
+      "tool_discovery": {
+        "runs": 2,
+        "task_success_rate": 0.0
+      }
+    },
+    "completion_tokens": 11919,
+    "estimated_cost_usd": 0.02386546,
+    "latency_p50_ms": 30089.436,
+    "latency_p95_ms": 44645.628,
+    "prompt_tokens": 168856,
+    "runs": 10,
+    "scope": "10-task cross-category subset, all tools native",
+    "success": 7,
+    "task_success_rate": 0.7
+  },
+  "No progressive discovery non-tool": {
+    "by_category": {
+      "bugfix": {
+        "runs": 2,
+        "task_success_rate": 0.5
+      },
+      "feature": {
+        "runs": 2,
+        "task_success_rate": 1.0
+      },
+      "long_context": {
+        "runs": 2,
+        "task_success_rate": 1.0
+      },
+      "multi_worker": {
+        "runs": 2,
+        "task_success_rate": 1.0
+      }
+    },
+    "completion_tokens": 11119,
+    "estimated_cost_usd": 0.02164667,
+    "latency_p50_ms": 31239.042,
+    "latency_p95_ms": 44645.628,
+    "prompt_tokens": 153245,
+    "runs": 8,
+    "scope": "8 non-tool subset tasks, all tools native",
+    "success": 7,
+    "task_success_rate": 0.875
+  },
+  "No progressive discovery tool discovery": "NOT_EVALUATED: the progressive-discovery oracle requires tool.search; direct native MCP invocation succeeded but is not scored as the same contract",
+  "tool_discovery_baseline": "NOT_EVALUATED (AnyCode 0.9.0 has no M1 progressive MCP surface)"
+}

@@ -72,6 +72,7 @@ from atlasos.tools.search import (
 from atlasos.tools.state import RunToolStateStore
 
 if TYPE_CHECKING:
+    from atlasos.tool_result_offload import ToolResultIngressRuntime
     from atlasos.trajectory.recorder import TrajectoryRecorder
 
 
@@ -138,6 +139,7 @@ class AtlasToolRuntime:
         suspension_store: SQLiteSuspensionStore | None = None,
         approval_store: SQLiteApprovalStore | None = None,
         trajectory_recorder: TrajectoryRecorder | None = None,
+        tool_result_offloader: ToolResultIngressRuntime | None = None,
     ) -> None:
         if action_ledger is not None and action_policy is None:
             raise ValueError("action_ledger requires action_policy; M4 runs only after M3")
@@ -231,7 +233,11 @@ class AtlasToolRuntime:
             self._inner_executor = cast(Any, self.action_safety_gate)
         else:
             self._inner_executor = base_executor
-        self.executor = AtlasDispatchExecutor(cast(ToolExecutor, self._inner_executor), self)
+        self.executor = AtlasDispatchExecutor(
+            cast(ToolExecutor, self._inner_executor),
+            self,
+            offloader=tool_result_offloader,
+        )
         if m6_enabled:
             assert suspension_store is not None and approval_store is not None
             assert self.m6_metrics is not None

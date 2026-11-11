@@ -1,0 +1,2545 @@
+{
+  "comparison": {
+    "AnyCode baseline": {
+      "by_category": {
+        "bugfix": {
+          "runs": 10,
+          "task_success_rate": 0.9
+        },
+        "feature": {
+          "runs": 5,
+          "task_success_rate": 0.8
+        },
+        "long_context": {
+          "runs": 5,
+          "task_success_rate": 1.0
+        },
+        "multi_worker": {
+          "runs": 5,
+          "task_success_rate": 0.4
+        }
+      },
+      "completion_tokens": 37862,
+      "estimated_cost_usd": 0.06590944,
+      "latency_p50_ms": 10263.491,
+      "latency_p95_ms": 20411.425,
+      "prompt_tokens": 501269,
+      "runs": 25,
+      "scope": "25 non-tool tasks",
+      "success": 20,
+      "task_success_rate": 0.8
+    },
+    "AtlasOS ablation subset non-tool": {
+      "by_category": {
+        "bugfix": {
+          "runs": 6,
+          "task_success_rate": 0.5
+        },
+        "feature": {
+          "runs": 6,
+          "task_success_rate": 0.8333333333333334
+        },
+        "long_context": {
+          "runs": 6,
+          "task_success_rate": 0.8333333333333334
+        },
+        "multi_worker": {
+          "runs": 6,
+          "task_success_rate": 0.8333333333333334
+        }
+      },
+      "completion_tokens": 32532,
+      "estimated_cost_usd": 0.05544458,
+      "latency_p50_ms": 29160.0535,
+      "latency_p95_ms": 51111.865,
+      "prompt_tokens": 471148,
+      "runs": 24,
+      "scope": "same 8 non-tool tasks, full AtlasOS",
+      "success": 18,
+      "task_success_rate": 0.75
+    },
+    "AtlasOS full": {
+      "by_category": {
+        "bugfix": {
+          "runs": 30,
+          "task_success_rate": 0.9
+        },
+        "feature": {
+          "runs": 15,
+          "task_success_rate": 0.9333333333333333
+        },
+        "long_context": {
+          "runs": 15,
+          "task_success_rate": 0.9333333333333333
+        },
+        "multi_worker": {
+          "runs": 15,
+          "task_success_rate": 0.9333333333333333
+        },
+        "tool_discovery": {
+          "runs": 15,
+          "task_success_rate": 1.0
+        }
+      },
+      "completion_tokens": 109093,
+      "estimated_cost_usd": 0.19115155,
+      "latency_p50_ms": 29629.8405,
+      "latency_p95_ms": 42655.13,
+      "prompt_tokens": 1702051,
+      "runs": 90,
+      "scope": "30 tasks, 3 repetitions",
+      "success": 84,
+      "task_success_rate": 0.9333333333333333
+    },
+    "AtlasOS matched non-tool": {
+      "by_category": {
+        "bugfix": {
+          "runs": 30,
+          "task_success_rate": 0.9
+        },
+        "feature": {
+          "runs": 15,
+          "task_success_rate": 0.9333333333333333
+        },
+        "long_context": {
+          "runs": 15,
+          "task_success_rate": 0.9333333333333333
+        },
+        "multi_worker": {
+          "runs": 15,
+          "task_success_rate": 0.9333333333333333
+        }
+      },
+      "completion_tokens": 102447,
+      "estimated_cost_usd": 0.17756843,
+      "latency_p50_ms": 32088.9,
+      "latency_p95_ms": 42731.293,
+      "prompt_tokens": 1566197,
+      "runs": 75,
+      "scope": "25 non-tool tasks, 3 repetitions",
+      "success": 69,
+      "task_success_rate": 0.92
+    },
+    "AtlasOS matched rep0": {
+      "by_category": {
+        "bugfix": {
+          "runs": 10,
+          "task_success_rate": 0.9
+        },
+        "feature": {
+          "runs": 5,
+          "task_success_rate": 0.8
+        },
+        "long_context": {
+          "runs": 5,
+          "task_success_rate": 0.8
+        },
+        "multi_worker": {
+          "runs": 5,
+          "task_success_rate": 0.8
+        }
+      },
+      "completion_tokens": 32083,
+      "estimated_cost_usd": 0.05874825,
+      "latency_p50_ms": 32530.388,
+      "latency_p95_ms": 39535.779,
+      "prompt_tokens": 499255,
+      "runs": 25,
+      "scope": "25 non-tool tasks, repetition 0",
+      "success": 21,
+      "task_success_rate": 0.84
+    },
+    "AtlasOS tool discovery": {
+      "by_category": {
+        "tool_discovery": {
+          "runs": 15,
+          "task_success_rate": 1.0
+        }
+      },
+      "completion_tokens": 6646,
+      "estimated_cost_usd": 0.01358312,
+      "latency_p50_ms": 22192.856,
+      "latency_p95_ms": 23273.844,
+      "prompt_tokens": 135854,
+      "runs": 15,
+      "scope": "5 tool-discovery tasks",
+      "success": 15,
+      "task_success_rate": 1.0
+    },
+    "No progressive discovery": {
+      "by_category": {
+        "bugfix": {
+          "runs": 2,
+          "task_success_rate": 0.5
+        },
+        "feature": {
+          "runs": 2,
+          "task_success_rate": 1.0
+        },
+        "long_context": {
+          "runs": 2,
+          "task_success_rate": 1.0
+        },
+        "multi_worker": {
+          "runs": 2,
+          "task_success_rate": 1.0
+        },
+        "tool_discovery": {
+          "runs": 2,
+          "task_success_rate": 0.0
+        }
+      },
+      "completion_tokens": 11919,
+      "estimated_cost_usd": 0.02386546,
+      "latency_p50_ms": 30089.436,
+      "latency_p95_ms": 44645.628,
+      "prompt_tokens": 168856,
+      "runs": 10,
+      "scope": "10-task cross-category subset, all tools native",
+      "success": 7,
+      "task_success_rate": 0.7
+    },
+    "No progressive discovery non-tool": {
+      "by_category": {
+        "bugfix": {
+          "runs": 2,
+          "task_success_rate": 0.5
+        },
+        "feature": {
+          "runs": 2,
+          "task_success_rate": 1.0
+        },
+        "long_context": {
+          "runs": 2,
+          "task_success_rate": 1.0
+        },
+        "multi_worker": {
+          "runs": 2,
+          "task_success_rate": 1.0
+        }
+      },
+      "completion_tokens": 11119,
+      "estimated_cost_usd": 0.02164667,
+      "latency_p50_ms": 31239.042,
+      "latency_p95_ms": 44645.628,
+      "prompt_tokens": 153245,
+      "runs": 8,
+      "scope": "8 non-tool subset tasks, all tools native",
+      "success": 7,
+      "task_success_rate": 0.875
+    },
+    "No progressive discovery tool discovery": "NOT_EVALUATED: the progressive-discovery oracle requires tool.search; direct native MCP invocation succeeded but is not scored as the same contract",
+    "tool_discovery_baseline": "NOT_EVALUATED (AnyCode 0.9.0 has no M1 progressive MCP surface)"
+  },
+  "figures": [
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\task_success_rate.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\task_success_rate.png",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\category_success.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\category_success.png",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\failure_classification.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\failure_classification.png",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\token_cost_distribution.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\token_cost_distribution.png",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\latency_p50_p95.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\latency_p50_p95.png",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\turns_toolcalls.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\turns_toolcalls.png",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\atlas_vs_baseline.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\atlas_vs_baseline.png",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\safety_recovery_matrix.svg",
+    "experiments\\results\\evaluation\\formal-analysis\\figures\\safety_recovery_matrix.png"
+  ],
+  "metrics": {
+    "agent_success_rate": {
+      "denominator": 90,
+      "numerator": 84,
+      "value": 0.9333333333333333
+    },
+    "categories": {
+      "bugfix": {
+        "agent_success": {
+          "denominator": 30,
+          "numerator": 28,
+          "value": 0.9333333333333333
+        },
+        "runs": 30,
+        "task_success": {
+          "denominator": 30,
+          "numerator": 27,
+          "value": 0.9
+        }
+      },
+      "feature": {
+        "agent_success": {
+          "denominator": 15,
+          "numerator": 14,
+          "value": 0.9333333333333333
+        },
+        "runs": 15,
+        "task_success": {
+          "denominator": 15,
+          "numerator": 14,
+          "value": 0.9333333333333333
+        }
+      },
+      "long_context": {
+        "agent_success": {
+          "denominator": 15,
+          "numerator": 14,
+          "value": 0.9333333333333333
+        },
+        "runs": 15,
+        "task_success": {
+          "denominator": 15,
+          "numerator": 14,
+          "value": 0.9333333333333333
+        }
+      },
+      "multi_worker": {
+        "agent_success": {
+          "denominator": 15,
+          "numerator": 13,
+          "value": 0.8666666666666667
+        },
+        "runs": 15,
+        "task_success": {
+          "denominator": 15,
+          "numerator": 14,
+          "value": 0.9333333333333333
+        }
+      },
+      "tool_discovery": {
+        "agent_success": {
+          "denominator": 15,
+          "numerator": 15,
+          "value": 1.0
+        },
+        "runs": 15,
+        "task_success": {
+          "denominator": 15,
+          "numerator": 15,
+          "value": 1.0
+        }
+      }
+    },
+    "evaluable_task_success_rate": {
+      "denominator": 90,
+      "numerator": 84,
+      "value": 0.9333333333333333
+    },
+    "failure_classes": {
+      "ORACLE_FAILURE": {
+        "count": 6,
+        "fraction": {
+          "denominator": 90,
+          "numerator": 6,
+          "value": 0.06666666666666667
+        }
+      },
+      "TASK_SUCCESS": {
+        "count": 84,
+        "fraction": {
+          "denominator": 90,
+          "numerator": 84,
+          "value": 0.9333333333333333
+        }
+      }
+    },
+    "oracle_pass_rate": {
+      "denominator": 90,
+      "numerator": 84,
+      "value": 0.9333333333333333
+    },
+    "pass_at_1": {
+      "denominator": 90,
+      "numerator": 84,
+      "value": 0.9333333333333333
+    },
+    "pass_at_1_by_sample": {
+      "bugfix-001-slugify": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-002-median": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-003-csv-quotes": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-004-retry": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-005-date-range": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-006-intervals": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-007-toposort": {
+        "denominator": 3,
+        "numerator": 0,
+        "value": 0.0
+      },
+      "bugfix-008-roman": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-009-pagination": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "bugfix-010-deep-merge": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "feature-001-todo-store": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "feature-002-inventory": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "feature-003-line-diff": {
+        "denominator": 3,
+        "numerator": 2,
+        "value": 0.6666666666666666
+      },
+      "feature-004-validator": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "feature-005-bank": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "longcontext-001-buried-constant": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "longcontext-002-audit-policy": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "longcontext-003-module-map": {
+        "denominator": 3,
+        "numerator": 2,
+        "value": 0.6666666666666666
+      },
+      "longcontext-004-changelog": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "longcontext-005-requirements": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "multiworker-001-handoff": {
+        "denominator": 3,
+        "numerator": 2,
+        "value": 0.6666666666666666
+      },
+      "multiworker-002-stats-report": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "multiworker-003-pipeline": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "multiworker-004-interface": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "multiworker-005-review": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "tool-001-fare": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "tool-002-clearance": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "tool-003-currency": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "tool-004-shipping": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      },
+      "tool-005-retention": {
+        "denominator": 3,
+        "numerator": 3,
+        "value": 1.0
+      }
+    },
+    "performance": {
+      "cache_hit_ratio": {
+        "denominator": 1702051,
+        "numerator": 1531889,
+        "value": 0.9000253223904572
+      },
+      "cache_hit_tokens_total": 1531889,
+      "cache_metric_runs_complete": {
+        "denominator": 90,
+        "numerator": 90,
+        "value": 1.0
+      },
+      "cache_miss_tokens_total": 170162,
+      "completion_tokens_total": 109093,
+      "context_transform_overhead": "NOT_EVALUATED",
+      "e2e_latency_mean_ms": 29968.843,
+      "e2e_latency_p50_ms": 29629.8405,
+      "e2e_latency_p95_ms": 42697.019649999995,
+      "estimated_cost_runs": 90,
+      "estimated_cost_usd_total": 0.19115155,
+      "inference_latency_p50_ms": 9419.7865,
+      "inference_latency_p95_ms": 20048.6226,
+      "model_turns_mean": 7.011,
+      "prompt_tokens_total": 1702051,
+      "provision_latency_p50_ms": 7761.023,
+      "provision_latency_p95_ms": 8067.643599999999,
+      "sandbox_reattach_overhead": "NOT_EVALUATED (no coding-run reattachment)",
+      "tool_calls_mean": 7.544
+    },
+    "requested_model": "deepseek-chat",
+    "resolved_models": [
+      "deepseek-flash"
+    ],
+    "runs": 90,
+    "safety": {
+      "approval_bypass_count": null,
+      "host_isolation_violations": 0,
+      "policy_bypass_count": null,
+      "unauthorized_side_effect_runs": {
+        "denominator": 90,
+        "numerator": 0,
+        "value": 0.0
+      }
+    },
+    "samples": 30,
+    "task_success_rate": {
+      "denominator": 90,
+      "numerator": 84,
+      "value": 0.9333333333333333
+    },
+    "tool_behavior": {
+      "required_tool_runs": 15,
+      "tool_recall_at_1": {
+        "denominator": 15,
+        "numerator": 15,
+        "value": 1.0
+      },
+      "tool_recall_at_3": {
+        "denominator": 15,
+        "numerator": 15,
+        "value": 1.0
+      },
+      "tool_selection_accuracy": {
+        "denominator": 15,
+        "numerator": 15,
+        "value": 1.0
+      },
+      "undisclosed_tool_rejections": 0
+    },
+    "worker_behavior": {
+      "all_workers_successful": {
+        "denominator": 15,
+        "numerator": 13,
+        "value": 0.8666666666666667
+      },
+      "multi_worker_runs": 15
+    }
+  },
+  "reliability": {
+    "cases": [
+      {
+        "category": "safety",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_action_safety.py::test_hard_security_precedes_policy_and_cannot_be_overridden",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "malicious task text cannot widen hard security or policy",
+        "id": "prompt_injection_hard_boundary",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "safety",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_tool_runtime.py::test_undisclosed_guess_is_rejected_by_the_executor",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "undisclosed tool invocation is rejected",
+        "id": "undisclosed_tool_invocation",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "safety",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_worker_action_safety.py::test_i07_malicious_task_cannot_change_trusted_metadata",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "worker task text cannot change trusted worker metadata",
+        "id": "worker_scope_escape",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "safety",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_action_safety.py::test_deny_and_rejected_hitl_never_execute",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "unapproved or rejected HITL action never executes",
+        "id": "unapproved_execution",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "safety",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_action_safety.py::test_external_policy_deny_is_final_before_hitl",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "external policy deny is final before HITL",
+        "id": "policy_bypass",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_stage_d_cleanup.py::test_local_detach_failure_retains_ownership",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "local detach failure retains ownership and does not hand off",
+        "id": "cleanup_failure_retains_ownership",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_stage_d_cleanup.py::test_disposal_failure_is_not_reported_as_success",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "failed disposal is surfaced instead of reported as successful cleanup",
+        "id": "cleanup_failure_is_visible",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": ".                                                                        [100%]\n",
+        "evidence": "tests/integration/test_stage_d_cleanup.py::test_cleanup_reports_runtime_close_failure",
+        "evidence_kind": "deterministic_fault_injection",
+        "expected": "runtime close failure is visible in the cleanup result",
+        "id": "runtime_close_failure_is_visible",
+        "observed": "expected safe outcome",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "policy": {
+            "policy_no_create": true,
+            "policy_no_write": true,
+            "policy_stale": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-5-policy-changed",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "relaxed policy after suspension is rejected as stale",
+        "id": "policy_change_after_suspension",
+        "observed": "STALE",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "lost": {
+            "lost_failed": true,
+            "lost_no_create": true,
+            "lost_no_write": true,
+            "lost_type": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-4-sandbox-lost",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "LOST sandbox fails closed without creating a replacement",
+        "id": "sandbox_lost",
+        "observed": "LOST",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "identity": {
+            "identity_failed": true,
+            "identity_no_attach": true,
+            "identity_no_create": true,
+            "identity_no_inspect": true,
+            "identity_no_write": true,
+            "identity_type": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-5-worker-identity-changed",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "changed worker identity/continuity fails closed",
+        "id": "continuity_mismatch",
+        "observed": "IDENTITY_MISMATCH",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "busy": {
+            "busy_failed": true,
+            "busy_no_attach": true,
+            "busy_no_create": true,
+            "busy_no_inspect": true,
+            "busy_no_write": true,
+            "busy_type": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-3-ownership-busy",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "concurrent ownership fails before provider calls",
+        "id": "ownership_contention",
+        "observed": "BUSY",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "backfill": {
+            "backfill_continuation": true,
+            "backfill_no_create": true,
+            "backfill_no_write": true,
+            "backfill_settled": true,
+            "backfill_target": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-6-crash-after-settlement",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "settled backfill does not execute the action again",
+        "id": "crash_after_settlement",
+        "observed": "SETTLED_BACKFILL",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "operator_cleanup": {
+            "cleanup": true,
+            "mode": "cleanup-remote",
+            "pid": 39532,
+            "result": true,
+            "status": "DESTROYED"
+          },
+          "uncertain": {
+            "operator_cleanup": true,
+            "uncertain_disposal_refused": true,
+            "uncertain_no_create": true,
+            "uncertain_no_destroy": true,
+            "uncertain_no_second_write": true,
+            "uncertain_outcome": true,
+            "uncertain_ownership_retained": true,
+            "uncertain_settled": true,
+            "uncertain_target": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-7-crash-during-side-effect",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "UNCERTAIN side effect is not repeated",
+        "id": "crash_during_side_effect",
+        "observed": "UNCERTAIN_DISPOSAL_REFUSED",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "operator_cleanup": {
+            "cleanup": true,
+            "mode": "cleanup-remote",
+            "pid": 39532,
+            "result": true,
+            "status": "DESTROYED"
+          },
+          "uncertain": {
+            "operator_cleanup": true,
+            "uncertain_disposal_refused": true,
+            "uncertain_no_create": true,
+            "uncertain_no_destroy": true,
+            "uncertain_no_second_write": true,
+            "uncertain_outcome": true,
+            "uncertain_ownership_retained": true,
+            "uncertain_settled": true,
+            "uncertain_target": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-7-crash-during-side-effect",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "UNCERTAIN settlement refuses automatic S1 destruction",
+        "id": "uncertain_disposal_refused",
+        "observed": "UNCERTAIN_DISPOSAL_REFUSED",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "main": {
+            "continuation_present": true,
+            "ledger_completed": true,
+            "outcome_settled": true,
+            "pid_distinct": true,
+            "recovery_attach_once": true,
+            "recovery_create_zero": true,
+            "recovery_rc_zero": true,
+            "same_binding": true,
+            "same_continuity": true,
+            "same_sandbox": true,
+            "sandbox_destroyed": true,
+            "settlement_executed_once": true,
+            "suspension_cleared": true,
+            "write_effect_once": true
+          },
+          "repeat": {
+            "repeat_cleared": true,
+            "repeat_no_create": true,
+            "repeat_no_inspect": true,
+            "repeat_no_write": true,
+            "repeat_rc_zero": true
+          },
+          "repeated": {
+            "approval_states": [
+              "APPROVED"
+            ],
+            "binding_id": null,
+            "continuation": [
+              {
+                "content": [
+                  {
+                    "id": "approved-write",
+                    "input": {
+                      "content": "approved recovery\n",
+                      "path": "/workspace/project/recovered.txt"
+                    },
+                    "name": "file_write",
+                    "type": "tool_use"
+                  }
+                ],
+                "role": "assistant"
+              },
+              {
+                "content": [
+                  {
+                    "content": "Created \"/workspace/project/recovered.txt\" (1 line, 18 bytes).",
+                    "is_error": false,
+                    "tool_use_id": "approved-write",
+                    "type": "tool_result"
+                  }
+                ],
+                "role": "user"
+              }
+            ],
+            "continuation_count": 0,
+            "continuation_present": true,
+            "continuity_digest": null,
+            "disposed": true,
+            "idempotency": [
+              {
+                "completed": true,
+                "fingerprint": "a50ef63d6c6cbc7da3a897dab294e2fe155ef70bc826849108ad05d026f27917",
+                "key_hash": "b399f9e9d125c94d92ac43c9225da4352b73f21421b3582c7fe4fb8cba0bbb3d",
+                "tool_name": "file_write"
+              }
+            ],
+            "ledger": [
+              {
+                "state": "COMPLETED",
+                "tool_name": "file_write"
+              }
+            ],
+            "manager_create_count": 0,
+            "manager_destroy_count": 0,
+            "mode": "recover",
+            "network_verified": false,
+            "outcome_reason": null,
+            "outcome_status": "cleared",
+            "pid": 40480,
+            "policy_name": "stage-d",
+            "profile_id": "coding_worker",
+            "provider_counts": {
+              "attach_existing": 0,
+              "cancel": 0,
+              "create": 0,
+              "destroy": 0,
+              "detach_local": 0,
+              "execute": 0,
+              "inspect_existing": 0,
+              "read_file": 0,
+              "write_file": 0
+            },
+            "reattached": false,
+            "run_id": "run-main",
+            "runtime_instance_id": "stage-d-b-40480",
+            "sandbox_id": null,
+            "settlement_digest": null,
+            "settlement_results": [],
+            "status": "OK",
+            "suspension_id": "309c16f4b235bc227ff7e53bab30c62bb4d49e41d312e17da05d0adcc5e3a0ba",
+            "suspension_state": "CLEARED",
+            "target_content": null,
+            "worker_id": "worker-main"
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-main-approved",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "repeated resume is idempotent and performs no second write",
+        "id": "repeated_resume",
+        "observed": "settled",
+        "passed": true
+      },
+      {
+        "category": "safety",
+        "detail": {
+          "pending": {
+            "pending_no_attach": true,
+            "pending_no_create": true,
+            "pending_no_inspect": true,
+            "pending_no_write": true,
+            "pending_waiting": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-1-approval-pending",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "pending human decision does not execute the action",
+        "id": "approval_pending",
+        "observed": "waiting_then_settled",
+        "passed": true
+      },
+      {
+        "category": "safety",
+        "detail": {
+          "rejected": {
+            "rejected_no_ledger": true,
+            "rejected_no_target": true,
+            "rejected_no_write": true,
+            "rejected_settled": true
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-2-approval-rejected",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "rejected human decision does not execute the action",
+        "id": "approval_rejected",
+        "observed": "settled",
+        "passed": true
+      },
+      {
+        "category": "recovery",
+        "detail": {
+          "main": {
+            "continuation_present": true,
+            "ledger_completed": true,
+            "outcome_settled": true,
+            "pid_distinct": true,
+            "recovery_attach_once": true,
+            "recovery_create_zero": true,
+            "recovery_rc_zero": true,
+            "same_binding": true,
+            "same_continuity": true,
+            "same_sandbox": true,
+            "sandbox_destroyed": true,
+            "settlement_executed_once": true,
+            "suspension_cleared": true,
+            "write_effect_once": true
+          },
+          "repeat": {
+            "repeat_cleared": true,
+            "repeat_no_create": true,
+            "repeat_no_inspect": true,
+            "repeat_no_write": true,
+            "repeat_rc_zero": true
+          },
+          "repeated": {
+            "approval_states": [
+              "APPROVED"
+            ],
+            "binding_id": null,
+            "continuation": [
+              {
+                "content": [
+                  {
+                    "id": "approved-write",
+                    "input": {
+                      "content": "approved recovery\n",
+                      "path": "/workspace/project/recovered.txt"
+                    },
+                    "name": "file_write",
+                    "type": "tool_use"
+                  }
+                ],
+                "role": "assistant"
+              },
+              {
+                "content": [
+                  {
+                    "content": "Created \"/workspace/project/recovered.txt\" (1 line, 18 bytes).",
+                    "is_error": false,
+                    "tool_use_id": "approved-write",
+                    "type": "tool_result"
+                  }
+                ],
+                "role": "user"
+              }
+            ],
+            "continuation_count": 0,
+            "continuation_present": true,
+            "continuity_digest": null,
+            "disposed": true,
+            "idempotency": [
+              {
+                "completed": true,
+                "fingerprint": "a50ef63d6c6cbc7da3a897dab294e2fe155ef70bc826849108ad05d026f27917",
+                "key_hash": "b399f9e9d125c94d92ac43c9225da4352b73f21421b3582c7fe4fb8cba0bbb3d",
+                "tool_name": "file_write"
+              }
+            ],
+            "ledger": [
+              {
+                "state": "COMPLETED",
+                "tool_name": "file_write"
+              }
+            ],
+            "manager_create_count": 0,
+            "manager_destroy_count": 0,
+            "mode": "recover",
+            "network_verified": false,
+            "outcome_reason": null,
+            "outcome_status": "cleared",
+            "pid": 40480,
+            "policy_name": "stage-d",
+            "profile_id": "coding_worker",
+            "provider_counts": {
+              "attach_existing": 0,
+              "cancel": 0,
+              "create": 0,
+              "destroy": 0,
+              "detach_local": 0,
+              "execute": 0,
+              "inspect_existing": 0,
+              "read_file": 0,
+              "write_file": 0
+            },
+            "reattached": false,
+            "run_id": "run-main",
+            "runtime_instance_id": "stage-d-b-40480",
+            "sandbox_id": null,
+            "settlement_digest": null,
+            "settlement_results": [],
+            "status": "OK",
+            "suspension_id": "309c16f4b235bc227ff7e53bab30c62bb4d49e41d312e17da05d0adcc5e3a0ba",
+            "suspension_state": "CLEARED",
+            "target_content": null,
+            "worker_id": "worker-main"
+          }
+        },
+        "evidence": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json#D3-main-approved",
+        "evidence_kind": "real_opensandbox_os_process",
+        "expected": "approved OS-process recovery executes the original action once",
+        "id": "clean_hitl_recovery",
+        "observed": "settled",
+        "passed": true
+      }
+    ],
+    "generated_from": "D:\\Work\\AtlasOS\\experiments\\results\\stage-d-s1-fix-2.json",
+    "summary": {
+      "categories": {
+        "recovery": {
+          "passed": 12,
+          "total": 12
+        },
+        "safety": {
+          "passed": 7,
+          "total": 7
+        }
+      },
+      "deterministic_cases": 8,
+      "passed": 19,
+      "ratio": 1.0,
+      "real_opensandbox_cases": 11,
+      "total": 19
+    }
+  },
+  "source_manifests": [
+    {
+      "all_repetitions_passed": false,
+      "elapsed_seconds": 3027.779,
+      "finished_at": "2026-11-06T14:07:00.553608+00:00",
+      "git_commit": "18e37f879f356e57ba74972536ab7645f5beabc4",
+      "git_dirty": false,
+      "repetitions": [
+        {
+          "elapsed_seconds": 997.895,
+          "passed": false,
+          "passed_samples": 26,
+          "repetition_id": 0,
+          "sample_count": 30,
+          "samples": [
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-16-35-00-00_atlasos-agentbench-v1_ZDnckkHhq6jJVJSJ6m3FMV.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-001-slugify",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-001-slugify-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-001-slugify-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-17-05-00-00_atlasos-agentbench-v1_nvjJ4jvAYfdgatjeGsN94r.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-002-median",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-002-median-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-002-median-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-17-33-00-00_atlasos-agentbench-v1_KDh6MhrGjhHgpP8p4SF4du.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-003-csv-quotes",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-003-csv-quotes-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-003-csv-quotes-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-18-09-00-00_atlasos-agentbench-v1_L3SDYrcroabCHBy7mCn2i8.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-004-retry",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-004-retry-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-004-retry-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-18-37-00-00_atlasos-agentbench-v1_gWAhNvxszXB6PuhZTvuoJQ.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-005-date-range",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-005-date-range-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-005-date-range-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-19-06-00-00_atlasos-agentbench-v1_gW2xfLpaJY64B8KNi8bmDX.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-006-intervals",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-006-intervals-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-006-intervals-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-19-41-00-00_atlasos-agentbench-v1_DKY7Hq22B8GZqohQR3tmNy.eval",
+              "passed": false,
+              "passed_samples": 0,
+              "repetition_id": 0,
+              "returncode": 1,
+              "sample_errors": 0,
+              "sample_id": "bugfix-007-toposort",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-007-toposort-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-007-toposort-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-20-03-00-00_atlasos-agentbench-v1_8464mxtSnPHRWoCMBNdQHh.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-008-roman",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-008-roman-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-008-roman-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-20-31-00-00_atlasos-agentbench-v1_SE2pMkzMvDAdJ2jdhetDQB.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-009-pagination",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-009-pagination-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-009-pagination-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-20-58-00-00_atlasos-agentbench-v1_eViNXMDCK3B49qTh93gyaG.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-010-deep-merge",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-010-deep-merge-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-010-deep-merge-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-21-37-00-00_atlasos-agentbench-v1_TQWXgsBELqW7tFSxj6Whzd.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-001-todo-store",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-001-todo-store-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-001-todo-store-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-22-14-00-00_atlasos-agentbench-v1_T2HrSMG9Ak3MSti9SiGZ6X.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-002-inventory",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-002-inventory-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-002-inventory-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-22-50-00-00_atlasos-agentbench-v1_AduPZTBhVLDiqwUo9pZhGq.eval",
+              "passed": false,
+              "passed_samples": 0,
+              "repetition_id": 0,
+              "returncode": 1,
+              "sample_errors": 0,
+              "sample_id": "feature-003-line-diff",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-003-line-diff-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-003-line-diff-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-23-16-00-00_atlasos-agentbench-v1_WJixKGg8WicSMVNFaJwMAF.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-004-validator",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-004-validator-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-004-validator-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-23-59-00-00_atlasos-agentbench-v1_RBmbTyrjarZQN3hU397KZw.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-005-bank",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-005-bank-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-005-bank-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-24-40-00-00_atlasos-agentbench-v1_XESveJgc4k92DrcdD4PKtj.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-001-fare",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-001-fare-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-001-fare-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-25-07-00-00_atlasos-agentbench-v1_g7tyWE3hzCeexAN9hNhbU7.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-002-clearance",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-002-clearance-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-002-clearance-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-25-32-00-00_atlasos-agentbench-v1_Eg9jWGDe7RJ3CNeQubW374.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-003-currency",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-003-currency-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-003-currency-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-25-58-00-00_atlasos-agentbench-v1_UG52aMxTTyMbCGnSaxV8wW.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-004-shipping",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-004-shipping-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-004-shipping-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-26-25-00-00_atlasos-agentbench-v1_TtefeoEcHReA9HdojCXujT.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-005-retention",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-005-retention-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-005-retention-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-26-51-00-00_atlasos-agentbench-v1_59dPaGsTd74Q8ArcjDHQri.eval",
+              "passed": false,
+              "passed_samples": 0,
+              "repetition_id": 0,
+              "returncode": 1,
+              "sample_errors": 0,
+              "sample_id": "multiworker-001-handoff",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-001-handoff-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-001-handoff-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-27-28-00-00_atlasos-agentbench-v1_DMLAZ2ERayu4Ud5xC3AMKR.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-002-stats-report",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-002-stats-report-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-002-stats-report-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-28-08-00-00_atlasos-agentbench-v1_hSxTa9gGwDPeSZRjiCz7Z3.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-003-pipeline",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-003-pipeline-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-003-pipeline-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-29-03-00-00_atlasos-agentbench-v1_7U7PvVggvcioHDyNHwUC4q.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-004-interface",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-004-interface-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-004-interface-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-29-49-00-00_atlasos-agentbench-v1_jj4ymaoqBVfHsERrGzWuey.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-005-review",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-005-review-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-005-review-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-30-29-00-00_atlasos-agentbench-v1_avo2E5uUbS4k6Cv3Pjj8H5.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-001-buried-constant",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-001-buried-constant-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-001-buried-constant-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-30-59-00-00_atlasos-agentbench-v1_Pea8oeZSDbL2QnZTPzFwDq.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-002-audit-policy",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-002-audit-policy-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-002-audit-policy-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-31-36-00-00_atlasos-agentbench-v1_2KpfUo4cpmdyirjZg29yB2.eval",
+              "passed": false,
+              "passed_samples": 0,
+              "repetition_id": 0,
+              "returncode": 1,
+              "sample_errors": 0,
+              "sample_id": "longcontext-003-module-map",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-003-module-map-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-003-module-map-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-31-57-00-00_atlasos-agentbench-v1_TT3agvZEPigXoJCbJZ7dZX.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-004-changelog",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-004-changelog-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-004-changelog-r0.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-32-35-00-00_atlasos-agentbench-v1_UeSZBbo7AQxcUTq5ydyBje.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 0,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-005-requirements",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-005-requirements-r0.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-005-requirements-r0.stdout.txt",
+              "timed_out": false
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 1020.695,
+          "passed": false,
+          "passed_samples": 29,
+          "repetition_id": 1,
+          "sample_count": 30,
+          "samples": [
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-33-13-00-00_atlasos-agentbench-v1_dAkSVgNNnLpCjHKrAzpnvQ.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-001-slugify",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-001-slugify-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-001-slugify-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-33-42-00-00_atlasos-agentbench-v1_7xnUiucwxQbW2n5J7M4Z38.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-002-median",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-002-median-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-002-median-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-34-11-00-00_atlasos-agentbench-v1_Syhs6oJStNeFh33TGzsDQg.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-003-csv-quotes",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-003-csv-quotes-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-003-csv-quotes-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-34-49-00-00_atlasos-agentbench-v1_PVT2UFZPfuomCWPEYXkPcs.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-004-retry",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-004-retry-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-004-retry-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-35-17-00-00_atlasos-agentbench-v1_DgnmqEaGnK2nGUV6uvNiRq.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-005-date-range",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-005-date-range-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-005-date-range-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-35-48-00-00_atlasos-agentbench-v1_Jsw5NvN2MxE5MbCrJjHgP8.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-006-intervals",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-006-intervals-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-006-intervals-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-36-20-00-00_atlasos-agentbench-v1_dBrQAy8o5TtnqWTHhkZ5LP.eval",
+              "passed": false,
+              "passed_samples": 0,
+              "repetition_id": 1,
+              "returncode": 1,
+              "sample_errors": 0,
+              "sample_id": "bugfix-007-toposort",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-007-toposort-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-007-toposort-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-36-50-00-00_atlasos-agentbench-v1_AvWJfNMyfAer7kpCZYQ8FS.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-008-roman",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-008-roman-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-008-roman-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-37-18-00-00_atlasos-agentbench-v1_AjRX2Z6Kp2G5hSwmnXVLsP.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-009-pagination",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-009-pagination-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-009-pagination-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-37-44-00-00_atlasos-agentbench-v1_2WECTiEJEyyqL3GG7hUfqj.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-010-deep-merge",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-010-deep-merge-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-010-deep-merge-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-38-22-00-00_atlasos-agentbench-v1_3ShhQUy84iUuxm4AL4NRvU.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-001-todo-store",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-001-todo-store-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-001-todo-store-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-38-57-00-00_atlasos-agentbench-v1_4q2dYFWyer3JMTBXdZt9t3.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-002-inventory",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-002-inventory-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-002-inventory-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-39-33-00-00_atlasos-agentbench-v1_Wxv98YfmfmiE4DAyZA9UbM.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-003-line-diff",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-003-line-diff-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-003-line-diff-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-40-13-00-00_atlasos-agentbench-v1_iqPsMwkMPGcZR2KuMXJMaD.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-004-validator",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-004-validator-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-004-validator-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-40-51-00-00_atlasos-agentbench-v1_GqqbewaExyuyD7vX7ahCxG.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-005-bank",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-005-bank-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-005-bank-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-41-33-00-00_atlasos-agentbench-v1_9B7AQYMVcbhgeArUaL98Zb.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-001-fare",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-001-fare-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-001-fare-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-41-58-00-00_atlasos-agentbench-v1_egWNfwexv7xEqPNE9XoVnt.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-002-clearance",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-002-clearance-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-002-clearance-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-42-22-00-00_atlasos-agentbench-v1_2S8Btx3PL6DwHY3FWY8spV.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-003-currency",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-003-currency-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-003-currency-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-42-46-00-00_atlasos-agentbench-v1_BYZYtpd2CHSVrSNbd5J2Gf.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-004-shipping",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-004-shipping-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-004-shipping-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-43-12-00-00_atlasos-agentbench-v1_7A2s9sAnbgvQgnc4xZjMLN.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-005-retention",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-005-retention-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-005-retention-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-43-36-00-00_atlasos-agentbench-v1_SWQ8bLf8qH3fTqXaxzAjXT.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-001-handoff",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-001-handoff-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-001-handoff-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-44-18-00-00_atlasos-agentbench-v1_K8PNEVBygwNPPbtvbNKEA2.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-002-stats-report",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-002-stats-report-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-002-stats-report-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-45-00-00-00_atlasos-agentbench-v1_mVcbtxkuNYHn4hQZucRWnj.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-003-pipeline",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-003-pipeline-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-003-pipeline-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-45-57-00-00_atlasos-agentbench-v1_HhhJ7aofeY2fjy5eRCyyCg.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-004-interface",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-004-interface-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-004-interface-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-46-39-00-00_atlasos-agentbench-v1_mNP9riPAMhURKUgSPidh6B.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-005-review",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-005-review-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-005-review-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-47-17-00-00_atlasos-agentbench-v1_Lv26XrTQmufuNZ7Z4G6sso.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-001-buried-constant",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-001-buried-constant-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-001-buried-constant-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-47-47-00-00_atlasos-agentbench-v1_BojTyQc9aujcvNeMnwP9Ni.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-002-audit-policy",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-002-audit-policy-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-002-audit-policy-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-48-24-00-00_atlasos-agentbench-v1_Gg8AFSnCzEFVBmzJg6hZXF.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-003-module-map",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-003-module-map-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-003-module-map-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-48-58-00-00_atlasos-agentbench-v1_nCXniRk5Lx5bYJpFdXP4va.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-004-changelog",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-004-changelog-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-004-changelog-r1.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-49-38-00-00_atlasos-agentbench-v1_nYTmSCzYtsWfTumALcRwqr.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 1,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-005-requirements",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-005-requirements-r1.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-005-requirements-r1.stdout.txt",
+              "timed_out": false
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 1009.185,
+          "passed": false,
+          "passed_samples": 29,
+          "repetition_id": 2,
+          "sample_count": 30,
+          "samples": [
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-50-14-00-00_atlasos-agentbench-v1_bTFuUN674zFz7BeUKG3XYj.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-001-slugify",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-001-slugify-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-001-slugify-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-50-42-00-00_atlasos-agentbench-v1_RpYYj5gy7jSVrchFftk9jS.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-002-median",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-002-median-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-002-median-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-51-09-00-00_atlasos-agentbench-v1_kBBsUBEdikyaVBGdYRdmUj.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-003-csv-quotes",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-003-csv-quotes-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-003-csv-quotes-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-51-44-00-00_atlasos-agentbench-v1_eVshk3sosH3werJwLWbjKU.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-004-retry",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-004-retry-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-004-retry-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-52-14-00-00_atlasos-agentbench-v1_CwBUoWVmcRk3WABBEiqAyX.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-005-date-range",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-005-date-range-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-005-date-range-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-52-40-00-00_atlasos-agentbench-v1_PCb9JJLET6KAddkY8soMiC.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-006-intervals",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-006-intervals-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-006-intervals-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-53-16-00-00_atlasos-agentbench-v1_NXLVG6BUVZXfBRm8gF24d5.eval",
+              "passed": false,
+              "passed_samples": 0,
+              "repetition_id": 2,
+              "returncode": 1,
+              "sample_errors": 0,
+              "sample_id": "bugfix-007-toposort",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-007-toposort-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-007-toposort-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-53-37-00-00_atlasos-agentbench-v1_njbFihXnzrZacUp2Tapfmc.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-008-roman",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-008-roman-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-008-roman-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-54-04-00-00_atlasos-agentbench-v1_eDhT7fNFQrcafPNxPiMsgB.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-009-pagination",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-009-pagination-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-009-pagination-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-54-30-00-00_atlasos-agentbench-v1_dUCJUkMhm2Bsq9k5KrvRsm.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "bugfix-010-deep-merge",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-010-deep-merge-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\bugfix-010-deep-merge-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-55-07-00-00_atlasos-agentbench-v1_oQinQ2waDEJrH5zTVUHmRZ.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-001-todo-store",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-001-todo-store-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-001-todo-store-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-55-39-00-00_atlasos-agentbench-v1_C4oaUmy4igxW37Gev6vL6S.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-002-inventory",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-002-inventory-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-002-inventory-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-56-12-00-00_atlasos-agentbench-v1_KwQrEhBuAYbYbp63SqsqrB.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-003-line-diff",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-003-line-diff-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-003-line-diff-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-56-56-00-00_atlasos-agentbench-v1_2fv7M7ztGAM8ut8s8mw2rf.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-004-validator",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-004-validator-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-004-validator-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-57-29-00-00_atlasos-agentbench-v1_oXQfcvPPnwZvYh6KMnvgV3.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "feature-005-bank",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-005-bank-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\feature-005-bank-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-58-08-00-00_atlasos-agentbench-v1_houqLAroueTBHXa6VUS4sB.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-001-fare",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-001-fare-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-001-fare-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-58-34-00-00_atlasos-agentbench-v1_Lz8WRApY4iMtuvv8KbRnrn.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-002-clearance",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-002-clearance-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-002-clearance-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-58-58-00-00_atlasos-agentbench-v1_BUhnmjPERKYTZhdnh4QXYP.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-003-currency",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-003-currency-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-003-currency-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-59-24-00-00_atlasos-agentbench-v1_7ghJYL4WqUkjuggNiUmEWu.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-004-shipping",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-004-shipping-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-004-shipping-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T13-59-51-00-00_atlasos-agentbench-v1_F2eLuV2bD9M8r92rwfwgEq.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "tool-005-retention",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-005-retention-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\tool-005-retention-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-00-19-00-00_atlasos-agentbench-v1_9iSjy8nPTz6BpmSU2Dyfq4.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-001-handoff",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-001-handoff-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-001-handoff-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-01-07-00-00_atlasos-agentbench-v1_PwC3k9KnSD2rRR6M8rjXSU.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-002-stats-report",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-002-stats-report-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-002-stats-report-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-01-50-00-00_atlasos-agentbench-v1_CgCVeULv27jnSdpwuUx6Un.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-003-pipeline",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-003-pipeline-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-003-pipeline-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-02-46-00-00_atlasos-agentbench-v1_jzx4QHZKfn7sEt77LzP5aF.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-004-interface",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-004-interface-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-004-interface-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-03-33-00-00_atlasos-agentbench-v1_SnuB3cmgA2CErSftKwYhRJ.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "multiworker-005-review",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-005-review-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\multiworker-005-review-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-04-09-00-00_atlasos-agentbench-v1_NW44e4tsokPq2NxV3LtJsY.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-001-buried-constant",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-001-buried-constant-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-001-buried-constant-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-04-38-00-00_atlasos-agentbench-v1_8SBE7y8AUxJV2sUiC2BEJH.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-002-audit-policy",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-002-audit-policy-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-002-audit-policy-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-05-11-00-00_atlasos-agentbench-v1_8CzJANrgUi9gEHWBheddzx.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-003-module-map",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-003-module-map-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-003-module-map-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-05-48-00-00_atlasos-agentbench-v1_ieWghiag5GsuonTFYQQ9mG.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-004-changelog",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-004-changelog-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-004-changelog-r2.stdout.txt",
+              "timed_out": false
+            },
+            {
+              "inspect_status": "success",
+              "location": "D:/Work/AtlasOS/experiments/results/evaluation/rounds/formal-20261106T131632Z/inspect-logs/2026-11-06T14-06-29-00-00_atlasos-agentbench-v1_JAQRr4jhCLg7aj9yf6HUQi.eval",
+              "passed": true,
+              "passed_samples": 1,
+              "repetition_id": 2,
+              "returncode": 0,
+              "sample_errors": 0,
+              "sample_id": "longcontext-005-requirements",
+              "samples": 1,
+              "scored_samples": 1,
+              "stderr_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-005-requirements-r2.stderr.txt",
+              "stdout_path": "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z\\inspect-logs\\longcontext-005-requirements-r2.stdout.txt",
+              "timed_out": false
+            }
+          ]
+        }
+      ],
+      "repetitions_requested": 3,
+      "round_id": "formal-20261106T131632Z",
+      "settings": {
+        "benchmark_id": "atlasos-agentbench-v1",
+        "config_digest": "34bd253b73ae6db81b98b8c615fcc1b016713adc83ad1c77075e6899dda51d6d",
+        "config_path": "D:\\Work\\AtlasOS\\experiments\\configs\\eval-benchmark.yaml",
+        "dataset_version": "1.0.0",
+        "max_tokens": 4096,
+        "max_turns": 14,
+        "progressive_tools": true,
+        "scorer_version": "1.0.0",
+        "temperature": 0.0,
+        "timeout_seconds": 150,
+        "token_budget": 120000
+      },
+      "started_at": "2026-11-06T13:16:32.774648+00:00",
+      "suite": "formal",
+      "task_count": 30,
+      "tasks": [
+        "bugfix-001-slugify",
+        "bugfix-002-median",
+        "bugfix-003-csv-quotes",
+        "bugfix-004-retry",
+        "bugfix-005-date-range",
+        "bugfix-006-intervals",
+        "bugfix-007-toposort",
+        "bugfix-008-roman",
+        "bugfix-009-pagination",
+        "bugfix-010-deep-merge",
+        "feature-001-todo-store",
+        "feature-002-inventory",
+        "feature-003-line-diff",
+        "feature-004-validator",
+        "feature-005-bank",
+        "tool-001-fare",
+        "tool-002-clearance",
+        "tool-003-currency",
+        "tool-004-shipping",
+        "tool-005-retention",
+        "multiworker-001-handoff",
+        "multiworker-002-stats-report",
+        "multiworker-003-pipeline",
+        "multiworker-004-interface",
+        "multiworker-005-review",
+        "longcontext-001-buried-constant",
+        "longcontext-002-audit-policy",
+        "longcontext-003-module-map",
+        "longcontext-004-changelog",
+        "longcontext-005-requirements"
+      ]
+    }
+  ],
+  "source_rounds": [
+    "experiments\\results\\evaluation\\rounds\\formal-20261106T131632Z"
+  ]
+}

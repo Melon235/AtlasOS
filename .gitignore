@@ -17,3 +17,20 @@ dist/
 
 # Experiment outputs
 experiments/runs/
+experiments/results/evaluation/rounds/
+experiments/results/evaluation/inspect-*/
+experiments/results/stage-e1/
+experiments/results/stage-e2/
+experiments/results/stage-g1/
+experiments/results/stage-g2a/
+experiments/results/stage-g2b1/
+experiments/results/stage-g3-1/
+experiments/results/stage-g3-2/
+experiments/results/stage-g3-3/
+experiments/results/stage-g3-4a/
+experiments/results/stage-r0/
+experiments/results/stage-r0-5/
+experiments/results/stage-g2b-diagnosis/
+experiments/results/stage-g3-audit/
+experiments/results/evaluation/stage-e2/
+experiments/results/evaluation/stage-e1/

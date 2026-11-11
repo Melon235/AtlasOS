@@ -345,6 +345,34 @@ per-call inference records, prompt fingerprints, and aggregate metrics. A sessio
 `runs/<run_id>/checkpoints/`, append-only `inference.jsonl`, and a final `result.json`. Raw
 provider prompts are not persisted.
 
+## Local interaction (CLI / Web)
+
+Install the optional local interaction layer and start a task:
+
+```bash
+pip install -e ".[app]"
+
+atlas run "Explain why hidden tests stay outside the sandbox" --mode workflow
+atlas run "Fix the CSV parser so quoted commas are preserved" \
+  --mode coding --workspace uat_repo --max-turns 10
+
+atlas runs
+atlas status <run-id>
+atlas logs <run-id> --follow
+atlas workers <run-id>
+atlas approvals <run-id>
+atlas result <run-id>
+atlas export <run-id> --output run-export.json
+atlas web --host 127.0.0.1 --port 8000
+```
+
+`workflow` runs a real DeepSeek two-stage AtlasOS DAG without tools. `coding` delegates to the
+existing UAT composition with a real OpenSandbox and currently requires a UAT-compatible fixture.
+The Web UI is served at `http://127.0.0.1:8000`; approvals require an explicit click and are
+resolved only through the existing M6 `ApprovalCoordinator`. See
+[the Stage F report](experiments/results/stage-f-interaction.md) for architecture, end-to-end
+evidence, and boundaries.
+
 ## Development
 
 Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).

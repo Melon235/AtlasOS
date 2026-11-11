@@ -1,0 +1,3796 @@
+{
+  "a0_adjusted_runs": 35,
+  "a0_adjusted_success": 28,
+  "evidence": {
+    "all_workers_success_task_failed": 8,
+    "critical_path_nodes_mean": 1.6666666666666667,
+    "dag_nodes_mean": 2.6666666666666665,
+    "edges": 36,
+    "handoff_bytes": 9390,
+    "handoff_complete_edges": 21,
+    "handoff_consumed_edges": 21,
+    "profiles": [
+      "coding_worker"
+    ],
+    "upstream_success_downstream_failure": 6,
+    "worker_failures": 48,
+    "worker_steps": 96,
+    "worker_stop_codes": {
+      "doom_loop": 2,
+      "max_turns": 28,
+      "side_effect_unknown": 18,
+      "success": 48
+    },
+    "worker_successes": 48
+  },
+  "failures": [
+    {
+      "definition": "e1-01-config",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": true,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "config/loader.py",
+            "config/merge.py",
+            "config/validate.py"
+          ],
+          "changed_files": [
+            "config/loader.py",
+            "config/merge.py",
+            "config/validate.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 0,
+            "stderr_tail": "",
+            "stdout_tail": "...                                                                      [100%]\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-01-config-a1\\r0-eval-47de3757fab3\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "config/loader.py",
+            "config/merge.py",
+            "config/validate.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "file_read",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-47de3757fab3-validate",
+              "coding_worker:eval-47de3757fab3-merge"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-47de3757fab3-loader": 155,
+              "coding_worker:eval-47de3757fab3-merge": 1698,
+              "coding_worker:eval-47de3757fab3-validate": 1974
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [],
+        "passed": true
+      },
+      "reason": "token usage exceeded budget: 121372 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-02-report",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "changed_files": [
+            "report/parser.py",
+            "report/render.py",
+            "report/stats.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_parse __________________________________\ntests\\test_hidden_report.py:11: in test_parse\n    assert parse_lines('a=1\\n\\nb=2\\n') == [('a', 1), ('b', 2)]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nreport\\parser.py:75: in parse_lines\n    raise ValueError(\nE   ValueError: line 1: expected '<label> <int>', got 'a=1'\n____________________________ test_stats_and_render ____________________________\ntests\\test_hidden_report.py:17: in test_stats_and_render\n    assert stats([2, 4, 6]) == {'mean': 4.0, 'max': 6, 'min': 2}\nE   AssertionError: assert {'count': 3, ...'max': 6, ...} == {'mean': 4.0,...: 6, 'min': 2}\nE     \nE     Omitting 3 identical items, use -vv to show\nE     Left contains 2 more items:\nE     {'count': 3, 'sum': 12}\nE     Use -v to get more diff\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_report.py::test_parse - ValueError: line 1: expected...\nFAILED tests\\test_hidden_report.py::test_stats_and_render - AssertionError: a...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-02-report-a1\\r0-eval-ca8c747f28bc\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "file_write",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-ca8c747f28bc-render"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-ca8c747f28bc-parser": 725,
+              "coding_worker:eval-ca8c747f28bc-render": 1895,
+              "coding_worker:eval-ca8c747f28bc-stats": 91
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 249516 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-03-rbac",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "rbac/roles.py",
+            "rbac/policy.py",
+            "rbac/service.py"
+          ],
+          "changed_files": [
+            "rbac/policy.py",
+            "rbac/roles.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_roles __________________________________\ntests\\test_hidden_rbac.py:11: in test_roles\n    assert ROLE_PERMISSIONS['admin'] == {'read', 'write', 'delete'}\nE   AssertionError: assert {'admin', 'de...ead', 'write'} == {'delete', 'read', 'write'}\nE     \nE     Extra items in the left set:\nE     'admin'\nE     Use -v to get more diff\n___________________________ test_policy_and_service ___________________________\ntests\\test_hidden_rbac.py:19: in test_policy_and_service\n    authorize('admin', 'delete')\nrbac\\service.py:4: in authorize\n    raise NotImplementedError(\"authorize\")\nE   NotImplementedError: authorize\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_rbac.py::test_roles - AssertionError: assert {'admin...\nFAILED tests\\test_hidden_rbac.py::test_policy_and_service - NotImplementedErr...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-03-rbac-a1\\r0-eval-bfdadddd1780\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "rbac/roles.py",
+            "rbac/policy.py",
+            "rbac/service.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "file_write",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-bfdadddd1780-service"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-bfdadddd1780-policy": 89,
+              "coding_worker:eval-bfdadddd1780-roles": 177,
+              "coding_worker:eval-bfdadddd1780-service": 2074
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 190529 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-04-cli",
+      "failure_class": null,
+      "family": "multi_module",
+      "oracle": null,
+      "reason": null,
+      "repetition": 0,
+      "variant": "a0"
+    },
+    {
+      "definition": "e1-04-cli",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "changed_files": [
+            "cli/commands.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n_____________________________ test_parse_and_run ______________________________\ntests\\test_hidden_cli.py:11: in test_parse_and_run\n    assert parse_args(['--name', 'Ada', '--count', '2']) == expected\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ncli\\args.py:4: in parse_args\n    raise NotImplementedError(\"parse_args\")\nE   NotImplementedError: parse_args\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_cli.py::test_parse_and_run - NotImplementedError: pa...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-04-cli-a1\\r0-eval-e74f0ac84bf5\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-e74f0ac84bf5-args": 204,
+              "coding_worker:eval-e74f0ac84bf5-commands": 27,
+              "coding_worker:eval-e74f0ac84bf5-main": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 144351 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-05-pairs",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "changed_files": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_parse __________________________________\ntests\\test_hidden_pairs.py:8: in test_parse\n    assert parse_items('a:1;b:2;a:3') == [('a', 1), ('b', 2), ('a', 3)]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\npairs.py:61: in parse_items\n    raise ValueError(\nE   ValueError: line 1: expected 'key=value', got 'a:1;b:2;a:3'\n_________________________________ test_total __________________________________\ntests\\test_hidden_pairs.py:12: in test_total\n    assert total_by_key('a:1;b:2;a:3') == {'a': 4, 'b': 2}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsummary.py:45: in total_by_key\n    for key, value in parse_items(text):\n                      ^^^^^^^^^^^^^^^^^\npairs.py:61: in parse_items\n    raise ValueError(\nE   ValueError: line 1: expected 'key=value', got 'a:1;b:2;a:3'\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_pairs.py::test_parse - ValueError: line 1: expected ...\nFAILED tests\\test_hidden_pairs.py::test_total - ValueError: line 1: expected ...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-05-pairs-a1\\r0-eval-9d730c67cdc5\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-9d730c67cdc5-parser",
+              "coding_worker:eval-9d730c67cdc5-summary"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-9d730c67cdc5-parser": 1659,
+              "coding_worker:eval-9d730c67cdc5-summary": 1913
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-06-kv",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n__________________________________ test_api ___________________________________\ntests\\test_hidden_kv.py:11: in test_api\n    apply(state, 'SET a 3')\nkv_api.py:4: in apply\n    raise NotImplementedError(\"apply\")\nE   NotImplementedError: apply\n_________________________________ test_client _________________________________\ntests\\test_hidden_kv.py:20: in test_client\n    assert run_commands(['SET a 1', 'SET b 2', 'DEL a']) == {'b': 2}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nkv_client.py:4: in run_commands\n    raise NotImplementedError(\"run_commands\")\nE   NotImplementedError: run_commands\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_kv.py::test_api - NotImplementedError: apply\nFAILED tests\\test_hidden_kv.py::test_client - NotImplementedError: run_commands\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-06-kv-a1\\r0-eval-777fd69ed2b1\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-777fd69ed2b1-api": 0,
+              "coding_worker:eval-777fd69ed2b1-client": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "one or more workers produced no output; hidden tests failed with exit code 1",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-07-export",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "formatter.py",
+            "exporter.py"
+          ],
+          "changed_files": [
+            "exporter.py",
+            "formatter.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": ".F                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_export _________________________________\ntests\\test_hidden_export.py:12: in test_export\n    assert export_rows([['a', 'b']], [2, 2]) == 'a  | b \\n'\nE   AssertionError: assert 'a  | b ' == 'a  | b \\n'\nE     \nE     - a  | b \nE     ?        -\nE     + a  | b\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_export.py::test_export - AssertionError: assert 'a  ...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-07-export-a1\\r0-eval-723a87236df7\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "formatter.py",
+            "exporter.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-723a87236df7-formatter",
+              "coding_worker:eval-723a87236df7-exporter"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-723a87236df7-exporter": 1567,
+              "coding_worker:eval-723a87236df7-formatter": 1913
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-08-stats",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "quantile.py",
+            "variance.py",
+            "summary.py"
+          ],
+          "changed_files": [
+            "quantile.py",
+            "summary.py",
+            "variance.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": ".F                                                                       [100%]\n================================== FAILURES ===================================\n________________________________ test_summary _________________________________\ntests\\test_hidden_stats.py:16: in test_summary\n    assert describe([1, 3]) == 'median=2.0;variance=1.0'\nE   AssertionError: assert 'n=2 mean=2.0...ance=1.000000' == 'median=2.0;variance=1.0'\nE     \nE     - median=2.0;variance=1.0\nE     + n=2 mean=2.000000 median=2.000000 variance=1.000000\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_stats.py::test_summary - AssertionError: assert 'n=2...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-08-stats-a1\\r0-eval-ad731d9e3a60\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "quantile.py",
+            "variance.py",
+            "summary.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "file_edit",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-ad731d9e3a60-variance",
+              "coding_worker:eval-ad731d9e3a60-summary"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-ad731d9e3a60-median": 0,
+              "coding_worker:eval-ad731d9e3a60-summary": 1871,
+              "coding_worker:eval-ad731d9e3a60-variance": 1561
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 178888 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-09-etl",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "extract.py",
+            "transform.py",
+            "load.py"
+          ],
+          "changed_files": [
+            "extract.py",
+            "transform.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": ".F                                                                       [100%]\n================================== FAILURES ===================================\n________________________________ test_summary _________________________________\ntests\\test_hidden_etl.py:16: in test_summary\n    assert summarize('a,1\\nb,-2\\nc,3\\n') == 'count=2;total=8'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nload.py:4: in summarize\n    raise NotImplementedError(\"summarize\")\nE   NotImplementedError: summarize\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_etl.py::test_summary - NotImplementedError: summarize\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-09-etl-a1\\r0-eval-34b4e1112f84\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "extract.py",
+            "transform.py",
+            "load.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-34b4e1112f84-transform",
+              "coding_worker:eval-34b4e1112f84-extract"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-34b4e1112f84-extract": 1698,
+              "coding_worker:eval-34b4e1112f84-load": 0,
+              "coding_worker:eval-34b4e1112f84-transform": 1585
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 137318 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-10-search",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_search _________________________________\ntests\\test_hidden_search.py:9: in test_search\n    index = build({'b': 'alpha beta', 'a': 'alpha'})\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nindex.py:4: in build\n    raise NotImplementedError(\"build\")\nE   NotImplementedError: build\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_search.py::test_search - NotImplementedError: build\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-10-search-a1\\r0-eval-5231c4f3ce81\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-5231c4f3ce81-rank"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-5231c4f3ce81-index": 0,
+              "coding_worker:eval-5231c4f3ce81-query": 0,
+              "coding_worker:eval-5231c4f3ce81-rank": 3228
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 256307 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-11-fallback",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "dependency_error",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "metadata.py",
+            "consumer.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n________________________________ test_missing _________________________________\ntests\\test_hidden_fallback.py:9: in test_missing\n    assert read_metadata(path) == {}\n           ^^^^^^^^^^^^^^^^^^^\nmetadata.py:8: in read_metadata\n    raise NotImplementedError(\"read_metadata\")\nE   NotImplementedError: read_metadata\n________________________________ test_present _________________________________\ntests\\test_hidden_fallback.py:15: in test_present\n    write_metadata(path, {'name': 'ops'})\nmetadata.py:4: in write_metadata\n    raise NotImplementedError(\"write_metadata\")\nE   NotImplementedError: write_metadata\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_fallback.py::test_missing - NotImplementedError: rea...\nFAILED tests\\test_hidden_fallback.py::test_present - NotImplementedError: wri...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-11-fallback-a1\\r0-eval-217eb273c4dd\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "metadata.py",
+            "consumer.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-217eb273c4dd-consumer": 0,
+              "coding_worker:eval-217eb273c4dd-metadata": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 165883 > 120000",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-12-conflict",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "dependency_error",
+      "oracle": {
+        "checks": {
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": false
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "state.json",
+            "final.json"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n______________________________ test_final_state _______________________________\ntests\\test_hidden_conflict.py:8: in test_final_state\n    assert json.loads(Path('final.json').read_text()) == {'a': 1, 'b': 2}\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\86180\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\pathlib.py:1027: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\86180\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\pathlib.py:1013: in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   FileNotFoundError: [Errno 2] No such file or directory: 'final.json'\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_conflict.py::test_final_state - FileNotFoundError: [...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-12-conflict-a0\\r0-eval-e7dc610647ea\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "state.json",
+            "final.json"
+          ],
+          "tool_expectations": {},
+          "unauthorized_changes": [],
+          "worker_contract": {},
+          "workspace_digest": "",
+          "workspace_file_count": 1
+        },
+        "failure_reasons": [
+          "missing required artifacts: ['state.json', 'final.json']",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "missing required artifacts: ['state.json', 'final.json']; hidden tests failed with exit code 1",
+      "repetition": 0,
+      "variant": "a0"
+    },
+    {
+      "definition": "e1-12-conflict",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "dependency_error",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": true,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [
+            "final.json",
+            "state.json"
+          ],
+          "allowed_paths": [
+            "state.json",
+            "final.json"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 0,
+            "stderr_tail": "",
+            "stdout_tail": ".                                                                        [100%]\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-12-conflict-a1\\r0-eval-5cdd3640d826\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "state.json",
+            "final.json"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-5cdd3640d826-b",
+              "coding_worker:eval-5cdd3640d826-merge"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-5cdd3640d826-a": 0,
+              "coding_worker:eval-5cdd3640d826-b": 223,
+              "coding_worker:eval-5cdd3640d826-merge": 1813
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output"
+        ],
+        "passed": false
+      },
+      "reason": "one or more workers produced no output",
+      "repetition": 0,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-02-report",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "changed_files": [
+            "report/parser.py",
+            "report/render.py",
+            "report/stats.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": ".F                                                                       [100%]\n================================== FAILURES ===================================\n____________________________ test_stats_and_render ____________________________\ntests\\test_hidden_report.py:18: in test_stats_and_render\n    assert render('a=2\\nb=4\\nc=6\\n') == 'mean=4.0;max=6;min=2'\nE   AssertionError: assert 'mean=4;max=6;min=2' == 'mean=4.0;max=6;min=2'\nE     \nE     - mean=4.0;max=6;min=2\nE     ?       --\nE     + mean=4;max=6;min=2\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_report.py::test_stats_and_render - AssertionError: a...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-02-report-a0\\r1-eval-3fb872a7106a\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "tool_expectations": {},
+          "unauthorized_changes": [],
+          "worker_contract": {},
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 1,
+      "variant": "a0"
+    },
+    {
+      "definition": "e1-02-report",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "changed_files": [
+            "report/parser.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_parse __________________________________\ntests\\test_hidden_report.py:11: in test_parse\n    assert parse_lines('a=1\\n\\nb=2\\n') == [('a', 1), ('b', 2)]\nE   AssertionError: assert [('a=1', 1), ...), ('b=2', 3)] == [('a', 1), ('b', 2)]\nE     \nE     At index 0 diff: ('a=1', 1) != ('a', 1)\nE     Left contains one more item: ('b=2', 3)\nE     Use -v to get more diff\n____________________________ test_stats_and_render ____________________________\ntests\\test_hidden_report.py:17: in test_stats_and_render\n    assert stats([2, 4, 6]) == {'mean': 4.0, 'max': 6, 'min': 2}\n           ^^^^^^^^^^^^^^^^\nreport\\stats.py:4: in stats\n    raise NotImplementedError(\"stats\")\nE   NotImplementedError: stats\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_report.py::test_parse - AssertionError: assert [('a=...\nFAILED tests\\test_hidden_report.py::test_stats_and_render - NotImplementedErr...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-02-report-a1\\r1-eval-a4ff8ed1a88d\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-a4ff8ed1a88d-parser"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-a4ff8ed1a88d-parser": 1772,
+              "coding_worker:eval-a4ff8ed1a88d-render": 0,
+              "coding_worker:eval-a4ff8ed1a88d-stats": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 287663 > 120000",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-03-rbac",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "rbac/roles.py",
+            "rbac/policy.py",
+            "rbac/service.py"
+          ],
+          "changed_files": [
+            "rbac/policy.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_roles __________________________________\ntests\\test_hidden_rbac.py:11: in test_roles\n    assert ROLE_PERMISSIONS['admin'] == {'read', 'write', 'delete'}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nE   KeyError: 'admin'\n___________________________ test_policy_and_service ___________________________\ntests\\test_hidden_rbac.py:17: in test_policy_and_service\n    assert can('editor', 'write') is True\nE   AssertionError: assert False is True\nE    +  where False = can('editor', 'write')\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_rbac.py::test_roles - KeyError: 'admin'\nFAILED tests\\test_hidden_rbac.py::test_policy_and_service - AssertionError: a...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-03-rbac-a1\\r1-eval-aa25e4c54f75\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "rbac/roles.py",
+            "rbac/policy.py",
+            "rbac/service.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-aa25e4c54f75-policy"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-aa25e4c54f75-policy": 1738,
+              "coding_worker:eval-aa25e4c54f75-roles": 164,
+              "coding_worker:eval-aa25e4c54f75-service": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "one or more workers produced no output; hidden tests failed with exit code 1",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-04-cli",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "changed_files": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n_____________________________ test_parse_and_run ______________________________\ntests\\test_hidden_cli.py:11: in test_parse_and_run\n    assert parse_args(['--name', 'Ada', '--count', '2']) == expected\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ncli\\args.py:145: in parse_args\n    raise ArgumentError(\"missing required command\")\nE   cli.args.ArgumentError: missing required command\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_cli.py::test_parse_and_run - cli.args.ArgumentError:...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-04-cli-a1\\r1-eval-d9d570e6e68a\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "file_read"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-d9d570e6e68a-commands",
+              "coding_worker:eval-d9d570e6e68a-args",
+              "coding_worker:eval-d9d570e6e68a-main"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-d9d570e6e68a-args": 2030,
+              "coding_worker:eval-d9d570e6e68a-commands": 1904,
+              "coding_worker:eval-d9d570e6e68a-main": 1717
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 213231 > 120000",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-05-pairs",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "changed_files": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_parse __________________________________\ntests\\test_hidden_pairs.py:8: in test_parse\n    assert parse_items('a:1;b:2;a:3') == [('a', 1), ('b', 2), ('a', 3)]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\npairs.py:93: in parse_items\n    raise ValueError(\nE   ValueError: line 1: invalid integer value '1;b:2;a:3': 'a:1;b:2;a:3'\n_________________________________ test_total __________________________________\ntests\\test_hidden_pairs.py:12: in test_total\n    assert total_by_key('a:1;b:2;a:3') == {'a': 4, 'b': 2}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsummary.py:43: in total_by_key\n    for key, value in parse_items(text):\n                      ^^^^^^^^^^^^^^^^^\npairs.py:93: in parse_items\n    raise ValueError(\nE   ValueError: line 1: invalid integer value '1;b:2;a:3': 'a:1;b:2;a:3'\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_pairs.py::test_parse - ValueError: line 1: invalid i...\nFAILED tests\\test_hidden_pairs.py::test_total - ValueError: line 1: invalid i...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-05-pairs-a1\\r1-eval-7947b082d6bb\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-7947b082d6bb-parser",
+              "coding_worker:eval-7947b082d6bb-summary"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-7947b082d6bb-parser": 1961,
+              "coding_worker:eval-7947b082d6bb-summary": 1489
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-06-kv",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "changed_files": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n__________________________________ test_api ___________________________________\ntests\\test_hidden_kv.py:12: in test_api\n    assert state == {'a': 3}\nE   AssertionError: assert {'a': '3'} == {'a': 3}\nE     \nE     Differing items:\nE     {'a': '3'} != {'a': 3}\nE     Use -v to get more diff\n_________________________________ test_client _________________________________\ntests\\test_hidden_kv.py:20: in test_client\n    assert run_commands(['SET a 1', 'SET b 2', 'DEL a']) == {'b': 2}\nE   AssertionError: assert {'b': '2'} == {'b': 2}\nE     \nE     Differing items:\nE     {'b': '2'} != {'b': 2}\nE     Use -v to get more diff\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_kv.py::test_api - AssertionError: assert {'a': '3'} ...\nFAILED tests\\test_hidden_kv.py::test_client - AssertionError: assert {'b': '2...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-06-kv-a0\\r1-eval-04a54ee8430f\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "tool_expectations": {},
+          "unauthorized_changes": [],
+          "worker_contract": {},
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 1,
+      "variant": "a0"
+    },
+    {
+      "definition": "e1-06-kv",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n__________________________________ test_api ___________________________________\ntests\\test_hidden_kv.py:11: in test_api\n    apply(state, 'SET a 3')\nkv_api.py:4: in apply\n    raise NotImplementedError(\"apply\")\nE   NotImplementedError: apply\n_________________________________ test_client _________________________________\ntests\\test_hidden_kv.py:20: in test_client\n    assert run_commands(['SET a 1', 'SET b 2', 'DEL a']) == {'b': 2}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nkv_client.py:4: in run_commands\n    raise NotImplementedError(\"run_commands\")\nE   NotImplementedError: run_commands\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_kv.py::test_api - NotImplementedError: apply\nFAILED tests\\test_hidden_kv.py::test_client - NotImplementedError: run_commands\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-06-kv-a1\\r1-eval-4d87418682dd\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-4d87418682dd-api": 0,
+              "coding_worker:eval-4d87418682dd-client": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 147554 > 120000",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-07-export",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "formatter.py",
+            "exporter.py"
+          ],
+          "changed_files": [
+            "exporter.py",
+            "formatter.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_format _________________________________\ntests\\test_hidden_export.py:8: in test_format\n    assert format_row(['a', 'bb'], [2, 3]) == 'a  | bb '\nE   AssertionError: assert 'a  bb' == 'a  | bb '\nE     \nE     - a  | bb \nE     ?   --   -\nE     + a  bb\n_________________________________ test_export _________________________________\ntests\\test_hidden_export.py:12: in test_export\n    assert export_rows([['a', 'b']], [2, 2]) == 'a  | b \\n'\nE   AssertionError: assert 'a  b' == 'a  | b \\n'\nE     \nE     - a  | b \nE     + a  b\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_export.py::test_format - AssertionError: assert 'a  ...\nFAILED tests\\test_hidden_export.py::test_export - AssertionError: assert 'a  ...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-07-export-a1\\r1-eval-4b4a6c56b3e3\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "formatter.py",
+            "exporter.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-4b4a6c56b3e3-formatter",
+              "coding_worker:eval-4b4a6c56b3e3-exporter"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-4b4a6c56b3e3-exporter": 1942,
+              "coding_worker:eval-4b4a6c56b3e3-formatter": 1668
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-08-stats",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "quantile.py",
+            "variance.py",
+            "summary.py"
+          ],
+          "changed_files": [
+            "quantile.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_______________________________ test_components _______________________________\ntests\\test_hidden_stats.py:12: in test_components\n    assert population_variance([1, 3]) == 1.0\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nvariance.py:4: in population_variance\n    raise NotImplementedError(\"population_variance\")\nE   NotImplementedError: population_variance\n________________________________ test_summary _________________________________\ntests\\test_hidden_stats.py:16: in test_summary\n    assert describe([1, 3]) == 'median=2.0;variance=1.0'\n           ^^^^^^^^^^^^^^^^\nsummary.py:4: in describe\n    raise NotImplementedError(\"describe\")\nE   NotImplementedError: describe\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_stats.py::test_components - NotImplementedError: pop...\nFAILED tests\\test_hidden_stats.py::test_summary - NotImplementedError: describe\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-08-stats-a1\\r1-eval-a0895234f515\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "quantile.py",
+            "variance.py",
+            "summary.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-a0895234f515-median"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-a0895234f515-median": 1041,
+              "coding_worker:eval-a0895234f515-summary": 0,
+              "coding_worker:eval-a0895234f515-variance": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 127095 > 120000",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-09-etl",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "extract.py",
+            "transform.py",
+            "load.py"
+          ],
+          "changed_files": [
+            "extract.py",
+            "load.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_stages _________________________________\ntests\\test_hidden_etl.py:11: in test_stages\n    assert keep_positive(parsed) == [('a', 1), ('c', 3)]\n           ^^^^^^^^^^^^^^^^^^^^^\ntransform.py:4: in keep_positive\n    raise NotImplementedError(\"keep_positive\")\nE   NotImplementedError: keep_positive\n________________________________ test_summary _________________________________\ntests\\test_hidden_etl.py:16: in test_summary\n    assert summarize('a,1\\nb,-2\\nc,3\\n') == 'count=2;total=8'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nload.py:47: in summarize\n    records = keep_positive(records)\n              ^^^^^^^^^^^^^^^^^^^^^^\ntransform.py:4: in keep_positive\n    raise NotImplementedError(\"keep_positive\")\nE   NotImplementedError: keep_positive\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_etl.py::test_stages - NotImplementedError: keep_posi...\nFAILED tests\\test_hidden_etl.py::test_summary - NotImplementedError: keep_pos...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-09-etl-a1\\r1-eval-9991f241d369\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "extract.py",
+            "transform.py",
+            "load.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-9991f241d369-extract",
+              "coding_worker:eval-9991f241d369-load"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-9991f241d369-extract": 1922,
+              "coding_worker:eval-9991f241d369-load": 2371,
+              "coding_worker:eval-9991f241d369-transform": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 189468 > 120000",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-10-search",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_search _________________________________\ntests\\test_hidden_search.py:9: in test_search\n    index = build({'b': 'alpha beta', 'a': 'alpha'})\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nindex.py:4: in build\n    raise NotImplementedError(\"build\")\nE   NotImplementedError: build\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_search.py::test_search - NotImplementedError: build\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-10-search-a0\\r1-eval-e75129105af1\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "tool_expectations": {},
+          "unauthorized_changes": [],
+          "worker_contract": {},
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 1,
+      "variant": "a0"
+    },
+    {
+      "definition": "e1-10-search",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_search _________________________________\ntests\\test_hidden_search.py:9: in test_search\n    index = build({'b': 'alpha beta', 'a': 'alpha'})\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nindex.py:4: in build\n    raise NotImplementedError(\"build\")\nE   NotImplementedError: build\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_search.py::test_search - NotImplementedError: build\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-10-search-a1\\r1-eval-972dcf8e0a6d\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-972dcf8e0a6d-index": 0,
+              "coding_worker:eval-972dcf8e0a6d-query": 0,
+              "coding_worker:eval-972dcf8e0a6d-rank": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 271539 > 120000",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-11-fallback",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "dependency_error",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "metadata.py",
+            "consumer.py"
+          ],
+          "changed_files": [
+            "metadata.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n________________________________ test_missing _________________________________\ntests\\test_hidden_fallback.py:10: in test_missing\n    assert describe_metadata(path) == 'missing'\n           ^^^^^^^^^^^^^^^^^^^^^^^\nconsumer.py:4: in describe_metadata\n    raise NotImplementedError(\"describe_metadata\")\nE   NotImplementedError: describe_metadata\n________________________________ test_present _________________________________\ntests\\test_hidden_fallback.py:16: in test_present\n    assert describe_metadata(path) == 'present:ops'\n           ^^^^^^^^^^^^^^^^^^^^^^^\nconsumer.py:4: in describe_metadata\n    raise NotImplementedError(\"describe_metadata\")\nE   NotImplementedError: describe_metadata\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_fallback.py::test_missing - NotImplementedError: des...\nFAILED tests\\test_hidden_fallback.py::test_present - NotImplementedError: des...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-11-fallback-a1\\r1-eval-c6fe6cb27b34\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "metadata.py",
+            "consumer.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "file_read",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-c6fe6cb27b34-metadata"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-c6fe6cb27b34-consumer": 0,
+              "coding_worker:eval-c6fe6cb27b34-metadata": 1757
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 167580 > 120000",
+      "repetition": 1,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-12-conflict",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "dependency_error",
+      "oracle": {
+        "checks": {
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": false
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "state.json",
+            "final.json"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n______________________________ test_final_state _______________________________\ntests\\test_hidden_conflict.py:8: in test_final_state\n    assert json.loads(Path('final.json').read_text()) == {'a': 1, 'b': 2}\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\86180\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\pathlib.py:1027: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\86180\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\pathlib.py:1013: in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   FileNotFoundError: [Errno 2] No such file or directory: 'final.json'\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_conflict.py::test_final_state - FileNotFoundError: [...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-12-conflict-a0\\r1-eval-2c70bd8f5523\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "state.json",
+            "final.json"
+          ],
+          "tool_expectations": {},
+          "unauthorized_changes": [],
+          "worker_contract": {},
+          "workspace_digest": "",
+          "workspace_file_count": 1
+        },
+        "failure_reasons": [
+          "missing required artifacts: ['state.json', 'final.json']",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "missing required artifacts: ['state.json', 'final.json']; hidden tests failed with exit code 1",
+      "repetition": 1,
+      "variant": "a0"
+    },
+    {
+      "definition": "e1-01-config",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "config/loader.py",
+            "config/merge.py",
+            "config/validate.py"
+          ],
+          "changed_files": [
+            "config/merge.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F.F                                                                      [100%]\n================================== FAILURES ===================================\n__________________________________ test_load __________________________________\ntests\\test_hidden_config.py:13: in test_load\n    assert load_config(str(path)) == {'a': 1}\n           ^^^^^^^^^^^^^^^^^^^^^^\nconfig\\loader.py:4: in load_config\n    raise NotImplementedError(\"load_config\")\nE   NotImplementedError: load_config\n________________________________ test_validate ________________________________\ntests\\test_hidden_config.py:24: in test_validate\n    assert validate_required({'b': 1}, ['a', 'b', 'c']) == ['a', 'c']\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nconfig\\validate.py:4: in validate_required\n    raise NotImplementedError(\"validate_required\")\nE   NotImplementedError: validate_required\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_config.py::test_load - NotImplementedError: load_config\nFAILED tests\\test_hidden_config.py::test_validate - NotImplementedError: vali...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-01-config-a1\\r2-eval-bd3223dfea83\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "config/loader.py",
+            "config/merge.py",
+            "config/validate.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-bd3223dfea83-merge"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-bd3223dfea83-loader": 0,
+              "coding_worker:eval-bd3223dfea83-merge": 1550,
+              "coding_worker:eval-bd3223dfea83-validate": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 150400 > 120000",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-02-report",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "changed_files": [
+            "report/parser.py",
+            "report/render.py",
+            "report/stats.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": ".F                                                                       [100%]\n================================== FAILURES ===================================\n____________________________ test_stats_and_render ____________________________\ntests\\test_hidden_report.py:17: in test_stats_and_render\n    assert stats([2, 4, 6]) == {'mean': 4.0, 'max': 6, 'min': 2}\nE   AssertionError: assert {'count': 3, ...'max': 6, ...} == {'mean': 4.0,...: 6, 'min': 2}\nE     \nE     Omitting 3 identical items, use -vv to show\nE     Left contains 3 more items:\nE     {'count': 3, 'median': 4.0, 'sum': 12}\nE     Use -v to get more diff\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_report.py::test_stats_and_render - AssertionError: a...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-02-report-a1\\r2-eval-62dae7e46b5f\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "report/parser.py",
+            "report/stats.py",
+            "report/render.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "bash",
+              "file_write",
+              "file_write",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-62dae7e46b5f-parser"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-62dae7e46b5f-parser": 1788,
+              "coding_worker:eval-62dae7e46b5f-render": 116,
+              "coding_worker:eval-62dae7e46b5f-stats": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 373205 > 120000",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-03-rbac",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "rbac/roles.py",
+            "rbac/policy.py",
+            "rbac/service.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_roles __________________________________\ntests\\test_hidden_rbac.py:11: in test_roles\n    assert ROLE_PERMISSIONS['admin'] == {'read', 'write', 'delete'}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\nE   KeyError: 'admin'\n___________________________ test_policy_and_service ___________________________\ntests\\test_hidden_rbac.py:17: in test_policy_and_service\n    assert can('editor', 'write') is True\n           ^^^^^^^^^^^^^^^^^^^^^^\nrbac\\policy.py:4: in can\n    raise NotImplementedError(\"can\")\nE   NotImplementedError: can\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_rbac.py::test_roles - KeyError: 'admin'\nFAILED tests\\test_hidden_rbac.py::test_policy_and_service - NotImplementedErr...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-03-rbac-a1\\r2-eval-d45ef43a1f3e\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "rbac/roles.py",
+            "rbac/policy.py",
+            "rbac/service.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-d45ef43a1f3e-roles"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-d45ef43a1f3e-policy": 0,
+              "coding_worker:eval-d45ef43a1f3e-roles": 2427,
+              "coding_worker:eval-d45ef43a1f3e-service": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 201780 > 120000",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-04-cli",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "multi_module",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "changed_files": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n_____________________________ test_parse_and_run ______________________________\ntests\\test_hidden_cli.py:11: in test_parse_and_run\n    assert parse_args(['--name', 'Ada', '--count', '2']) == expected\nE   AssertionError: assert {'command': N...', 'count': 2} == {'name': 'Ada', 'count': 2}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Left contains 1 more item:\nE     {'command': None}\nE     Use -v to get more diff\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_cli.py::test_parse_and_run - AssertionError: assert ...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-04-cli-a1\\r2-eval-c2f619afa519\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "cli/args.py",
+            "cli/commands.py",
+            "cli/main.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_edit",
+              "file_edit",
+              "file_edit",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "file_write",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-c2f619afa519-args": 547,
+              "coding_worker:eval-c2f619afa519-commands": 163,
+              "coding_worker:eval-c2f619afa519-main": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 4
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 286661 > 120000",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-05-pairs",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "changed_files": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_parse __________________________________\ntests\\test_hidden_pairs.py:8: in test_parse\n    assert parse_items('a:1;b:2;a:3') == [('a', 1), ('b', 2), ('a', 3)]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\npairs.py:62: in parse_items\n    raise ValueError(f\"malformed item (expected 'key=value'): {item!r}\")\nE   ValueError: malformed item (expected 'key=value'): 'a:1;b:2;a:3'\n_________________________________ test_total __________________________________\ntests\\test_hidden_pairs.py:12: in test_total\n    assert total_by_key('a:1;b:2;a:3') == {'a': 4, 'b': 2}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nsummary.py:41: in total_by_key\n    for key, value in parse_items(text):\n                      ^^^^^^^^^^^^^^^^^\npairs.py:62: in parse_items\n    raise ValueError(f\"malformed item (expected 'key=value'): {item!r}\")\nE   ValueError: malformed item (expected 'key=value'): 'a:1;b:2;a:3'\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_pairs.py::test_parse - ValueError: malformed item (e...\nFAILED tests\\test_hidden_pairs.py::test_total - ValueError: malformed item (e...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-05-pairs-a1\\r2-eval-43c7d453a36c\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "pairs.py",
+            "summary.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-43c7d453a36c-parser",
+              "coding_worker:eval-43c7d453a36c-summary"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-43c7d453a36c-parser": 1698,
+              "coding_worker:eval-43c7d453a36c-summary": 1732
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-06-kv",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "changed_files": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n__________________________________ test_api ___________________________________\ntests\\test_hidden_kv.py:12: in test_api\n    assert state == {'a': 3}\nE   AssertionError: assert {'a': '3'} == {'a': 3}\nE     \nE     Differing items:\nE     {'a': '3'} != {'a': 3}\nE     Use -v to get more diff\n_________________________________ test_client _________________________________\ntests\\test_hidden_kv.py:20: in test_client\n    assert run_commands(['SET a 1', 'SET b 2', 'DEL a']) == {'b': 2}\nE   AssertionError: assert {'b': '2'} == {'b': 2}\nE     \nE     Differing items:\nE     {'b': '2'} != {'b': 2}\nE     Use -v to get more diff\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_kv.py::test_api - AssertionError: assert {'a': '3'} ...\nFAILED tests\\test_hidden_kv.py::test_client - AssertionError: assert {'b': '2...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-06-kv-a0\\r2-eval-d91246eea292\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "tool_expectations": {},
+          "unauthorized_changes": [],
+          "worker_contract": {},
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a0"
+    },
+    {
+      "definition": "e1-06-kv",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n__________________________________ test_api ___________________________________\ntests\\test_hidden_kv.py:11: in test_api\n    apply(state, 'SET a 3')\nkv_api.py:4: in apply\n    raise NotImplementedError(\"apply\")\nE   NotImplementedError: apply\n_________________________________ test_client _________________________________\ntests\\test_hidden_kv.py:20: in test_client\n    assert run_commands(['SET a 1', 'SET b 2', 'DEL a']) == {'b': 2}\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nkv_client.py:4: in run_commands\n    raise NotImplementedError(\"run_commands\")\nE   NotImplementedError: run_commands\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_kv.py::test_api - NotImplementedError: apply\nFAILED tests\\test_hidden_kv.py::test_client - NotImplementedError: run_commands\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-06-kv-a1\\r2-eval-aa7372ce2f71\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "kv_api.py",
+            "kv_client.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-aa7372ce2f71-api": 0,
+              "coding_worker:eval-aa7372ce2f71-client": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "one or more workers produced no output; hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-07-export",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "integration",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "formatter.py",
+            "exporter.py"
+          ],
+          "changed_files": [
+            "exporter.py",
+            "formatter.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_format _________________________________\ntests\\test_hidden_export.py:8: in test_format\n    assert format_row(['a', 'bb'], [2, 3]) == 'a  | bb '\nE   AssertionError: assert 'a  bb' == 'a  | bb '\nE     \nE     - a  | bb \nE     ?   --   -\nE     + a  bb\n_________________________________ test_export _________________________________\ntests\\test_hidden_export.py:12: in test_export\n    assert export_rows([['a', 'b']], [2, 2]) == 'a  | b \\n'\nE   AssertionError: assert 'a  b' == 'a  | b \\n'\nE     \nE     - a  | b \nE     + a  b\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_export.py::test_format - AssertionError: assert 'a  ...\nFAILED tests\\test_hidden_export.py::test_export - AssertionError: assert 'a  ...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-07-export-a1\\r2-eval-1c5de3632b2f\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "formatter.py",
+            "exporter.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-1c5de3632b2f-formatter",
+              "coding_worker:eval-1c5de3632b2f-exporter"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-1c5de3632b2f-exporter": 1346,
+              "coding_worker:eval-1c5de3632b2f-formatter": 1531
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-08-stats",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "quantile.py",
+            "variance.py",
+            "summary.py"
+          ],
+          "changed_files": [
+            "quantile.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_______________________________ test_components _______________________________\ntests\\test_hidden_stats.py:12: in test_components\n    assert population_variance([1, 3]) == 1.0\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nvariance.py:4: in population_variance\n    raise NotImplementedError(\"population_variance\")\nE   NotImplementedError: population_variance\n________________________________ test_summary _________________________________\ntests\\test_hidden_stats.py:16: in test_summary\n    assert describe([1, 3]) == 'median=2.0;variance=1.0'\n           ^^^^^^^^^^^^^^^^\nsummary.py:4: in describe\n    raise NotImplementedError(\"describe\")\nE   NotImplementedError: describe\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_stats.py::test_components - NotImplementedError: pop...\nFAILED tests\\test_hidden_stats.py::test_summary - NotImplementedError: describe\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-08-stats-a1\\r2-eval-fad2f10ac6bd\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "quantile.py",
+            "variance.py",
+            "summary.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_read",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-fad2f10ac6bd-median"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-fad2f10ac6bd-median": 1346,
+              "coding_worker:eval-fad2f10ac6bd-summary": 0,
+              "coding_worker:eval-fad2f10ac6bd-variance": 0
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "one or more workers produced no output; hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-09-etl",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "extract.py",
+            "transform.py",
+            "load.py"
+          ],
+          "changed_files": [
+            "load.py",
+            "transform.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n_________________________________ test_stages _________________________________\ntests\\test_hidden_etl.py:9: in test_stages\n    parsed = rows('a,1\\nb,-2\\nc,3\\n')\n             ^^^^^^^^^^^^^^^^^^^^^^^^\nextract.py:4: in rows\n    raise NotImplementedError(\"rows\")\nE   NotImplementedError: rows\n________________________________ test_summary _________________________________\ntests\\test_hidden_etl.py:16: in test_summary\n    assert summarize('a,1\\nb,-2\\nc,3\\n') == 'count=2;total=8'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nload.py:16: in summarize\n    rows = extract.rows(text)\n           ^^^^^^^^^^^^^^^^^^\nextract.py:4: in rows\n    raise NotImplementedError(\"rows\")\nE   NotImplementedError: rows\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_etl.py::test_stages - NotImplementedError: rows\nFAILED tests\\test_hidden_etl.py::test_summary - NotImplementedError: rows\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-09-etl-a1\\r2-eval-72b8fe2da70b\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "extract.py",
+            "transform.py",
+            "load.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [
+              "coding_worker:eval-72b8fe2da70b-transform",
+              "coding_worker:eval-72b8fe2da70b-load"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-72b8fe2da70b-extract": 243,
+              "coding_worker:eval-72b8fe2da70b-load": 1860,
+              "coding_worker:eval-72b8fe2da70b-transform": 1656
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-10-search",
+      "failure_class": "BUDGET_EXCEEDED",
+      "family": "decompose_merge",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": false,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "changed_files": [
+            "index.py",
+            "query.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_search _________________________________\ntests\\test_hidden_search.py:12: in test_search\n    assert ranked(index, 'missing') == []\n           ^^^^^^^^^^^^^^^^^^^^^^^^\nrank.py:4: in ranked\n    raise NotImplementedError(\"ranked\")\nE   NotImplementedError: ranked\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_search.py::test_search - NotImplementedError: ranked\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-10-search-a1\\r2-eval-a98ca88027b7\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "index.py",
+            "query.py",
+            "rank.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "file_write"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 3,
+            "successful_workers": [],
+            "worker_output_chars": {
+              "coding_worker:eval-a98ca88027b7-index": 0,
+              "coding_worker:eval-a98ca88027b7-query": 0,
+              "coding_worker:eval-a98ca88027b7-rank": 631
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 3
+        },
+        "failure_reasons": [
+          "one or more workers produced no output",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "token usage exceeded budget: 217805 > 120000",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-11-fallback",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "dependency_error",
+      "oracle": {
+        "checks": {
+          "all_workers_produced_output": true,
+          "distinct_workers_executed": true,
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": true
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "metadata.py",
+            "consumer.py"
+          ],
+          "changed_files": [
+            "consumer.py",
+            "metadata.py"
+          ],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "FF                                                                       [100%]\n================================== FAILURES ===================================\n________________________________ test_missing _________________________________\ntests\\test_hidden_fallback.py:10: in test_missing\n    assert describe_metadata(path) == 'missing'\nE   AssertionError: assert 'no metadata' == 'missing'\nE     \nE     - missing\nE     + no metadata\n________________________________ test_present _________________________________\ntests\\test_hidden_fallback.py:16: in test_present\n    assert describe_metadata(path) == 'present:ops'\nE   AssertionError: assert '1 key: name' == 'present:ops'\nE     \nE     - present:ops\nE     + 1 key: name\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_fallback.py::test_missing - AssertionError: assert '...\nFAILED tests\\test_hidden_fallback.py::test_present - AssertionError: assert '...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-11-fallback-a1\\r2-eval-86f9d2e78962\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "metadata.py",
+            "consumer.py"
+          ],
+          "tool_expectations": {
+            "dispatch_tool_ids": [],
+            "tool_names": [
+              "bash",
+              "list_files",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "list_files",
+              "file_read",
+              "file_read",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "bash",
+              "file_write",
+              "bash",
+              "bash",
+              "bash"
+            ]
+          },
+          "unauthorized_changes": [],
+          "worker_contract": {
+            "expected_workers": 2,
+            "successful_workers": [
+              "coding_worker:eval-86f9d2e78962-metadata",
+              "coding_worker:eval-86f9d2e78962-consumer"
+            ],
+            "worker_output_chars": {
+              "coding_worker:eval-86f9d2e78962-consumer": 1924,
+              "coding_worker:eval-86f9d2e78962-metadata": 1799
+            }
+          },
+          "workspace_digest": "",
+          "workspace_file_count": 2
+        },
+        "failure_reasons": [
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a1"
+    },
+    {
+      "definition": "e1-12-conflict",
+      "failure_class": "ORACLE_FAILURE",
+      "family": "dependency_error",
+      "oracle": {
+        "checks": {
+          "forbidden_paths_unchanged": true,
+          "hidden_tests_passed": false,
+          "host_fixture_unchanged": true,
+          "only_allowed_paths_changed": true,
+          "required_artifacts_present": false
+        },
+        "details": {
+          "added_files": [],
+          "allowed_paths": [
+            "state.json",
+            "final.json"
+          ],
+          "changed_files": [],
+          "forbidden_changes": [],
+          "hidden_tests": {
+            "returncode": 1,
+            "stderr_tail": "",
+            "stdout_tail": "F                                                                        [100%]\n================================== FAILURES ===================================\n______________________________ test_final_state _______________________________\ntests\\test_hidden_conflict.py:8: in test_final_state\n    assert json.loads(Path('final.json').read_text()) == {'a': 1, 'b': 2}\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\86180\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\pathlib.py:1027: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\86180\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\pathlib.py:1013: in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   FileNotFoundError: [Errno 2] No such file or directory: 'final.json'\n=========================== short test summary info ===========================\nFAILED tests\\test_hidden_conflict.py::test_final_state - FileNotFoundError: [...\n"
+          },
+          "oracle_workspace": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\runs\\atlasos-stage-e1\\e1-12-conflict-a0\\r2-eval-fb1c99956928\\oracle-workspace",
+          "removed_files": [],
+          "required_artifacts": [
+            "state.json",
+            "final.json"
+          ],
+          "tool_expectations": {},
+          "unauthorized_changes": [],
+          "worker_contract": {},
+          "workspace_digest": "",
+          "workspace_file_count": 1
+        },
+        "failure_reasons": [
+          "missing required artifacts: ['state.json', 'final.json']",
+          "hidden tests failed with exit code 1"
+        ],
+        "passed": false
+      },
+      "reason": "missing required artifacts: ['state.json', 'final.json']; hidden tests failed with exit code 1",
+      "repetition": 2,
+      "variant": "a0"
+    }
+  ],
+  "families": {
+    "decompose_merge": {
+      "A0": {
+        "cache_hit_ratio": 0.9122906535771306,
+        "cache_hit_tokens": 199424,
+        "cache_miss_tokens": 19173,
+        "completion_tokens": 17686,
+        "completion_tokens_mean": 1965.111111111111,
+        "cost": 0.02817165,
+        "cost_mean": 0.0031301833333333335,
+        "latency_mean_ms": 37487.626777777776,
+        "latency_p50_ms": 38667.649,
+        "model_turns": 73,
+        "model_turns_mean": 8.11111111111111,
+        "prompt_tokens": 218597,
+        "prompt_tokens_mean": 24288.555555555555,
+        "runs": 9,
+        "success": 8,
+        "tool_calls": 88,
+        "tool_calls_mean": 9.777777777777779
+      },
+      "A1": {
+        "cache_hit_ratio": 0.8837573318310276,
+        "cache_hit_tokens": 1338112,
+        "cache_miss_tokens": 176005,
+        "completion_tokens": 42589,
+        "completion_tokens_mean": 4732.111111111111,
+        "cost": 0.11193698,
+        "cost_mean": 0.012437442222222223,
+        "latency_mean_ms": 80569.09622222223,
+        "latency_p50_ms": 85811.724,
+        "model_turns": 302,
+        "model_turns_mean": 33.55555555555556,
+        "prompt_tokens": 1514117,
+        "prompt_tokens_mean": 168235.22222222222,
+        "runs": 9,
+        "success": 0,
+        "tool_calls": 321,
+        "tool_calls_mean": 35.666666666666664
+      }
+    },
+    "dependency_error": {
+      "A0": {
+        "cache_hit_ratio": 0.9043600916853479,
+        "cache_hit_tokens": 71808,
+        "cache_miss_tokens": 7594,
+        "completion_tokens": 5670,
+        "completion_tokens_mean": 945,
+        "cost": 0.00951304,
+        "cost_mean": 0.0015855066666666667,
+        "latency_mean_ms": 28617.00433333333,
+        "latency_p50_ms": 26277.468,
+        "model_turns": 28,
+        "model_turns_mean": 4.666666666666667,
+        "prompt_tokens": 79402,
+        "prompt_tokens_mean": 13233.666666666666,
+        "runs": 6,
+        "success": 3,
+        "tool_calls": 31,
+        "tool_calls_mean": 5.166666666666667
+      },
+      "A1": {
+        "cache_hit_ratio": 0.878260944309303,
+        "cache_hit_tokens": 408704,
+        "cache_miss_tokens": 56652,
+        "completion_tokens": 17202,
+        "completion_tokens_mean": 2867,
+        "cost": 0.04009022,
+        "cost_mean": 0.006681703333333333,
+        "latency_mean_ms": 62054.28083333334,
+        "latency_p50_ms": 62831.4,
+        "model_turns": 107,
+        "model_turns_mean": 17.833333333333332,
+        "prompt_tokens": 465356,
+        "prompt_tokens_mean": 77559.33333333333,
+        "runs": 6,
+        "success": 2,
+        "tool_calls": 110,
+        "tool_calls_mean": 18.333333333333332
+      }
+    },
+    "integration": {
+      "A0": {
+        "cache_hit_ratio": 0.9094967496376135,
+        "cache_hit_tokens": 204544,
+        "cache_miss_tokens": 20354,
+        "completion_tokens": 16336,
+        "completion_tokens_mean": 1815.111111111111,
+        "cost": 0.02693667,
+        "cost_mean": 0.002992963333333333,
+        "latency_mean_ms": 36835.787333333334,
+        "latency_p50_ms": 36166.582,
+        "model_turns": 77,
+        "model_turns_mean": 8.555555555555555,
+        "prompt_tokens": 224898,
+        "prompt_tokens_mean": 24988.666666666668,
+        "runs": 9,
+        "success": 7,
+        "tool_calls": 92,
+        "tool_calls_mean": 10.222222222222221
+      },
+      "A1": {
+        "cache_hit_ratio": 0.8932815199877514,
+        "cache_hit_tokens": 612608,
+        "cache_miss_tokens": 73187,
+        "completion_tokens": 30173,
+        "completion_tokens_mean": 3352.5555555555557,
+        "cost": 0.06183935,
+        "cost_mean": 0.006871038888888889,
+        "latency_mean_ms": 64190.87222222222,
+        "latency_p50_ms": 60316.137,
+        "model_turns": 174,
+        "model_turns_mean": 19.333333333333332,
+        "prompt_tokens": 685795,
+        "prompt_tokens_mean": 76199.44444444444,
+        "runs": 9,
+        "success": 0,
+        "tool_calls": 187,
+        "tool_calls_mean": 20.77777777777778
+      }
+    },
+    "multi_module": {
+      "A0": {
+        "cache_hit_ratio": 0.9082496562820573,
+        "cache_hit_tokens": 213376,
+        "cache_miss_tokens": 21555,
+        "completion_tokens": 21906,
+        "completion_tokens_mean": 1825.5,
+        "cost": 0.03403395,
+        "cost_mean": 0.0028361625,
+        "latency_mean_ms": 35795.941666666666,
+        "latency_p50_ms": 38631.3635,
+        "model_turns": 79,
+        "model_turns_mean": 6.583333333333333,
+        "prompt_tokens": 234931,
+        "prompt_tokens_mean": 19577.583333333332,
+        "runs": 12,
+        "success": 10,
+        "tool_calls": 99,
+        "tool_calls_mean": 8.25
+      },
+      "A1": {
+        "cache_hit_ratio": 0.8823705595731707,
+        "cache_hit_tokens": 2053376,
+        "cache_miss_tokens": 273737,
+        "completion_tokens": 81692,
+        "completion_tokens_mean": 6807.666666666667,
+        "cost": 0.19247176,
+        "cost_mean": 0.016039313333333333,
+        "latency_mean_ms": 76446.23616666667,
+        "latency_p50_ms": 72688.905,
+        "model_turns": 404,
+        "model_turns_mean": 33.666666666666664,
+        "prompt_tokens": 2327113,
+        "prompt_tokens_mean": 193926.08333333334,
+        "runs": 12,
+        "success": 1,
+        "tool_calls": 457,
+        "tool_calls_mean": 38.083333333333336
+      }
+    }
+  },
+  "git_commit": "50759ed3fc81783ab33816af0b8833c4bbb58010",
+  "git_dirty": false,
+  "infra_interruptions": [
+    {
+      "definition": "e1-04-cli",
+      "repetition": 0,
+      "variant": "a0"
+    }
+  ],
+  "metrics": {
+    "A0": {
+      "cache_hit_ratio": 0.909377853549882,
+      "cache_hit_tokens": 689152,
+      "cache_miss_tokens": 68676,
+      "completion_tokens": 61598,
+      "completion_tokens_mean": 1711.0555555555557,
+      "cost": 0.09865531,
+      "cost_mean": 0.0027404252777777777,
+      "latency_mean_ms": 35282.334805555554,
+      "latency_p50_ms": 37534.28999999999,
+      "model_turns": 257,
+      "model_turns_mean": 7.138888888888889,
+      "prompt_tokens": 757828,
+      "prompt_tokens_mean": 21050.777777777777,
+      "runs": 36,
+      "success": 28,
+      "tool_calls": 310,
+      "tool_calls_mean": 8.61111111111111
+    },
+    "A1": {
+      "cache_hit_ratio": 0.8839068973301517,
+      "cache_hit_tokens": 4412800,
+      "cache_miss_tokens": 579581,
+      "completion_tokens": 171656,
+      "completion_tokens_mean": 4768.222222222223,
+      "cost": 0.40633831,
+      "cost_mean": 0.011287175277777778,
+      "latency_mean_ms": 72014.45097222223,
+      "latency_p50_ms": 72747.125,
+      "model_turns": 987,
+      "model_turns_mean": 27.416666666666668,
+      "prompt_tokens": 4992381,
+      "prompt_tokens_mean": 138677.25,
+      "runs": 36,
+      "success": 3,
+      "tool_calls": 1075,
+      "tool_calls_mean": 29.86111111111111
+    }
+  },
+  "paired": {
+    "a0_only": 27,
+    "a1_only": 2,
+    "both": 7,
+    "ci95_high": -0.5060680154190866,
+    "ci95_low": -0.8828208734698022,
+    "mean_difference": -0.6944444444444444,
+    "n": 36
+  },
+  "source_manifest": "D:\\Work\\AtlasOS\\experiments\\results\\stage-e1\\e1-20261109T102030Z\\manifest.json"
+}

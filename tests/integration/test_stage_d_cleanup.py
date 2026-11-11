@@ -26,6 +26,8 @@ from atlasos.sandbox import (
     WorkloadOwnershipLock,
 )
 from atlasos.trusted_recovery import (
+    RecoveryCleanupResult,
+    TrustedRecoveryDisposalError,
     TrustedRecoveryError,
     TrustedRecoveryOwnershipUnresolved,
     TrustedRecoverySession,
@@ -196,6 +198,156 @@ async def test_wrapper_exposes_uncertain_ownership_without_handoff(tmp_path: Pat
     )
     assert world.provider.destroy_count == 0
     _durable_ready(world)
+
+
+async def test_disposal_is_refused_when_settlement_is_uncertain(tmp_path: Path) -> None:
+    world = World(tmp_path)
+    await world.create_suspension()
+    await world.approve()
+    await world.release_a()
+    world.provider.raise_write_after_effect = True
+    with pytest.raises(TrustedRecoveryDisposalError, match="UNCERTAIN") as raised:
+        await resume_durable_sandbox_suspension(
+            world.recovery_config(),
+            dispose_sandbox_on_settlement=True,
+        )
+    assert raised.value.disposed is False
+    assert raised.value.cleanup is not None
+    assert raised.value.cleanup.ownership_unresolved is True
+    assert world.provider.destroy_count == 0
+    assert world.sandbox_id is not None
+    assert world.sandbox_id in world.provider.remote_state
+    _durable_ready(world)
+
+
+async def test_disposal_failure_is_not_reported_as_success(tmp_path: Path) -> None:
+    world = World(tmp_path)
+    await world.create_suspension()
+    await world.approve()
+    await world.release_a()
+    world.provider.fail_destroy = True
+    with pytest.raises(TrustedRecoveryDisposalError, match="destruction") as raised:
+        await resume_durable_sandbox_suspension(
+            world.recovery_config(),
+            dispose_sandbox_on_settlement=True,
+        )
+    assert raised.value.disposed is False
+    assert raised.value.cleanup is not None
+    assert world.provider.destroy_count == 1
+    store = SQLiteSandboxBindingStore(world.state_root / "sandbox_bindings.db")
+    durable = store.get_for_task("run-stage-d", TASK_ID)
+    assert durable is not None
+    assert durable.state == "LOST"
+
+
+async def test_disposal_exception_exposes_cleanup_and_retains_ownership(
+    tmp_path: Path,
+) -> None:
+    world = World(tmp_path)
+    await world.create_suspension()
+    await world.approve()
+    await world.release_a()
+    world.provider.raise_destroy = True
+    with pytest.raises(TrustedRecoveryDisposalError, match="destroy") as raised:
+        await resume_durable_sandbox_suspension(
+            world.recovery_config(),
+            dispose_sandbox_on_settlement=True,
+        )
+    assert raised.value.disposed is False
+    assert raised.value.cleanup is not None
+    assert raised.value.cleanup.ownership_unresolved is True
+    assert raised.value.cleanup.ownership_released is False
+    assert world.provider.destroy_count == 1
+    _durable_ready(world)
+    assert (
+        _attempt_lock_in_process(world.state_root, run_id="run-stage-d", task_id=TASK_ID) is False
+    )
+
+
+async def test_cleanup_reports_runtime_close_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, session = await _approved_session(tmp_path)
+    assert (await session.resume()).status == "settled"
+
+    async def fail_close() -> None:
+        raise RuntimeError("runtime close failed")
+
+    monkeypatch.setattr(session.runtime, "close", fail_close)
+    cleanup = await session.close()
+    assert cleanup.ownership_released is True
+    assert cleanup.ownership_unresolved is False
+    assert cleanup.runtime_closed is False
+    assert cleanup.idempotency_closed is True
+    assert cleanup.error is not None
+    assert "runtime close failed" in (cleanup.reason or "")
+
+
+async def test_cleanup_reports_idempotency_teardown_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, session = await _approved_session(tmp_path)
+    assert (await session.resume()).status == "settled"
+
+    async def fail_teardown() -> None:
+        raise RuntimeError("idempotency close failed")
+
+    monkeypatch.setattr(session.idempotency, "teardown", fail_teardown)
+    cleanup = await session.close()
+    assert cleanup.ownership_released is True
+    assert cleanup.ownership_unresolved is False
+    assert cleanup.runtime_closed is True
+    assert cleanup.idempotency_closed is False
+    assert cleanup.error is not None
+    assert "idempotency close failed" in (cleanup.reason or "")
+
+
+async def test_wrapper_exposes_cleanup_when_recovery_and_cleanup_fail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world = World(tmp_path)
+    suspension = await world.create_suspension()
+    await world.approve()
+    await world.release_a()
+    db = world.state_root / "suspension.db"
+    with sqlite3.connect(db) as connection:
+        row = connection.execute(
+            "SELECT payload FROM execution_suspensions WHERE suspension_id=?",
+            (suspension.suspension_id,),
+        ).fetchone()
+        payload = json.loads(row[0])
+        payload["sandbox_binding_digest"] = "f" * 64
+        connection.execute(
+            "UPDATE execution_suspensions SET payload=? WHERE suspension_id=?",
+            (json.dumps(payload), suspension.suspension_id),
+        )
+        connection.commit()
+    captured: list[TrustedRecoverySession] = []
+    original_close = TrustedRecoverySession.close
+
+    async def partially_failing_close(self: TrustedRecoverySession) -> RecoveryCleanupResult:
+        captured.append(self)
+        return RecoveryCleanupResult(
+            ownership_released=True,
+            ownership_unresolved=False,
+            runtime_closed=False,
+            idempotency_closed=False,
+            reason="cleanup failed after the original recovery error",
+            error=RuntimeError("cleanup failed after the original recovery error"),
+        )
+
+    monkeypatch.setattr(TrustedRecoverySession, "close", partially_failing_close)
+    try:
+        with pytest.raises(TrustedRecoveryError, match="continuity") as raised:
+            await resume_durable_sandbox_suspension(world.recovery_config())
+    finally:
+        monkeypatch.setattr(TrustedRecoverySession, "close", original_close)
+    notes = "\n".join(raised.value.__notes__)
+    assert "cleanup failed after the original recovery error" in notes
+    assert "runtime_closed=False" in notes
+    assert "idempotency_closed=False" in notes
+    for session in captured:
+        await session.close()
 
 
 async def test_cleanup_does_not_mask_recovery_exception(tmp_path: Path) -> None:

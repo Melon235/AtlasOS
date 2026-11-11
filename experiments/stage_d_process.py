@@ -48,6 +48,7 @@ from atlasos.tools import AtlasToolRuntime
 from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.trusted_recovery import (
     TrustedRecoveryConfig,
+    TrustedRecoveryDisposalError,
     TrustedRecoverySession,
 )
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerCatalog, WorkerStore
@@ -497,7 +498,16 @@ async def _recover(args: argparse.Namespace) -> int:
         else:
             output["target_content"] = None
         if args.dispose and outcome.status in ("settled", "cleared"):
-            output["disposed"] = await session.dispose_sandbox()
+            try:
+                output["disposed"] = await session.dispose_sandbox()
+            except TrustedRecoveryDisposalError as error:
+                # UNCERTAIN (or another unsafe disposal condition) deliberately leaves S1 and
+                # ownership unresolved for an operator. Record the refusal and the real cleanup
+                # result; never rewrite it as a successful cleanup.
+                cleanup = await session.close()
+                output["disposed"] = error.disposed
+                output["disposal_refused"] = str(error)
+                output["disposal_cleanup"] = cleanup.describe()
             output["manager_destroy_count"] = session.manager.destroy_count
             output["provider_counts"] = provider.counts
         elif session.reattached:
