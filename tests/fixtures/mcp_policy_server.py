@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP  # pyright: ignore  # optional 'tools' extra
 
 server = FastMCP("atlas-policy")
 
