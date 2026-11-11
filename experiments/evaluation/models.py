@@ -81,6 +81,10 @@ class BenchmarkTask:
     max_turns: int = 14
     tags: tuple[str, ...] = ()
     notes: str = ""
+    #: Stage R0.5: public interface documents that are frozen *before* workers start, keyed by
+    #: worker task id. The routing adapter verifies each path against ``visible_files``; a declared
+    #: path that is not staged is recorded as UNKNOWN evidence, never as a trusted contract.
+    frozen_contracts: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.sample_id.strip():
@@ -99,33 +103,37 @@ class BenchmarkTask:
 
     @property
     def fixture_digest(self) -> str:
-        return canonical_digest(
-            {
-                "sample_id": self.sample_id,
-                "category": self.category,
-                "mode": self.mode,
-                "prompt": self.prompt,
-                "target": self.target,
-                "visible_files": self.visible_files,
-                "hidden_files": self.hidden_files,
-                "workers": [
-                    {
-                        "task_id": worker.task_id,
-                        "title": worker.title,
-                        "prompt": worker.prompt,
-                        "depends_on": worker.depends_on,
-                        "max_turns": worker.max_turns,
-                    }
-                    for worker in self.workers
-                ],
-                "allowed_paths": self.allowed_paths,
-                "forbidden_paths": self.forbidden_paths,
-                "required_artifacts": self.required_artifacts,
-                "tool_expectations": self.tool_expectations,
-                "mcp_server": self.mcp_server,
-                "max_turns": self.max_turns,
+        payload: dict[str, Any] = {
+            "sample_id": self.sample_id,
+            "category": self.category,
+            "mode": self.mode,
+            "prompt": self.prompt,
+            "target": self.target,
+            "visible_files": self.visible_files,
+            "hidden_files": self.hidden_files,
+            "workers": [
+                {
+                    "task_id": worker.task_id,
+                    "title": worker.title,
+                    "prompt": worker.prompt,
+                    "depends_on": worker.depends_on,
+                    "max_turns": worker.max_turns,
+                }
+                for worker in self.workers
+            ],
+            "allowed_paths": self.allowed_paths,
+            "forbidden_paths": self.forbidden_paths,
+            "required_artifacts": self.required_artifacts,
+            "tool_expectations": self.tool_expectations,
+            "mcp_server": self.mcp_server,
+            "max_turns": self.max_turns,
+        }
+        # Only present when declared, so tasks without a frozen contract keep their digest.
+        if self.frozen_contracts:
+            payload["frozen_contracts"] = {
+                key: list(value) for key, value in sorted(self.frozen_contracts.items())
             }
-        )
+        return canonical_digest(payload)
 
     def public_metadata(self) -> dict[str, Any]:
         return {
