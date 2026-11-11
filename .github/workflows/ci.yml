@@ -40,11 +40,11 @@ jobs:
 
       - name: Install
         run: |
-          # Extras the offline suite actually imports: the local app tests need fastapi/typer,
-          # the sandbox adapter tests need the OpenSandbox/Daytona clients, and the ContextPilot
-          # tests do not skip themselves. mcp / sentence-transformers / faiss stay optional
-          # because those tests use pytest.importorskip.
-          .venv\Scripts\python -m pip install -e ".[dev,sandbox,app,contextpilot]"
+          # Extras the offline suite actually imports: the local app tests need fastapi/typer and
+          # the sandbox adapter tests need the OpenSandbox/Daytona clients. ContextPilot, mcp and
+          # the embedding stack stay optional because those tests use pytest.importorskip (and the
+          # ContextPilot wheel installs a .pth hook that pollutes every child process on Windows).
+          .venv\Scripts\python -m pip install -e ".[dev,sandbox,app]"
 
       - name: Tests
         run: .venv\Scripts\python -m pytest

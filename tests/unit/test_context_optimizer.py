@@ -50,6 +50,7 @@ def _duplicate_content() -> str:
 
 
 def test_contextpilot_dedup_transform_uses_official_api() -> None:
+    pytest.importorskip("contextpilot")
     content = _duplicate_content()
     result = (
         __import__("atlasos.context.transform", fromlist=["ContextPilotDedupTransform"])
@@ -67,6 +68,7 @@ def test_contextpilot_dedup_transform_uses_official_api() -> None:
 
 
 def test_dedup_transform_keeps_distinct_content() -> None:
+    pytest.importorskip("contextpilot")
     first = "\n".join(f"alpha line {i} " + "x" * 60 for i in range(60))
     second = "\n".join(f"beta line {i} " + "y" * 60 for i in range(60))
 
