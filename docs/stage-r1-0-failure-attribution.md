@@ -550,7 +550,7 @@ The review stack, in merge order:
 |---|---|---|---|
 | [#2](https://github.com/Melon235/AtlasOS/pull/2) | `master` ← `feat/stage-g1-r0-prerequisites` | 132 files, 23 commits | prerequisite Stage G1–R0 |
 | [#1](https://github.com/Melon235/AtlasOS/pull/1) | `feat/stage-g1-r0-prerequisites` ← `experiment/r0-5-positive-delegation` | 13 files, 5 commits | Stage R0.5 |
-| [#3](https://github.com/Melon235/AtlasOS/pull/3) | `experiment/r0-5-positive-delegation` ← `analysis/r1-0-failure-attribution` | 20 files, 9 commits | this stage |
+| [#3](https://github.com/Melon235/AtlasOS/pull/3) | `experiment/r0-5-positive-delegation` ← `analysis/r1-0-failure-attribution` | 20 files, 10 commits | this stage |
 
 Commits on `analysis/r1-0-failure-attribution`:
 
@@ -564,9 +564,11 @@ a0bcac9 ci: run the offline suite on Windows and install every imported extra
 af93326 ci: keep ContextPilot optional in the offline suite
 38a89af ci: mark the optional-extra imports so pyright runs without the heavy extras
 2abd377 ci: mark the optional mcp import in the fixture server
+a23b28f docs(runtime): record CI iterations and the PR stack in the R1-0 report
 ```
 
-(`564e3b3` … `2abd377` are the iterations documented in A3; the final commit is green.)
+(`564e3b3` … `2abd377` are the iterations documented in A3; the final commit is green in CI. Two
+documentation commits follow them and add no code.)
 
 No force-push, no history rewrite, no automatic merge, `master` untouched.
 
