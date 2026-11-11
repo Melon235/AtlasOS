@@ -68,6 +68,11 @@ from experiments.evaluation.stage_r0_routing import (
     plan_route,
     routing_policy,
 )
+from experiments.evaluation.stage_r1_1_ownership import (
+    manifest_for_task,
+    manifest_public_summary,
+)
+from experiments.evaluation.stage_r1_1_trace import compare_with_result, summarize_trace
 
 from atlasos.actions import ActionCatalog, ActionPolicy, ActionRule
 from atlasos.actions.catalog import DEFAULT_MAPPINGS, ActionMapping
@@ -85,6 +90,12 @@ from atlasos.integrations.anycode_engine import AtlasContextEngine
 from atlasos.integrations.deepseek import DeepSeekAdapter
 from atlasos.ledger import SQLiteActionLedgerStore
 from atlasos.metrics.models import InferenceObservation
+from atlasos.ownership import (
+    OWNERSHIP_MODE_OFF,
+    OWNERSHIP_MODES,
+    OwnershipManifestError,
+    build_ownership_enforcer,
+)
 from atlasos.sandbox import (
     OpenSandboxOptions,
     ProjectSandboxManager,
@@ -105,6 +116,12 @@ from atlasos.tool_result_offload import (
 )
 from atlasos.tools import AtlasToolRuntime
 from atlasos.tools.conversation import set_current_task_id
+from atlasos.trajectory.payloads import (
+    EXECUTION_INTEGRITY_MODES,
+    EXECUTION_INTEGRITY_OFF,
+    EXECUTION_INTEGRITY_RECORD,
+    ToolPayloadCorpus,
+)
 from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerCatalog, WorkerStore
 from atlasos.workers.routing import capabilities_from_catalog
@@ -162,6 +179,10 @@ class RunnerSettings:
     tool_error_mode: str = "legacy"
     tool_result_mode: str = "off"
     worker_contract_mode: str = "legacy"
+    #: Stage R1-1: Host-owned write authorization for the shared workspace.
+    ownership_mode: str = "off"
+    #: Stage R1-1: durable tool-event evidence (private payload corpus + worker stop events).
+    execution_integrity_mode: str = "off"
     delegation_route_mode: str = "off"
     #: Stage R0.5: which frozen routing policy the selective arm must use.
     delegation_policy_version: str = "r0.1.0"
@@ -187,6 +208,8 @@ class RunnerSettings:
                 "tool_error_mode": self.tool_error_mode,
                 "tool_result_mode": self.tool_result_mode,
                 "worker_contract_mode": self.worker_contract_mode,
+                "ownership_mode": self.ownership_mode,
+                "execution_integrity_mode": self.execution_integrity_mode,
                 "delegation_route_mode": self.delegation_route_mode,
                 "delegation_policy_version": self.delegation_policy_version,
                 "config": _config_digest(self.config_path),
@@ -596,6 +619,8 @@ async def run_sample(
         "tool_error_mode": settings.tool_error_mode,
         "tool_result_mode": settings.tool_result_mode,
         "worker_contract_mode": settings.worker_contract_mode,
+        "ownership_mode": settings.ownership_mode,
+        "execution_integrity_mode": settings.execution_integrity_mode,
         "delegation_route_mode": settings.delegation_route_mode,
         "delegation_policy_version": settings.delegation_policy_version,
     }
@@ -607,6 +632,7 @@ async def run_sample(
     handoff: HandoffRuntime | None = None
     compaction: HistoryCompactionRuntime | None = None
     ingress: ToolResultIngressRuntime | None = None
+    recorder: TrajectoryRecorder | None = None
     budget_state: RunBudgetState | None = (
         RunBudgetState(limit_tokens=settings.token_budget)
         if settings.budget_mode == BUDGET_MODE_GUARDED and settings.token_budget > 0
@@ -672,6 +698,49 @@ async def run_sample(
             provider,
             tool_error_mode=settings.tool_error_mode,
         )
+        # Stage R1-1: the ownership manifest is built from benchmark metadata before any worker
+        # runs, and the enforcer is installed as M3's external policy. In ``off`` both stay None,
+        # so the gate is byte-identical to the pre-R1-1 configuration.
+        ownership_mode = (
+            settings.ownership_mode
+            if settings.ownership_mode in OWNERSHIP_MODES
+            else OWNERSHIP_MODE_OFF
+        )
+        integrity_mode = (
+            settings.execution_integrity_mode
+            if settings.execution_integrity_mode in EXECUTION_INTEGRITY_MODES
+            else EXECUTION_INTEGRITY_OFF
+        )
+        ownership_manifest = None
+        ownership_policy = None
+        external_policy = None
+        payload_corpus = (
+            ToolPayloadCorpus.for_run(run_dir)
+            if integrity_mode == EXECUTION_INTEGRITY_RECORD
+            else None
+        )
+        if ownership_mode != OWNERSHIP_MODE_OFF:
+            try:
+                ownership_manifest = manifest_for_task(
+                    task,
+                    run_id=run_id,
+                    workspace_root=project_config.workspace_root,
+                )
+            except OwnershipManifestError as error:
+                # An ambiguous Host declaration is a configuration defect, not a model failure.
+                raise EvaluationEnvironmentError(f"ownership manifest: {error}") from error
+            external_policy, ownership_policy = build_ownership_enforcer(
+                ownership_manifest, mode=ownership_mode
+            )
+            environment["ownership"] = manifest_public_summary(ownership_manifest)
+            environment["ownership"]["declarations"] = [
+                {
+                    "worker": worker,
+                    "task": ownership_manifest.task_of(worker),
+                    "paths": list(ownership_manifest.declared_paths(worker)),
+                }
+                for worker in ownership_manifest.workers()
+            ]
         # Stage R0: the delegation route decides whether the existing A0 (single worker) or A1
         # (candidate DAG) path runs. The routing decision is recorded either way; only
         # ``selective`` changes execution, and it changes nothing else.
@@ -754,12 +823,16 @@ async def run_sample(
             max_results=config.tools.max_results,
             action_policy=_coding_policy(),
             action_catalog=_EVAL_CATALOG,
+            action_external_policy=external_policy,
             action_ledger=ledger,
             idempotency_store=idempotency,
             sandbox_tools=sandbox_tools,
             trajectory_recorder=recorder,
             runtime_instance_id=f"eval-{run_id}",
             tool_result_offloader=ingress,
+            execution_integrity_mode=integrity_mode,
+            tool_payload_corpus=payload_corpus,
+            external_denial_retry_safe=ownership_mode != OWNERSHIP_MODE_OFF,
         )
         await _run_mcp_setup(runtime, task)
 
@@ -1005,6 +1078,27 @@ async def run_sample(
             metrics.extra["compaction"] = compaction.metrics_dict()
         if ingress is not None:
             metrics.extra["tool_result"] = ingress.metrics_dict()
+        # Stage R1-1: ownership evidence is measurement only. It never feeds the oracle.
+        if ownership_policy is not None:
+            metrics.extra["ownership"] = ownership_policy.evidence_snapshot()
+        if recorder is not None and integrity_mode == EXECUTION_INTEGRITY_RECORD:
+            with contextlib.suppress(Exception):
+                recorder.record_run_terminal(
+                    status=failure_class or "SUCCESS",
+                    task_count=len(task.workers),
+                    final_output_digest=canonical_digest({"output": final_output}),
+                    final_output_size=len(final_output.encode("utf-8")),
+                )
+        if integrity_mode == EXECUTION_INTEGRITY_RECORD or ownership_mode != OWNERSHIP_MODE_OFF:
+            trace = summarize_trace(
+                run_dir,
+                recorder_failures=recorder.recording_failures if recorder is not None else 0,
+            )
+            trace["result_comparison"] = compare_with_result(trace, tool_calls)
+            trace["integrity_mode"] = integrity_mode
+            trace["ownership_mode"] = ownership_mode
+            metrics.extra["trace"] = trace
+            environment["trace_status"] = trace["status"]
         task_text_digest = hashlib.sha256(
             "\n".join(f"{step_id}:{text}" for step_id, text in sorted(task_texts.items())).encode(
                 "utf-8"

@@ -112,6 +112,9 @@ class TrajectoryCorrelation(BaseModel):
 
     worker_id: str | None = None
     profile_id: str | None = None
+    #: Stage R1-1: runtime task identity, so an event can be joined to a worker without relying
+    #: on the order in which workers happened to be created.
+    task_id: str | None = None
     model_response_id: str | None = None
     occurrence_id: str | None = None
     ordinal: int | None = Field(default=None, ge=0)
@@ -154,6 +157,23 @@ class ActionProposedData(BaseModel):
     input_digest: str
     input_shape: str | None = None
     input_size: int | None = Field(default=None, ge=0)
+    #: Stage R1-1: reference into the run's private payload corpus. The transcript itself never
+    #: carries tool payloads, so a published trajectory cannot leak them.
+    input_ref: str | None = None
+    input_state: Literal["RECORDED", "REDACTED", "UNAVAILABLE"] | None = None
+
+
+class WorkerLifecycleData(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    worker_id: str
+    profile_id: str
+    parent_agent: str | None = None
+    mode: Literal["create", "restore", "stop"]
+    context_hash: str
+    #: Stage R1-1: a worker that stopped without producing a result still owes evidence.
+    stop_code: str | None = None
+    stop_reason: str | None = None
 
 
 class ToolDisclosedData(BaseModel):
@@ -163,16 +183,6 @@ class ToolDisclosedData(BaseModel):
     tool_name: str
     disclosure_source: str = "tool_search"
     query_digest: str | None = None
-
-
-class WorkerLifecycleData(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    worker_id: str
-    profile_id: str
-    parent_agent: str | None = None
-    mode: Literal["create", "restore"]
-    context_hash: str
 
 
 class ActionDecisionData(BaseModel):

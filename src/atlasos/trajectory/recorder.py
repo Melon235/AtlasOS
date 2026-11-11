@@ -100,6 +100,8 @@ class TrajectoryRecorder:
         input_digest: str,
         input_shape: str | None = None,
         input_size: int | None = None,
+        input_ref: str | None = None,
+        input_state: str | None = None,
         correlation: TrajectoryCorrelation | None = None,
     ) -> TrajectoryEnvelope | None:
         identity = {
@@ -132,6 +134,8 @@ class TrajectoryRecorder:
                 input_digest=input_digest,
                 input_shape=input_shape,
                 input_size=input_size,
+                input_ref=input_ref,
+                input_state=input_state,  # type: ignore[arg-type]
             ).model_dump(mode="json"),
         )
         return self._append(envelope)
@@ -173,6 +177,8 @@ class TrajectoryRecorder:
         mode: str,
         context_hash: str,
         transition_id: str,
+        stop_code: str | None = None,
+        stop_reason: str | None = None,
         occurred_at: datetime | None = None,
         correlation: TrajectoryCorrelation | None = None,
     ) -> TrajectoryEnvelope | None:
@@ -201,6 +207,8 @@ class TrajectoryRecorder:
                 parent_agent=parent_agent,
                 mode=mode,  # type: ignore[arg-type]
                 context_hash=context_hash,
+                stop_code=stop_code,
+                stop_reason=stop_reason,
             ).model_dump(mode="json"),
         )
         return self._append(envelope)

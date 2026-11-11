@@ -42,6 +42,11 @@ from atlasos.trajectory.models import (
     canonical_digest,
     derive_model_response_id,
 )
+from atlasos.trajectory.payloads import (
+    EXECUTION_INTEGRITY_RECORD,
+    INPUT_RECORDED,
+    INPUT_UNAVAILABLE,
+)
 
 CONVERSATION_SCHEMA_VERSION = 1
 CURRENT_TASK_ID: ContextVar[str | None] = contextvars.ContextVar(
@@ -179,6 +184,15 @@ class AtlasAgentRunner(AgentRunner):
         if recorder is not None:
             for index, block in enumerate(blocks):
                 logical = self._atlas_tool_runtime.logical_tool_name(block.name) or block.name
+                input_digest = canonical_digest(block.input)
+                input_ref, input_state = self._record_payload(
+                    ctx=ctx,
+                    block=block,
+                    logical=logical,
+                    model_response_id=model_response_id,
+                    ordinal=index,
+                    input_digest=input_digest,
+                )
                 try:  # noqa: SIM105
                     recorder.record_action_proposed(
                         model_response_id=model_response_id,
@@ -186,15 +200,18 @@ class AtlasAgentRunner(AgentRunner):
                         call_id=block.id,
                         tool_id=logical,
                         tool_name=block.name,
-                        input_digest=canonical_digest(block.input),
+                        input_digest=input_digest,
                         input_shape=shape_of(block.input),
                         input_size=size_of(block.input),
+                        input_ref=input_ref,
+                        input_state=input_state,
                         correlation=projection.model_copy(
                             update={
                                 "model_response_id": model_response_id,
                                 "ordinal": index,
                                 "call_id": block.id,
                                 "tool_id": logical,
+                                "task_id": _context_attribute(ctx, "task_id"),
                             }
                         ),
                     )
@@ -366,7 +383,39 @@ class AtlasAgentRunner(AgentRunner):
             model_response_id=model_response_id,
             worker_id=_context_attribute(ctx, "worker_id"),
             profile_id=_context_attribute(ctx, "profile_id"),
+            task_id=_context_attribute(ctx, "task_id"),
         )
+
+    def _record_payload(
+        self,
+        *,
+        ctx: ToolUseContext,
+        block: Any,
+        logical: str,
+        model_response_id: str,
+        ordinal: int,
+        input_digest: str,
+    ) -> tuple[str | None, str | None]:
+        """Stage R1-1: keep the exact input in the private corpus, never in the transcript."""
+
+        if getattr(self._atlas_tool_runtime, "execution_integrity_mode", None) != (
+            EXECUTION_INTEGRITY_RECORD
+        ):
+            return None, None
+        corpus = getattr(self._atlas_tool_runtime, "tool_payload_corpus", None)
+        if corpus is None:
+            return None, INPUT_UNAVAILABLE
+        ref = corpus.record(
+            call_id=block.id,
+            input_digest=input_digest,
+            tool_id=logical,
+            payload=block.input,
+            worker_id=_context_attribute(ctx, "worker_id"),
+            task_id=_context_attribute(ctx, "task_id"),
+            model_response_id=model_response_id,
+            ordinal=ordinal,
+        )
+        return (ref, INPUT_RECORDED) if ref is not None else (None, INPUT_UNAVAILABLE)
 
 
 def _context_attribute(context: ToolUseContext, key: str) -> str | None:
@@ -416,6 +465,7 @@ class AtlasToolAgent(Agent):
         reason = hook.take_rejection()
         if reason is None:
             return result
+        self._record_worker_stop(code="budget_exceeded", reason=reason)
         return result.model_copy(
             update={
                 "success": False,
@@ -425,6 +475,49 @@ class AtlasToolAgent(Agent):
                 ),
             }
         )
+
+    def _record_worker_stop(self, *, code: str, reason: str) -> None:
+        """Stage R1-1: a worker that never returns a result still owes a terminal event.
+
+        The tools this worker already ran are in the trajectory, but without this transition a
+        reader cannot tell "the worker is still running" from "the worker was stopped". The event
+        is additive evidence and never changes the runtime result.
+        """
+
+        runtime = self._atlas_tool_runtime
+        recorder = getattr(runtime, "trajectory_recorder", None)
+        if recorder is None:
+            return
+        if getattr(runtime, "execution_integrity_mode", None) != EXECUTION_INTEGRITY_RECORD:
+            return
+        execution_context = self.config.execution_context
+        attributes = execution_context.attributes if execution_context is not None else {}
+        worker_id = attributes.get("worker_id")
+        profile_id = attributes.get("profile_id")
+        if worker_id is None or profile_id is None:
+            return
+        try:  # noqa: SIM105 - evidence must never change runtime behavior
+            recorder.record_worker_lifecycle(
+                worker_id=str(worker_id),
+                profile_id=str(profile_id),
+                parent_agent=(
+                    str(attributes["parent_agent"]) if attributes.get("parent_agent") else None
+                ),
+                mode="stop",
+                context_hash=canonical_digest(
+                    {"system_prompt": self.config.system_prompt or "", "worker": str(worker_id)}
+                ),
+                transition_id=f"stop:{code}:{reason}",
+                stop_code=code,
+                stop_reason=reason,
+                correlation=TrajectoryCorrelation(
+                    worker_id=str(worker_id),
+                    profile_id=str(profile_id),
+                    task_id=(str(attributes["task_id"]) if attributes.get("task_id") else None),
+                ),
+            )
+        except Exception:  # noqa: BLE001 - evidence is optional
+            pass
 
     async def _get_runner(self) -> AgentRunner:
         if (

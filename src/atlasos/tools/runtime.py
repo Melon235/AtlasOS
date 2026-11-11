@@ -70,6 +70,11 @@ from atlasos.tools.search import (
     build_search_index,
 )
 from atlasos.tools.state import RunToolStateStore
+from atlasos.trajectory.payloads import (
+    EXECUTION_INTEGRITY_MODES,
+    EXECUTION_INTEGRITY_OFF,
+    ToolPayloadCorpus,
+)
 
 if TYPE_CHECKING:
     from atlasos.tool_result_offload import ToolResultIngressRuntime
@@ -140,6 +145,9 @@ class AtlasToolRuntime:
         approval_store: SQLiteApprovalStore | None = None,
         trajectory_recorder: TrajectoryRecorder | None = None,
         tool_result_offloader: ToolResultIngressRuntime | None = None,
+        execution_integrity_mode: str = EXECUTION_INTEGRITY_OFF,
+        tool_payload_corpus: ToolPayloadCorpus | None = None,
+        external_denial_retry_safe: bool = False,
     ) -> None:
         if action_ledger is not None and action_policy is None:
             raise ValueError("action_ledger requires action_policy; M4 runs only after M3")
@@ -154,6 +162,12 @@ class AtlasToolRuntime:
             raise ValueError("M6 replaces current-run HITL; action_approval_manager must be None")
         if max_results < 1:
             raise ValueError("max_results must be >= 1")
+        if execution_integrity_mode not in EXECUTION_INTEGRITY_MODES:
+            raise ValueError(f"unknown execution integrity mode {execution_integrity_mode!r}")
+        if tool_payload_corpus is not None and execution_integrity_mode == EXECUTION_INTEGRITY_OFF:
+            raise ValueError("tool_payload_corpus requires execution_integrity_mode='record'")
+        self.execution_integrity_mode = execution_integrity_mode
+        self.tool_payload_corpus = tool_payload_corpus
         self.run_id = run_id
         self.runtime_instance_id = runtime_instance_id or f"runtime-{uuid.uuid4()}"
         self.action_ledger = action_ledger
@@ -229,6 +243,7 @@ class AtlasToolRuntime:
                 external_policy=action_external_policy,
                 tool_sources=self._tool_sources,
                 trajectory_recorder=trajectory_recorder,
+                external_denial_retry_safe=external_denial_retry_safe,
             )
             self._inner_executor = cast(Any, self.action_safety_gate)
         else:
