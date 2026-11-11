@@ -1,12 +1,41 @@
-# AGENTS.md — AtlasOS Repository Constitution
+# AGENTS.md — AtlasRuntime Repository Constitution
+
+## 0. Naming Discipline
+
+The project's formal name is **AtlasRuntime**: a multi-worker execution, isolation, recovery and
+selective-delegation runtime for AI Coding Agents. It is not an operating system, and `AtlasOS`
+must no longer be used as the outward-facing project name.
+
+Applies to: new documents, architecture diagrams, PR titles/descriptions, experiment reports,
+technical summaries. `README.md` is migrated gradually.
+
+Frozen historical identifiers — **do not rename** for the sake of name consistency:
+
+```text
+Repository: Melon235/AtlasOS
+Python package / imports: atlasos
+CLI and config keys: atlasos
+Environment variables: ATLASOS_*
+Historical experiment / run identifiers: atlasos-*
+database schema, benchmark IDs, run IDs, experiment digests, git history
+```
+
+Renaming any of the above requires a dedicated migration stage (repo rename, remote, CI, docs
+links, compatibility audit). Within the current stage, naming unification is a prose-only change in
+human-readable documents and must not expand into a code or repository rename.
+
+Where older material in this repository — including the body of this file and earlier stage
+reports — says `AtlasOS`, it names the same system: read it as AtlasRuntime.
 
 ## 1. Project Mission
 
-AtlasOS is an experimental AgentOS-style runtime for long-horizon multi-agent workloads.
+AtlasRuntime was introduced as an experimental AgentOS-style runtime for long-horizon multi-agent
+workloads and is now positioned as a multi-worker execution, isolation, recovery and
+selective-delegation runtime for AI Coding Agents.
 
 The project does **not** aim to reimplement a full agent framework, LLM serving engine, physical KV-cache manager, container runtime, vector database, or distributed operating system.
 
-AtlasOS builds on a lightweight multi-agent orchestration runtime and focuses on one research question:
+It builds on a lightweight multi-agent orchestration runtime and focuses on one research question:
 
 > How should a multi-agent runtime jointly manage task execution and model context so that it minimizes cache-miss prefill and runtime cost rather than merely minimizing prompt length?
 
