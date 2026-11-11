@@ -145,9 +145,10 @@ class SemanticToolSearchIndex:
 
     def _load(self) -> None:
         try:
-            import faiss
-            import numpy as np
-            from sentence_transformers import SentenceTransformer
+            # Optional 'tools' extra: unresolved on purpose when the extra is absent.
+            import faiss  # pyright: ignore
+            import numpy as np  # pyright: ignore
+            from sentence_transformers import SentenceTransformer  # pyright: ignore
         except ImportError as error:  # pragma: no cover - optional extra
             raise ToolSearchUnavailable(
                 "semantic tool search requires the 'toolsearch' extra "
@@ -181,7 +182,7 @@ class SemanticToolSearchIndex:
         self._index = index
 
     def search(self, query: str, *, top_k: int = 3) -> list[ToolSearchMatch]:
-        import numpy as np
+        import numpy as np  # pyright: ignore
 
         if self._index is None or self._model is None:  # pragma: no cover - defensive
             raise ToolSearchUnavailable("semantic tool index is not initialized")

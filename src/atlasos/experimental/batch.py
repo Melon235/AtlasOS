@@ -74,7 +74,7 @@ class ContextPilotReorderPolicy:
     def order(self, requests: Sequence[RenderedRequest]) -> BatchOrderResult:
         started = time.perf_counter()
         try:
-            from contextpilot import ContextPilot
+            from contextpilot import ContextPilot  # pyright: ignore
         except ImportError as exc:  # pragma: no cover - depends on optional extra
             raise BatchPolicyUnavailable(
                 "contextpilot==0.5.0 is not installed; install the 'contextpilot' extra"

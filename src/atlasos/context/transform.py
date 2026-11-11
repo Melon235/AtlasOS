@@ -100,7 +100,7 @@ class ContextPilotDedupTransform:
         del query
         started = time.perf_counter()
         try:
-            from contextpilot import dedup_chat_completions
+            from contextpilot import dedup_chat_completions  # pyright: ignore
         except ImportError as exc:  # pragma: no cover - depends on optional extra
             raise ContextPilotUnavailable(
                 "contextpilot==0.5.0 is not installed; install the 'contextpilot' extra"
