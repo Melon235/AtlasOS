@@ -142,8 +142,15 @@ benchmark pass.
 
 ## Commit stack
 
+Scope of the diff: this branch also carries the **22 stage commits that were never pushed** (Stage
+E1–F and earlier). They are ancestors of the prerequisite commit below, they dominate the file count
+of the diff (≈93 of the 143 changed files, mostly committed evaluation artifacts under
+`experiments/results/`), and they are not part of R0.5. Reviewing R0.5 means reviewing the five
+commits below.
+
 1. `feat: land Stage G1-R0 runtime safety, handoff, budget and delegation router` — prerequisite.
    These stages were never pushed; R0.5 cannot run or be reviewed without them.
 2. `test(evaluation): add positive delegation benchmarks and measure real parallelism`
 3. `fix(evaluation): read the G3-4a isolation verdict from its actual field`
 4. `docs(runtime): report R0.5 positive delegation validation`
+5. `docs(runtime): record delivery status and prepare the PR description`
