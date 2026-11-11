@@ -341,10 +341,15 @@ no assertion was weakened and no test was deleted.
 
 ## 15. GitHub
 
-Branch `fix/r1-1-worker-ownership-integrity`, stacked on the PR #3 head. Four commits: ownership
-policy, trace integrity, tests, docs. No force push, no `git add .`, no repository rename, no
-secret or raw provider payload committed. See the PR for the CI result; nothing is claimed here that
-CI has not reported.
+Branch `fix/r1-1-worker-ownership-integrity` is pushed to `origin`, stacked on the PR #3 head
+`analysis/r1-0-failure-attribution` (`a8dde65`). Five commits: ownership policy, trace integrity,
+tests, naming, report. No force push, no `git add .`, no repository rename, no secrets and no raw
+provider payload; the local run directories stay untracked.
+
+**The PR could not be opened from this environment.** `gh` is not installed and no GitHub token is
+available, so no pull request exists and no CI run was observed. Open it at
+<https://github.com/Melon235/AtlasOS/pull/new/fix/r1-1-worker-ownership-integrity> with base
+`analysis/r1-0-failure-attribution`. CI status is **unknown**, not passed.
 
 ## 16. Remaining risk
 
@@ -377,7 +382,7 @@ CI has not reported.
 | E. Execution trace completeness | **PASS** | 100 % input coverage in 32/32 runs; 111 actions recovered; `TRACE_COMPLETE` |
 | F. Runtime compatibility | **PARTIAL** | `off` is byte-identical; `enforce` blocks interpreters (19 denials, oracle 1/4) |
 | G. Real evaluation impact | **PARTIAL** | O1 never beats O0 (1/16 vs 7/16); no live rollback occurred, so protection is not the cause |
-| H. GitHub review readiness | **PASS** | scoped commits, no sensitive data, CI status reported in the PR; not merged |
+| H. GitHub review readiness | **PARTIAL** | branch scoped and pushed, no sensitive data, five clean commits; the PR itself was not opened and CI was not observed from this environment |
 
 ## The five questions
 
