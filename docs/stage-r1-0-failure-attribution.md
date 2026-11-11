@@ -88,19 +88,39 @@ saying so and does not present the family as a held-out benchmark.
 
 ## A3. Continuous integration
 
-`.github/workflows/ci.yml` (new; the repository had no workflows): Python 3.12, `pip install -e
-".[dev,sandbox]"`, then
+`.github/workflows/ci.yml` is the first workflow in the repository. It runs on `windows-latest`
+(`pull_request` and `push: master`) with Python 3.12, creates the `.venv` that the pyright config
+points at, installs `.[dev,sandbox,app]`, and runs:
 
 ```text
-python -m pytest                 (live API tests are deselected by the pytest addopts marker filter)
-python -m ruff check .
-python -m ruff format --check .
-python -m pyright
+.venv\Scripts\python -m pytest                 692 passed, 8 skipped, 1 deselected (202 s)
+.venv\Scripts\python -m ruff check .           All checks passed
+.venv\Scripts\python -m ruff format --check .  354 files already formatted
+.venv\Scripts\python -m pyright                0 errors, 0 warnings
 ```
 
-No secrets: `tests/integration/test_live_deepseek.py` is marked `live` and deselected, and
-`test_stage_g3_4a_isolation_live.py` skips unless `ATLASOS_RUN_LIVE_SANDBOX=1`. CI proves the
-offline regression only; it does not reproduce the 30 paid model runs. The PR is not auto-merged.
+No secrets and no external service: `test_live_deepseek.py` is marked `live` and deselected,
+`test_stage_g3_4a_isolation_live.py` skips without `ATLASOS_RUN_LIVE_SANDBOX=1`, and the optional
+extras that CI does not install (contextpilot, mcp, sentence-transformers, faiss) are skipped through
+`pytest.importorskip`. CI proves the **offline** regression only; it does not reproduce the 30 paid
+model runs. The PR is not auto-merged.
+
+Getting there took four red runs, each of which exposed a real portability gap rather than a bug in
+this stage:
+
+| Run | Failure | Resolution |
+|---|---|---|
+| 1 (ubuntu) | `ModuleNotFoundError: fastapi` / `typer` — the local app tests import the `app` extra | install `.[dev,sandbox,app]` |
+| 2 (ubuntu) | 4 M5 sandbox tests: the in-repo fake provider drives a `cmd` shell, so cloning fails on Linux | run the suite on Windows (pre-existing platform assumption, documented as a limitation) |
+| 3 (windows) | `contextpilot` wheel installs a `.pth` startup hook that then pollutes every child process' stderr | keep contextpilot optional; the 3 tests that need it now use `pytest.importorskip`, like the existing smoke test |
+| 4 (windows) | pyright: `reportMissingImports` for contextpilot / faiss / numpy / sentence-transformers / mcp | six type-checker-only annotations on those optional imports (`# pyright: ignore`); runtime behaviour unchanged |
+| 5 (windows) | — | **green: tests, lint, format and types all pass** |
+
+Two of those fixes touched files outside `experiments/`: the `pytest.importorskip` guards in three
+test modules and the six `# pyright: ignore` annotations on optional imports in
+`src/atlasos/{context/transform,experimental/batch,tools/search}.py` and one test fixture. Neither
+changes runtime behaviour: every annotated import already sits inside a `try/except ImportError` with
+the same fallback it had before, and the guarded tests still run and pass when the extra is present.
 
 ---
 
@@ -411,6 +431,9 @@ What is a fact, what is an inference:
    worker's own probes and the artifact AST, not through per-test results.
 5. **No counterfactual.** These are the runs that happened; nothing was re-run to test a hypothesis.
 6. **n = 2 per cell.** Every statement above is directional.
+7. **The offline suite is Windows-only today.** The in-repo fake sandbox provider drives a `cmd`
+   shell, so four M5 integration tests fail on a Linux runner. That is pre-existing and was not
+   fixed here; it is why CI runs on `windows-latest`.
 
 ## 11. Minimal fix options
 
@@ -495,12 +518,20 @@ their own context — a threshold the R0 gates do not currently express.
 ## 13. Tests and regression
 
 ```text
-.\.venv\Scripts\python.exe -m pytest                      701 passed, 1 skipped, 1 deselected (…s)
-.\.venv\Scripts\python.exe -m pytest tests/unit/test_stage_r1_0_analysis.py   16 passed
-.\.venv\Scripts\python.exe -m ruff check .                All checks passed
-.\.venv\Scripts\python.exe -m ruff format --check .       352 files already formatted
-python -m pyright                                         0 errors, 0 warnings
+local (all extras installed)
+  .\.venv\Scripts\python.exe -m pytest                    701 passed, 1 skipped, 1 deselected (248 s)
+  .\.venv\Scripts\python.exe -m pytest tests/unit/test_stage_r1_0_analysis.py   16 passed
+  .\.venv\Scripts\python.exe -m ruff check .              All checks passed
+  .\.venv\Scripts\python.exe -m ruff format --check .     354 files already formatted
+  .\.venv\Scripts\python.exe -m pyright                   0 errors, 0 warnings
+
+CI (GitHub Actions, windows-latest)
+  pytest                                                  692 passed, 8 skipped, 1 deselected
+  ruff check / format --check / pyright                   pass / 354 formatted / 0 errors
 ```
+
+The 9-test difference is the optional extras: ContextPilot is installed locally and skipped in CI by
+design (its wheel's `.pth` hook breaks child-process output).
 
 The 16 new tests cover the two joins (exact/multiset/ambiguous), the stub-with-docstring AST case,
 the three deliverable states, path normalisation, sibling-revert detection (true and false
@@ -513,10 +544,31 @@ read-only test compares mtimes before and after collection.
 
 ## 14. GitHub delivery
 
-* Track A: PR #2 (prerequisite, base `master`) and PR #1 retargeted onto it (13-file R0.5 diff).
-* Track B: new branch `analysis/r1-0-failure-attribution` with the analyzer, its tests and this
-  report, plus the sanitized evidence directories.
-* No force-push, no history rewrite, no automatic merge, `master` untouched.
+The review stack, in merge order:
+
+| PR | Base ← Head | Size | Content |
+|---|---|---|---|
+| [#2](https://github.com/Melon235/AtlasOS/pull/2) | `master` ← `feat/stage-g1-r0-prerequisites` | 132 files, 23 commits | prerequisite Stage G1–R0 |
+| [#1](https://github.com/Melon235/AtlasOS/pull/1) | `feat/stage-g1-r0-prerequisites` ← `experiment/r0-5-positive-delegation` | 13 files, 5 commits | Stage R0.5 |
+| [#3](https://github.com/Melon235/AtlasOS/pull/3) | `experiment/r0-5-positive-delegation` ← `analysis/r1-0-failure-attribution` | 20 files, 9 commits | this stage |
+
+Commits on `analysis/r1-0-failure-attribution`:
+
+```text
+c01148e feat(evaluation): add read-only failure attribution for the Stage R0.5 runs
+11f1891 ci: add offline regression workflow
+340c135 chore(evidence): publish sanitized R0.5 and R1-0 aggregates
+62e698b docs(runtime): report R1-0 failure attribution
+564e3b3 ci: install the app extra the offline suite imports
+a0bcac9 ci: run the offline suite on Windows and install every imported extra
+af93326 ci: keep ContextPilot optional in the offline suite
+38a89af ci: mark the optional-extra imports so pyright runs without the heavy extras
+2abd377 ci: mark the optional mcp import in the fixture server
+```
+
+(`564e3b3` … `2abd377` are the iterations documented in A3; the final commit is green.)
+
+No force-push, no history rewrite, no automatic merge, `master` untouched.
 
 ---
 
