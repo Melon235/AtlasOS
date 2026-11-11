@@ -398,29 +398,56 @@ pairing, serialisation, and the pre-registration guard.
 |---|---|
 | `7bd0965` | Prerequisite: Stage G1–R0 (handoff, budget, compaction, tool-error semantics, ingress offload, worker contracts, benchmark isolation, delegation router) — the code R0.5 runs on, previously unpushed |
 | `1309a18` | R0.5 benchmark families, routing audit, measurement wiring, analysis CLI, 50 tests |
-| this document | `docs/stage-r0-5-positive-delegation.md` |
+| `7146937` | Read the G3-4a isolation verdict from its actual field name |
+| `f3d8396` | This report |
+| final docs commit | `docs/stage-r0-5-pr-body.md` (the PR description) and the delivery status in §15 |
 
 Branch: `experiment/r0-5-positive-delegation`, created from `master` (24 commits ahead of
 `origin/master`; the 22 unpushed stage commits are part of the same branch history).
 
 ---
 
-## 15. GitHub pull request
+## 15. GitHub branch and pull request
 
-Created with the REST API because `gh` is not installed:
+Branch push: **done**.
 
-```powershell
-# token read from the git credential manager, never echoed
-$pr = Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/Melon235/AtlasOS/pulls `
-  -Headers @{ Authorization = "token $env:PR_TOKEN"; "User-Agent" = "atlasos-r05" } `
-  -ContentType "application/json" -Body $body
-$pr.html_url
+```text
+git push -u origin experiment/r0-5-positive-delegation
+remote: Create a pull request for 'experiment/r0-5-positive-delegation' on GitHub by visiting:
+remote:      https://github.com/Melon235/AtlasOS/pull/new/experiment/r0-5-positive-delegation
+ * [new branch]      experiment/r0-5-positive-delegation -> experiment/r0-5-positive-delegation
 ```
 
-PR URL and the exact command output are recorded in the delivery comment of the branch
-(`docs/stage-r0-5-positive-delegation.md` §15) once the pull request exists; the number is also
-visible in `git log` and in the repository's PR list. If the API call had failed, this section would
-say so instead of claiming a PR.
+Pull request creation: **BLOCKED — no GitHub API credential on this machine.**
+
+* `gh` is not installed (`gh : CommandNotFoundException`), and no `hosts.yml` exists in any of the
+  three GitHub CLI config locations.
+* No `GH_TOKEN` / `GITHUB_TOKEN` in the environment, and `.env` contains only the DeepSeek key.
+* `git credential fill` for `https://github.com` returns nothing (the remote is SSH, so the working
+  push used an SSH key that cannot authenticate the REST API).
+
+The PR body is committed as `docs/stage-r0-5-pr-body.md`, so creating the PR is one command once a
+credential exists:
+
+```powershell
+gh pr create --base master --head experiment/r0-5-positive-delegation `
+  --title "eval: validate selective delegation on positive parallel tasks" `
+  --body-file docs/stage-r0-5-pr-body.md
+```
+
+Or, with a token:
+
+```powershell
+$body = @{ title = "eval: validate selective delegation on positive parallel tasks";
+           head = "experiment/r0-5-positive-delegation"; base = "master";
+           body = (Get-Content docs/stage-r0-5-pr-body.md -Raw) } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri https://api.github.com/repos/Melon235/AtlasOS/pulls `
+  -Headers @{ Authorization = "token $env:GH_TOKEN"; "User-Agent" = "atlasos-r05" } `
+  -ContentType "application/json" -Body $body | Select-Object -ExpandProperty html_url
+```
+
+No pull request is claimed here. The comparison URL above is provided by GitHub itself and the
+branch is public.
 
 ---
 
