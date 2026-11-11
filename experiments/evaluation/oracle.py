@@ -194,17 +194,19 @@ def _run_hidden_tests(
     return checks, details, reasons
 
 
-def evaluate_oracle(
+def static_oracle_checks(
     task: BenchmarkTask,
     *,
     workspace: Path,
     baseline_hashes: dict[str, str],
     tool_calls: list[dict[str, Any]],
     worker_results: dict[str, Any],
-    run_dir: Path,
     host_fixture_unchanged: bool,
-) -> OracleOutcome:
-    """Run every independent check; success requires all checks to pass."""
+) -> tuple[dict[str, bool], dict[str, Any], list[str]]:
+    """Every oracle check that does not execute agent-generated code.
+
+    Shared by the host and the sandboxed path so both score exactly the same static rules.
+    """
 
     current_hashes = workspace_hashes(workspace)
     checks: dict[str, bool] = {"host_fixture_unchanged": host_fixture_unchanged}
@@ -229,6 +231,33 @@ def evaluate_oracle(
     checks.update(worker_checks)
     details["worker_contract"] = worker_details
     reasons.extend(worker_reasons)
+    return checks, details, reasons
+
+
+def evaluate_oracle(
+    task: BenchmarkTask,
+    *,
+    workspace: Path,
+    baseline_hashes: dict[str, str],
+    tool_calls: list[dict[str, Any]],
+    worker_results: dict[str, Any],
+    run_dir: Path,
+    host_fixture_unchanged: bool,
+) -> OracleOutcome:
+    """Legacy Host oracle: **executes agent-generated code on the Host**.
+
+    Kept only for explicit ``oracle_mode="host"`` reproduction of pre-R1-2H numbers. The evaluation
+    runner defaults to the sandboxed path (:mod:`experiments.evaluation.sandboxed_oracle`).
+    """
+
+    checks, details, reasons = static_oracle_checks(
+        task,
+        workspace=workspace,
+        baseline_hashes=baseline_hashes,
+        tool_calls=tool_calls,
+        worker_results=worker_results,
+        host_fixture_unchanged=host_fixture_unchanged,
+    )
 
     oracle_workspace = run_dir / "oracle-workspace"
     copy_workspace(workspace, oracle_workspace)

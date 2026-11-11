@@ -186,6 +186,15 @@ class OracleOutcome:
     checks: dict[str, bool] = field(default_factory=dict)
     details: dict[str, Any] = field(default_factory=dict)
     failure_reasons: list[str] = field(default_factory=list)
+    #: Stage R1-2H: where the hidden tests ran. ``host`` is the pre-R1-2H behaviour.
+    execution_mode: str = "host"
+    #: ``HIDDEN_TESTS_FAILED`` / ``TEST_COLLECTION_FAILED`` are deliverable defects;
+    #: ``ORACLE_TIMEOUT`` / ``SANDBOX_*`` / ``NO_TESTS_COLLECTED`` are environment defects.
+    failure_kind: str | None = None
+    environment_failure: bool = False
+    cleanup_failure: str | None = None
+    digests: dict[str, str] = field(default_factory=dict)
+    timings_ms: dict[str, float] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -193,6 +202,12 @@ class OracleOutcome:
             "checks": self.checks,
             "details": self.details,
             "failure_reasons": self.failure_reasons,
+            "execution_mode": self.execution_mode,
+            "failure_kind": self.failure_kind,
+            "environment_failure": self.environment_failure,
+            "cleanup_failure": self.cleanup_failure,
+            "digests": self.digests,
+            "timings_ms": self.timings_ms,
         }
 
 
