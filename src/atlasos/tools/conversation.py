@@ -24,9 +24,11 @@ from anycode.types import (
     LLMMessage,
     LLMResponse,
     RunnerOptions,
+    StopReason,
     ToolUseContext,
 )
 
+from atlasos.budget import RunBudgetHook
 from atlasos.tools.state import ToolStateError
 from atlasos.trajectory.codec import shape_of, size_of
 from atlasos.trajectory.context import (
@@ -387,11 +389,42 @@ class AtlasToolAgent(Agent):
         *args: Any,
         conversation_store: ConversationStore,
         tool_runtime: Any | None = None,
+        budget_hook: RunBudgetHook | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self._conversation_store = conversation_store
         self._atlas_tool_runtime = tool_runtime
+        self._budget_hook = budget_hook
+
+    async def _execute_run(self, messages: list[LLMMessage]) -> AgentRunResult:
+        result = await super()._execute_run(messages)
+        return self._apply_budget_outcome(result)
+
+    def _apply_budget_outcome(self, result: AgentRunResult) -> AgentRunResult:
+        """Make a rejected LLM request a real failure instead of an empty success.
+
+        ``AgentRunner.stream`` turns any exception raised inside the turn loop into an ``error``
+        event and returns without a ``done`` event; ``Agent.run`` then falls back to an empty
+        result whose ``stop_reason`` is ``None``, which reads as ``success=True``. A budget
+        rejection must never be recorded as a model success, so the reason is restored here.
+        """
+
+        hook = self._budget_hook
+        if hook is None:
+            return result
+        reason = hook.take_rejection()
+        if reason is None:
+            return result
+        return result.model_copy(
+            update={
+                "success": False,
+                "output": reason,
+                "stop_reason": StopReason(
+                    code="budget_exceeded", message=reason, recoverable=False
+                ),
+            }
+        )
 
     async def _get_runner(self) -> AgentRunner:
         if (

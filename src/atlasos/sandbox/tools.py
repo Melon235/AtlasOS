@@ -23,6 +23,17 @@ from atlasos.sandbox.ownership import SandboxOwnershipError
 
 _WORKSPACE_TOOLS = frozenset({"bash", "file_read", "file_write", "file_edit", "grep", "list_files"})
 
+#: Stage G3-1 tool error semantics.
+#: ``legacy`` leaves ``retry_safe`` unset, so AnyCode's ``_normalize_result`` infers
+#: ``False`` for any error of a side-effecting tool and the runner stops the worker with
+#: ``side_effect_unknown``.
+TOOL_ERROR_MODE_LEGACY = "legacy"
+#: ``corrected`` marks a *completed* command (exit code observed) as ``retry_safe=True`` even
+#: when the exit code is non-zero. That only tells the runner "the outcome is known, keep going";
+#: it never re-executes the command (see the audit in docs/stage-g3-1-report.md).
+TOOL_ERROR_MODE_CORRECTED = "corrected"
+TOOL_ERROR_MODES = (TOOL_ERROR_MODE_LEGACY, TOOL_ERROR_MODE_CORRECTED)
+
 _GREP_HELPER = r"""
 import base64, json, os, re, sys
 pattern = base64.b64decode(sys.argv[1]).decode()
@@ -83,10 +94,15 @@ class SandboxWorkspaceTools:
         manager: ProjectSandboxManager,
         task_id: str,
         provider: SandboxProvider,
+        *,
+        tool_error_mode: str = TOOL_ERROR_MODE_LEGACY,
     ) -> None:
+        if tool_error_mode not in TOOL_ERROR_MODES:
+            raise ValueError(f"unknown tool error mode {tool_error_mode!r}")
         self.manager = manager
         self.task_id = task_id
         self.provider = provider
+        self.tool_error_mode = tool_error_mode
         self.lock = asyncio.Lock()
         self.operation_count = 0
         self.command_count = 0
@@ -375,7 +391,13 @@ class SandboxWorkspaceTools:
             )
             result = await self._execute(validated.command, cwd=cwd, timeout_seconds=timeout)
             if not result.ok:
-                return ToolResult(data=f"sandbox execution failed: {result.error}", is_error=True)
+                # The command was not observed to run (transport/SDK failure): its side effects
+                # are genuinely unknown, so this stays unsafe to retry in every mode.
+                return ToolResult(
+                    data=f"sandbox execution failed: {result.error}",
+                    is_error=True,
+                    retry_safe=False,
+                )
             stdout = _decode_capped(result.stdout.encode(), result.stdout, cap)
             stderr = _decode_capped(result.stderr.encode(), result.stderr, cap)
             parts: list[str] = []
@@ -384,20 +406,39 @@ class SandboxWorkspaceTools:
             if stderr:
                 parts.append(f"-- stderr --\n{stderr}" if stdout else stderr)
             code = result.exit_code or 0
+            retry_safe = self._completed_error_retry_safe(code)
             if not parts:
                 return ToolResult(
                     data="(completed silently \u2014 no output)"
                     if code == 0
                     else f"(exited with code {code} \u2014 no output produced)",
                     is_error=code != 0,
+                    retry_safe=retry_safe,
                 )
             if code != 0:
                 parts.append(f"\n(exit code {code})")
-            return ToolResult(data="\n".join(parts), is_error=code != 0)
+            return ToolResult(data="\n".join(parts), is_error=code != 0, retry_safe=retry_safe)
         except (ValueError, SandboxLostError) as error:
-            return ToolResult(data=str(error), is_error=True)
+            # Path validation failure or a lost sandbox: no trustworthy execution outcome.
+            return ToolResult(data=str(error), is_error=True, retry_safe=False)
         except SandboxOwnershipError as error:
-            return ToolResult(data=str(error), is_error=True)
+            return ToolResult(data=str(error), is_error=True, retry_safe=False)
+
+    def _completed_error_retry_safe(self, exit_code: int) -> bool | None:
+        """Error-state mapping for a command whose exit status was observed.
+
+        ``retry_safe`` here means "the runner may keep this worker alive and show the error to
+        the model". It is not a licence to replay the command: no consumer in AnyCode re-executes
+        a tool because of this flag (see the G3-1 audit).
+
+        ``legacy`` returns ``None`` so AnyCode's inference is byte-identical to the pre-G3-1
+        behaviour; ``corrected`` states the value explicitly for both outcomes.
+        """
+
+        if self.tool_error_mode == TOOL_ERROR_MODE_LEGACY:
+            return None
+        del exit_code
+        return True
 
     def tool_definitions(self) -> tuple[ToolDefinition, ...]:
         builders = {

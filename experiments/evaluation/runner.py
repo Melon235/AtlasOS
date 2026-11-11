@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import os
 import platform
 import sys
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -48,11 +49,38 @@ from experiments.evaluation.models import (
     canonical_digest,
 )
 from experiments.evaluation.oracle import evaluate_oracle
+from experiments.evaluation.stage_g3_4a_integrity import (
+    FIXTURE_COMMIT_LABEL,
+    enforce_evaluation_isolation,
+)
+from experiments.evaluation.stage_g3_worker_contracts import (
+    WORKER_CONTRACT_LEGACY,
+    WORKER_CONTRACT_MODES,
+    contract_overhead,
+    worker_task_text,
+)
+from experiments.evaluation.stage_r0_routing import (
+    DELEGATION_ROUTE_MODES,
+    DELEGATION_ROUTE_OFF,
+    DELEGATION_ROUTE_SELECTIVE,
+    a0_steps,
+    decision_digest,
+    plan_route,
+    routing_policy,
+)
 
 from atlasos.actions import ActionCatalog, ActionPolicy, ActionRule
 from atlasos.actions.catalog import DEFAULT_MAPPINGS, ActionMapping
+from atlasos.budget import BUDGET_MODE_GUARDED, RunBudgetState
 from atlasos.config import AtlasConfig, Pricing, load_config
 from atlasos.experiments import git_commit, git_dirty
+from atlasos.handoff import HANDOFF_READ_ACTION_MAPPING, HandoffNode, HandoffRuntime
+from atlasos.history_compaction import (
+    COMPACTION_MODES,
+    COMPACTION_OFF,
+    HISTORY_READ_ACTION_MAPPING,
+    HistoryCompactionRuntime,
+)
 from atlasos.integrations.anycode_engine import AtlasContextEngine
 from atlasos.integrations.deepseek import DeepSeekAdapter
 from atlasos.ledger import SQLiteActionLedgerStore
@@ -70,10 +98,16 @@ from atlasos.sandbox import (
     require_capabilities,
 )
 from atlasos.sandbox.models import SandboxLostError
+from atlasos.tool_result_offload import (
+    TOOL_RESULT_MODES,
+    TOOL_RESULT_OFF,
+    ToolResultIngressRuntime,
+)
 from atlasos.tools import AtlasToolRuntime
 from atlasos.tools.conversation import set_current_task_id
 from atlasos.trajectory.recorder import TrajectoryRecorder
-from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerStore
+from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerCatalog, WorkerStore
+from atlasos.workers.routing import capabilities_from_catalog
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO_ROOT / "experiments" / "configs" / "eval-benchmark.yaml"
@@ -92,6 +126,10 @@ _EVAL_CATALOG = ActionCatalog(
     mappings=(
         *DEFAULT_MAPPINGS,
         *(ActionMapping(f"mcp_evaltools_{name}", "external.read") for name in _EVAL_MCP_TOOLS),
+        # Stage G1 dual-channel handoff reader: read-only access to a stored dependency result.
+        HANDOFF_READ_ACTION_MAPPING,
+        # Stage G2b-1 history reader: read-only access to a worker's own archived tool results.
+        HISTORY_READ_ACTION_MAPPING,
     )
 )
 
@@ -112,12 +150,19 @@ class RunnerSettings:
     max_turns: int = 14
     max_tokens: int = 4096
     token_budget: int = 120_000
+    budget_mode: str = "legacy"
     max_tool_calls: int = 40
     progressive_tools: bool = True
     model_override: str | None = None
     retain_sandbox_on_failure: bool = False
     variant: str = "default"
     capture_evidence: bool = False
+    handoff_mode: str = "legacy"
+    compaction_mode: str = "off"
+    tool_error_mode: str = "legacy"
+    tool_result_mode: str = "off"
+    worker_contract_mode: str = "legacy"
+    delegation_route_mode: str = "off"
 
     def digest(self) -> str:
         return canonical_digest(
@@ -129,11 +174,18 @@ class RunnerSettings:
                 "max_turns": self.max_turns,
                 "max_tokens": self.max_tokens,
                 "token_budget": self.token_budget,
+                "budget_mode": self.budget_mode,
                 "max_tool_calls": self.max_tool_calls,
                 "progressive_tools": self.progressive_tools,
                 "model_override": self.model_override,
                 "variant": self.variant,
                 "capture_evidence": self.capture_evidence,
+                "handoff_mode": self.handoff_mode,
+                "compaction_mode": self.compaction_mode,
+                "tool_error_mode": self.tool_error_mode,
+                "tool_result_mode": self.tool_result_mode,
+                "worker_contract_mode": self.worker_contract_mode,
+                "delegation_route_mode": self.delegation_route_mode,
                 "config": _config_digest(self.config_path),
             }
         )
@@ -326,6 +378,55 @@ def _aggregate_observations(
     }
 
 
+UNAVAILABLE = "UNAVAILABLE"
+
+
+def _provider_call_records(
+    observations: list[InferenceObservation],
+    *,
+    run_id: str,
+    model: str,
+    pricing: Pricing | None,
+) -> list[dict[str, Any]]:
+    """One record per provider call (Stage G3-2 observability contract).
+
+    ``on_call`` fires inside the adapter, which has no agent identity, so ``worker_id`` and
+    ``task_id`` are reported as ``UNAVAILABLE`` rather than guessed from a process-global value.
+    Token, cache and latency fields are exactly what the provider returned for that call.
+    """
+
+    records: list[dict[str, Any]] = []
+    for index, observation in enumerate(observations):
+        usage = observation.usage
+        hit = usage.cache_hit_tokens
+        miss = usage.cache_miss_tokens
+        cost = _estimate_cost([observation], pricing)
+        records.append(
+            {
+                "run_id": run_id,
+                "request_index": index,
+                "worker_id": UNAVAILABLE,
+                "task_id": UNAVAILABLE,
+                "attribution": UNAVAILABLE,
+                "model": model,
+                "prompt_tokens": usage.prompt_tokens,
+                "completion_tokens": usage.completion_tokens,
+                "cache_hit_tokens": hit if hit is not None else UNAVAILABLE,
+                "cache_miss_tokens": miss if miss is not None else UNAVAILABLE,
+                "cache_hit_ratio": (
+                    round(usage.cache_hit_ratio, 6)
+                    if usage.cache_hit_ratio is not None
+                    else UNAVAILABLE
+                ),
+                "cost_usd": cost if cost is not None else UNAVAILABLE,
+                "latency_ms": round(usage.latency_ms, 3),
+                "stable_prefix_hash": observation.stable_prefix_hash,
+                "full_prompt_hash": observation.full_prompt_hash,
+            }
+        )
+    return records
+
+
 def _classify_exception(error: BaseException) -> FailureClass:
     if isinstance(error, EvaluationEnvironmentError):
         return "ENVIRONMENT_FAILURE"
@@ -437,7 +538,9 @@ async def run_sample(
     state_dir.mkdir()
     materialize_fixture(task, fixture_dir)
     baseline_hashes = workspace_hashes(fixture_dir)
-    stage_git_repo(fixture_dir, label=f"evaluation fixture {task.sample_id}")
+    # The commit message is part of the worker-visible workspace (``git log``), so it must not
+    # advertise the benchmark sample id or that this is an evaluation fixture.
+    stage_git_repo(fixture_dir, label=FIXTURE_COMMIT_LABEL)
     host_hashes_before = workspace_hashes(fixture_dir)
 
     identity = RunIdentity(
@@ -480,18 +583,39 @@ async def run_sample(
         "max_turns": settings.max_turns,
         "max_tokens": settings.max_tokens,
         "token_budget": settings.token_budget,
+        "budget_mode": settings.budget_mode,
         "max_tool_calls": settings.max_tool_calls,
         "progressive_tools": settings.progressive_tools,
         "variant": settings.variant,
         "capture_evidence": settings.capture_evidence,
+        "handoff_mode": settings.handoff_mode,
+        "compaction_mode": settings.compaction_mode,
+        "tool_error_mode": settings.tool_error_mode,
+        "tool_result_mode": settings.tool_result_mode,
+        "worker_contract_mode": settings.worker_contract_mode,
+        "delegation_route_mode": settings.delegation_route_mode,
     }
     provider = None
     manager: ProjectSandboxManager | None = None
     engine: AtlasContextEngine | None = None
     idempotency: SQLiteToolIdempotencyStore | None = None
     runtime: AtlasToolRuntime | None = None
+    handoff: HandoffRuntime | None = None
+    compaction: HistoryCompactionRuntime | None = None
+    ingress: ToolResultIngressRuntime | None = None
+    budget_state: RunBudgetState | None = (
+        RunBudgetState(limit_tokens=settings.token_budget)
+        if settings.budget_mode == BUDGET_MODE_GUARDED and settings.token_budget > 0
+        else None
+    )
     binding = None
     workspace_task_id = f"{run_id}-workspace"
+    failure_class: FailureClass | None = None
+    failure_reason: str | None = None
+    task_texts: dict[str, str] = {}
+    contract_mode = WORKER_CONTRACT_LEGACY
+    contract_overhead_chars = 0
+    routing_record: dict[str, Any] | None = None
     cleanup_error: BaseException | None = None
     final_result: EvalRunResult | None = None
     try:
@@ -538,13 +662,89 @@ async def run_sample(
         idempotency = SQLiteToolIdempotencyStore(state_dir / "idempotency.db")
         await idempotency.setup()
         ledger = SQLiteActionLedgerStore(state_dir / "ledger.db")
-        sandbox_tools = SandboxWorkspaceTools(manager, workspace_task_id, provider)
+        sandbox_tools = SandboxWorkspaceTools(
+            manager,
+            workspace_task_id,
+            provider,
+            tool_error_mode=settings.tool_error_mode,
+        )
+        # Stage R0: the delegation route decides whether the existing A0 (single worker) or A1
+        # (candidate DAG) path runs. The routing decision is recorded either way; only
+        # ``selective`` changes execution, and it changes nothing else.
+        route_mode = (
+            settings.delegation_route_mode
+            if settings.delegation_route_mode in DELEGATION_ROUTE_MODES
+            else DELEGATION_ROUTE_OFF
+        )
+        if route_mode != DELEGATION_ROUTE_OFF:
+            routed = plan_route(
+                task,
+                capabilities_from_catalog(WorkerCatalog()),
+                routing_policy(),
+            )
+            routing_record = routed.as_dict()
+            routing_record["mode"] = route_mode
+            routing_record["candidate_worker_count"] = len(task.workers)
+            if route_mode == DELEGATION_ROUTE_SELECTIVE and routed.is_direct:
+                # The executed plan is the A0 plan, so the task is graded exactly like an A0
+                # sample (single-worker mode, same oracle checks on artifacts and hidden tests).
+                task = replace(
+                    task,
+                    mode="coding",
+                    workers=a0_steps(task),
+                    tool_expectations={
+                        **task.tool_expectations,
+                        "distinct_workers": 1,
+                    },
+                )
+                routing_record["executed_worker_count"] = 1
+            else:
+                routing_record["executed_worker_count"] = len(task.workers)
+            routing_record["route_digest"] = decision_digest(routed.decision)
+        title_by_id = {step.task_id: f"{task.sample_id}-{step.task_id}" for step in task.workers}
+        # Stage G1: one handoff runtime per run. The trusted task identity of every consumer is
+        # the runtime task id the worker was created with, never a process-global variable.
+        handoff = HandoffRuntime.create(
+            run_dir=run_dir,
+            run_id=run_id,
+            nodes=[
+                HandoffNode(
+                    key=step.task_id,
+                    title=title_by_id[step.task_id],
+                    depends_on=tuple(step.depends_on),
+                )
+                for step in task.workers
+            ],
+            consumer_keys={f"{run_id}-{step.task_id}": step.task_id for step in task.workers},
+            mode="dual" if settings.handoff_mode == "dual" else "legacy",
+        )
+        # Stage G2b-1: one compaction runtime per run. Created in both arms so the tool registry
+        # and therefore the model-visible tool schema are identical in C0 and C1.
+        compaction_mode = (
+            settings.compaction_mode
+            if settings.compaction_mode in COMPACTION_MODES
+            else COMPACTION_OFF
+        )
+        compaction = HistoryCompactionRuntime.create(
+            run_dir=run_dir, run_id=run_id, mode=compaction_mode
+        )
+        # Stage G3-2: ingress offloading reuses the same HistoryStore and the same
+        # ``history.read`` tool, so the model-visible tool surface is identical in both arms.
+        tool_result_mode = (
+            settings.tool_result_mode
+            if settings.tool_result_mode in TOOL_RESULT_MODES
+            else TOOL_RESULT_OFF
+        )
+        ingress = ToolResultIngressRuntime.wrap(
+            store=compaction.store,
+            mode=tool_result_mode,
+        )
         runtime_type = AtlasToolRuntime if settings.progressive_tools else AllToolsAtlasRuntime
         runtime = runtime_type(
             run_id,
             state_path=run_dir / "tool_state.json",
             conversation_path=run_dir / "tool_conversations.json",
-            external_tools=(),
+            external_tools=(*handoff.external_tools(), *compaction.external_tools()),
             search_backend=config.tools.search_backend,
             embedding_model=config.tools.embedding_model,
             max_results=config.tools.max_results,
@@ -555,6 +755,7 @@ async def run_sample(
             sandbox_tools=sandbox_tools,
             trajectory_recorder=recorder,
             runtime_instance_id=f"eval-{run_id}",
+            tool_result_offloader=ingress,
         )
         await _run_mcp_setup(runtime, task)
 
@@ -599,8 +800,15 @@ async def run_sample(
         )
         metrics.provision_latency_ms = round((time.perf_counter() - provision_started) * 1000.0, 3)
         metrics.sandbox_created = manager.create_count > 0
-
-        title_by_id = {step.task_id: f"{task.sample_id}-{step.task_id}" for step in task.workers}
+        # Stage G3-4a: drop the provisioning staging bundle and prove that no private artifact
+        # name is reachable from inside the worker sandbox.
+        isolation = await enforce_evaluation_isolation(provider, binding.sandbox_handle)
+        metrics.extra["integrity"] = isolation.as_dict()
+        if not isolation.passed:
+            # No worker turn may run in an environment that still exposes private artifacts.
+            raise EvaluationEnvironmentError(
+                "evaluation isolation check failed: " + "; ".join(isolation.failures)
+            )
 
         def on_progress(event: Any) -> None:
             if settings.capture_evidence:
@@ -628,6 +836,9 @@ async def run_sample(
         engine = AtlasContextEngine(
             OrchestratorConfig(on_progress=on_progress),
             tool_runtime=runtime,
+            prompt_builder=handoff.build_prompt,
+            budget_state=budget_state,
+            compaction=compaction,
         )
         agent_configs = [
             worker_by_task[step.task_id].agent_config.model_copy(
@@ -648,10 +859,26 @@ async def run_sample(
             "evaluation",
             TeamConfig(name="evaluation", agents=agent_configs),
         )
+        # Stage G3-3: only the worker's task turn changes. The assignment (system prompt), the
+        # tool list, the DAG and the budget are identical in both contract modes.
+        contract_mode = (
+            settings.worker_contract_mode
+            if settings.worker_contract_mode in WORKER_CONTRACT_MODES
+            else WORKER_CONTRACT_LEGACY
+        )
+        task_texts = {
+            step.task_id: worker_task_text(
+                step, steps=task.workers, sample_id=task.sample_id, mode=contract_mode
+            )
+            for step in task.workers
+        }
+        contract_overhead_chars = sum(
+            contract_overhead(step.prompt, task_texts[step.task_id]) for step in task.workers
+        )
         task_specs = [
             TaskSpec(
                 title=title_by_id[step.task_id],
-                description=step.prompt,
+                description=task_texts[step.task_id],
                 assignee=worker_by_task[step.task_id].worker_name,
                 depends_on=[title_by_id[item] for item in step.depends_on],
             )
@@ -764,6 +991,42 @@ async def run_sample(
         )
         metrics.extra["provider_name"] = config.sandbox.provider
         metrics.extra["sandbox_health"] = environment.get("sandbox_health")
+        if handoff is not None:
+            metrics.extra["handoff"] = handoff.metrics.as_dict()
+        if compaction is not None:
+            metrics.extra["compaction"] = compaction.metrics_dict()
+        if ingress is not None:
+            metrics.extra["tool_result"] = ingress.metrics_dict()
+        task_text_digest = hashlib.sha256(
+            "\n".join(f"{step_id}:{text}" for step_id, text in sorted(task_texts.items())).encode(
+                "utf-8"
+            )
+        ).hexdigest()
+        if routing_record is not None:
+            metrics.extra["routing"] = routing_record
+        metrics.extra["worker_contract"] = {
+            "mode": contract_mode,
+            "overhead_chars": contract_overhead_chars,
+            "task_text_digest": task_text_digest,
+            "workers": [
+                {
+                    "task_id": step.task_id,
+                    "task_text_chars": len(task_texts.get(step.task_id, step.prompt)),
+                    "overhead_chars": contract_overhead(
+                        step.prompt, task_texts.get(step.task_id, step.prompt)
+                    ),
+                }
+                for step in task.workers
+            ],
+        }
+        call_records = _provider_call_records(
+            observations, run_id=run_id, model=model, pricing=config.pricing
+        )
+        (run_dir / "provider_calls.jsonl").write_text(
+            "".join(json.dumps(record, sort_keys=True) + "\n" for record in call_records),
+            encoding="utf-8",
+        )
+        metrics.extra["provider_calls"] = len(call_records)
         metrics.tool_search_calls = sum(
             1 for item in tool_calls if item["tool_name"] in ("tool.search", "tool_search")
         )
@@ -783,6 +1046,17 @@ async def run_sample(
             str(item.get("output", "")).count("tool_not_disclosed") for item in tool_calls
         )
         metrics.worker_selection = sorted(worker_results)
+        budget_snapshot = budget_state.finalize() if budget_state is not None else None
+        if budget_snapshot is not None:
+            metrics.extra["budget"] = budget_snapshot
+            if failure_class is None and budget_state is not None:
+                rejections = int(budget_snapshot["admission_rejections"])
+                if rejections:
+                    failure_class = "BUDGET_EXCEEDED"
+                    failure_reason = (
+                        f"run budget guard rejected {rejections} LLM request(s): "
+                        f"{budget_snapshot['last_rejection']}"
+                    )
         if (
             failure_class is None
             and metrics.prompt_tokens is not None
@@ -888,6 +1162,7 @@ async def run_sample(
                     "anycode_lifecycle_events": team_lifecycle_events,
                     "worker_results": worker_results,
                     "tool_calls": tool_calls,
+                    "handoff": metrics.extra.get("handoff"),
                 },
             )
         ledger_path = settings.runs_root / settings.benchmark_id / "runs.jsonl"
