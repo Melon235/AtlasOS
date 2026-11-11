@@ -1,0 +1,3454 @@
+{
+  "arms": {
+    "a:a0": {
+      "budget_exceeded": 0,
+      "cache_hit_tokens": 254591,
+      "cache_miss_tokens": 22903,
+      "completion_tokens": 23597,
+      "cost_per_run": 0.0061,
+      "cost_usd": 0.036715,
+      "latency_ms_mean": 50266.6353,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": 0,
+      "model_turns": 55,
+      "oracle_failures": [],
+      "oracle_pass": 6,
+      "prompt_tokens": 277494,
+      "runs": 6,
+      "runs_with_overlap": 0,
+      "task_success": 6,
+      "tool_calls": 68,
+      "wall_time_ms_mean": 32432.0313,
+      "worker_success": 6,
+      "workers_started": 6
+    },
+    "a:a1": {
+      "budget_exceeded": 3,
+      "cache_hit_tokens": 492156,
+      "cache_miss_tokens": 43293,
+      "completion_tokens": 35392,
+      "cost_per_run": 0.0097,
+      "cost_usd": 0.058411,
+      "latency_ms_mean": 66470.734,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": 0,
+      "model_turns": 125,
+      "oracle_failures": [
+        "BUDGET_EXCEEDED:",
+        "ORACLE_FAILURE:"
+      ],
+      "oracle_pass": 2,
+      "prompt_tokens": 535449,
+      "runs": 6,
+      "runs_with_overlap": 6,
+      "task_success": 1,
+      "tool_calls": 89,
+      "wall_time_ms_mean": 48904.1142,
+      "worker_success": 7,
+      "workers_started": 12
+    },
+    "a:a2": {
+      "budget_exceeded": 0,
+      "cache_hit_tokens": 422520,
+      "cache_miss_tokens": 34810,
+      "completion_tokens": 31937,
+      "cost_per_run": 0.0086,
+      "cost_usd": 0.051303,
+      "latency_ms_mean": 63759.6622,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": 1,
+      "model_turns": 111,
+      "oracle_failures": [
+        "ORACLE_FAILURE:DELEGATION_ADMITTED"
+      ],
+      "oracle_pass": 3,
+      "prompt_tokens": 457330,
+      "runs": 6,
+      "runs_with_overlap": 6,
+      "task_success": 3,
+      "tool_calls": 118,
+      "wall_time_ms_mean": 46234.7375,
+      "worker_success": 9,
+      "workers_started": 12
+    },
+    "b:a0": {
+      "budget_exceeded": 0,
+      "cache_hit_tokens": 75776,
+      "cache_miss_tokens": 5892,
+      "completion_tokens": 7815,
+      "cost_per_run": 0.0029,
+      "cost_usd": 0.0116,
+      "latency_ms_mean": 41358.1255,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": 0,
+      "model_turns": 28,
+      "oracle_failures": [],
+      "oracle_pass": 4,
+      "prompt_tokens": 81668,
+      "runs": 4,
+      "runs_with_overlap": 0,
+      "task_success": 4,
+      "tool_calls": 36,
+      "wall_time_ms_mean": 23501.7045,
+      "worker_success": 4,
+      "workers_started": 4
+    },
+    "b:a1": {
+      "budget_exceeded": 4,
+      "cache_hit_tokens": 355328,
+      "cache_miss_tokens": 54416,
+      "completion_tokens": 21353,
+      "cost_per_run": 0.011,
+      "cost_usd": 0.04408,
+      "latency_ms_mean": 63109.2897,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": 0,
+      "model_turns": 106,
+      "oracle_failures": [
+        "BUDGET_EXCEEDED:"
+      ],
+      "oracle_pass": 2,
+      "prompt_tokens": 409744,
+      "runs": 4,
+      "runs_with_overlap": 4,
+      "task_success": 0,
+      "tool_calls": 26,
+      "wall_time_ms_mean": 44868.7585,
+      "worker_success": 3,
+      "workers_started": 12
+    },
+    "b:a2": {
+      "budget_exceeded": 4,
+      "cache_hit_tokens": 374656,
+      "cache_miss_tokens": 50032,
+      "completion_tokens": 21308,
+      "cost_per_run": 0.0107,
+      "cost_usd": 0.042827,
+      "latency_ms_mean": 65902.366,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": 0,
+      "model_turns": 112,
+      "oracle_failures": [
+        "BUDGET_EXCEEDED:DELEGATION_ADMITTED"
+      ],
+      "oracle_pass": 2,
+      "prompt_tokens": 424688,
+      "runs": 4,
+      "runs_with_overlap": 4,
+      "task_success": 0,
+      "tool_calls": 28,
+      "wall_time_ms_mean": 48315.937,
+      "worker_success": 3,
+      "workers_started": 12
+    }
+  },
+  "integrity": {
+    "isolation_failures": 0,
+    "network_marker_runs": 0,
+    "oracle_marker_runs": 0
+  },
+  "paired": [
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": -0.000177,
+      "definition": "r05-p1-analysis",
+      "latency_delta_ms": -7086.654,
+      "oracle_delta": 0,
+      "prompt_token_delta": 6678,
+      "repetition": 0,
+      "tool_call_delta": 1,
+      "track": "a",
+      "turn_delta": 5
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": -0.003947,
+      "definition": "r05-p1-analysis",
+      "latency_delta_ms": -14918.374,
+      "oracle_delta": 1,
+      "prompt_token_delta": -37232,
+      "repetition": 0,
+      "tool_call_delta": -8,
+      "track": "a",
+      "turn_delta": -7
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.00377,
+      "definition": "r05-p1-analysis",
+      "latency_delta_ms": 7831.72,
+      "oracle_delta": -1,
+      "prompt_token_delta": 43910,
+      "repetition": 0,
+      "tool_call_delta": 9,
+      "track": "a",
+      "turn_delta": 12
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.001012,
+      "definition": "r05-p1-analysis",
+      "latency_delta_ms": 902.409,
+      "oracle_delta": 0,
+      "prompt_token_delta": 19105,
+      "repetition": 1,
+      "tool_call_delta": 4,
+      "track": "a",
+      "turn_delta": 8
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": 6.7e-05,
+      "definition": "r05-p1-analysis",
+      "latency_delta_ms": -85.508,
+      "oracle_delta": 0,
+      "prompt_token_delta": 1185,
+      "repetition": 1,
+      "tool_call_delta": 0,
+      "track": "a",
+      "turn_delta": 0
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.000945,
+      "definition": "r05-p1-analysis",
+      "latency_delta_ms": 987.917,
+      "oracle_delta": 0,
+      "prompt_token_delta": 17920,
+      "repetition": 1,
+      "tool_call_delta": 4,
+      "track": "a",
+      "turn_delta": 8
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.000871,
+      "definition": "r05-p2-modules",
+      "latency_delta_ms": -2959.077,
+      "oracle_delta": -1,
+      "prompt_token_delta": 14251,
+      "repetition": 0,
+      "tool_call_delta": 8,
+      "track": "a",
+      "turn_delta": 9
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": -0.000704,
+      "definition": "r05-p2-modules",
+      "latency_delta_ms": -7312.692,
+      "oracle_delta": -1,
+      "prompt_token_delta": -9880,
+      "repetition": 0,
+      "tool_call_delta": 12,
+      "track": "a",
+      "turn_delta": -2
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.001575,
+      "definition": "r05-p2-modules",
+      "latency_delta_ms": 4353.615,
+      "oracle_delta": 0,
+      "prompt_token_delta": 24131,
+      "repetition": 0,
+      "tool_call_delta": -4,
+      "track": "a",
+      "turn_delta": 11
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.000607,
+      "definition": "r05-p2-modules",
+      "latency_delta_ms": -1201.876,
+      "oracle_delta": 0,
+      "prompt_token_delta": 14651,
+      "repetition": 1,
+      "tool_call_delta": 6,
+      "track": "a",
+      "turn_delta": 8
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": -0.002154,
+      "definition": "r05-p2-modules",
+      "latency_delta_ms": -6940.871,
+      "oracle_delta": 1,
+      "prompt_token_delta": -23754,
+      "repetition": 1,
+      "tool_call_delta": 8,
+      "track": "a",
+      "turn_delta": -4
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.002761,
+      "definition": "r05-p2-modules",
+      "latency_delta_ms": 5738.995,
+      "oracle_delta": -1,
+      "prompt_token_delta": 38405,
+      "repetition": 1,
+      "tool_call_delta": -2,
+      "track": "a",
+      "turn_delta": 12
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.006681,
+      "definition": "r05-p3-frozen-interface",
+      "latency_delta_ms": 21702.867,
+      "oracle_delta": -1,
+      "prompt_token_delta": 73077,
+      "repetition": 0,
+      "tool_call_delta": 17,
+      "track": "a",
+      "turn_delta": 15
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": 0.000386,
+      "definition": "r05-p3-frozen-interface",
+      "latency_delta_ms": 5607.68,
+      "oracle_delta": 0,
+      "prompt_token_delta": 16984,
+      "repetition": 0,
+      "tool_call_delta": 5,
+      "track": "a",
+      "turn_delta": 3
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.006295,
+      "definition": "r05-p3-frozen-interface",
+      "latency_delta_ms": 16095.187,
+      "oracle_delta": -1,
+      "prompt_token_delta": 56093,
+      "repetition": 0,
+      "tool_call_delta": 12,
+      "track": "a",
+      "turn_delta": 12
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.005594,
+      "definition": "r05-p3-frozen-interface",
+      "latency_delta_ms": 69600.492,
+      "oracle_delta": -1,
+      "prompt_token_delta": 52074,
+      "repetition": 1,
+      "tool_call_delta": 14,
+      "track": "a",
+      "turn_delta": 11
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": -0.000757,
+      "definition": "r05-p3-frozen-interface",
+      "latency_delta_ms": 7383.334,
+      "oracle_delta": 0,
+      "prompt_token_delta": -25422,
+      "repetition": 1,
+      "tool_call_delta": 12,
+      "track": "a",
+      "turn_delta": -4
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.006351,
+      "definition": "r05-p3-frozen-interface",
+      "latency_delta_ms": 62217.158,
+      "oracle_delta": -1,
+      "prompt_token_delta": 77496,
+      "repetition": 1,
+      "tool_call_delta": 2,
+      "track": "a",
+      "turn_delta": 15
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.008309,
+      "definition": "e1-01-config",
+      "latency_delta_ms": 24720.949,
+      "oracle_delta": 0,
+      "prompt_token_delta": 84239,
+      "repetition": 0,
+      "tool_call_delta": -9,
+      "track": "b",
+      "turn_delta": 23
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": 0.000473,
+      "definition": "e1-01-config",
+      "latency_delta_ms": 1436.966,
+      "oracle_delta": 0,
+      "prompt_token_delta": 7018,
+      "repetition": 0,
+      "tool_call_delta": -18,
+      "track": "b",
+      "turn_delta": 3
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.007836,
+      "definition": "e1-01-config",
+      "latency_delta_ms": 23283.983,
+      "oracle_delta": 0,
+      "prompt_token_delta": 77221,
+      "repetition": 0,
+      "tool_call_delta": 9,
+      "track": "b",
+      "turn_delta": 20
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.009727,
+      "definition": "e1-01-config",
+      "latency_delta_ms": 30112.81,
+      "oracle_delta": 0,
+      "prompt_token_delta": 84002,
+      "repetition": 1,
+      "tool_call_delta": 9,
+      "track": "b",
+      "turn_delta": 19
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": 0.001321,
+      "definition": "e1-01-config",
+      "latency_delta_ms": 11463.27,
+      "oracle_delta": 0,
+      "prompt_token_delta": 8257,
+      "repetition": 1,
+      "tool_call_delta": 10,
+      "track": "b",
+      "turn_delta": 3
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.008406,
+      "definition": "e1-01-config",
+      "latency_delta_ms": 18649.54,
+      "oracle_delta": 0,
+      "prompt_token_delta": 75745,
+      "repetition": 1,
+      "tool_call_delta": -1,
+      "track": "b",
+      "turn_delta": 16
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.006477,
+      "definition": "e1-03-rbac",
+      "latency_delta_ms": 22193.67,
+      "oracle_delta": -1,
+      "prompt_token_delta": 86373,
+      "repetition": 0,
+      "tool_call_delta": 1,
+      "track": "b",
+      "turn_delta": 23
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": -0.001152,
+      "definition": "e1-03-rbac",
+      "latency_delta_ms": 1831.548,
+      "oracle_delta": 0,
+      "prompt_token_delta": 545,
+      "repetition": 0,
+      "tool_call_delta": 10,
+      "track": "b",
+      "turn_delta": 1
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.007629,
+      "definition": "e1-03-rbac",
+      "latency_delta_ms": 20362.122,
+      "oracle_delta": -1,
+      "prompt_token_delta": 85828,
+      "repetition": 0,
+      "tool_call_delta": -9,
+      "track": "b",
+      "turn_delta": 22
+    },
+    {
+      "comparison": "a2-a0",
+      "cost_delta_usd": 0.006714,
+      "definition": "e1-03-rbac",
+      "latency_delta_ms": 21149.533,
+      "oracle_delta": -1,
+      "prompt_token_delta": 88406,
+      "repetition": 1,
+      "tool_call_delta": -9,
+      "track": "b",
+      "turn_delta": 19
+    },
+    {
+      "comparison": "a2-a1",
+      "cost_delta_usd": -0.001895,
+      "definition": "e1-03-rbac",
+      "latency_delta_ms": -3559.479,
+      "oracle_delta": 0,
+      "prompt_token_delta": -876,
+      "repetition": 1,
+      "tool_call_delta": 0,
+      "track": "b",
+      "turn_delta": -1
+    },
+    {
+      "comparison": "a1-a0",
+      "cost_delta_usd": 0.008609,
+      "definition": "e1-03-rbac",
+      "latency_delta_ms": 24709.012,
+      "oracle_delta": -1,
+      "prompt_token_delta": 89282,
+      "repetition": 1,
+      "tool_call_delta": -9,
+      "track": "b",
+      "turn_delta": 20
+    }
+  ],
+  "parallel": {
+    "dag_width_note": "wave width is recorded in the routing decision; the scheduler's actual starts and the observed overlap are measured separately",
+    "multi_worker_runs": 20,
+    "multi_worker_with_overlap": 20,
+    "not_observed": [],
+    "provider_overlap": "INFERRED_FROM_WORKER_INTERVALS",
+    "rows": [
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "r05-p1-analysis",
+        "latency_ms": 46257.972,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-dbaf5bef188b",
+        "scheduler_started": 1,
+        "sum_worker_ms": 28252.475,
+        "track": "a",
+        "wall_ms": 28252.475
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "r05-p1-analysis",
+        "latency_ms": 54089.692,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": null,
+        "run_id": "eval-9a36f53e025f",
+        "scheduler_started": 2,
+        "sum_worker_ms": 65844.508,
+        "track": "a",
+        "wall_ms": 36580.777
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "r05-p1-analysis",
+        "latency_ms": 39171.318,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": "delegate_parallel",
+        "run_id": "eval-a363a85e01c1",
+        "scheduler_started": 2,
+        "sum_worker_ms": 40297.063,
+        "track": "a",
+        "wall_ms": 21806.663
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "r05-p1-analysis",
+        "latency_ms": 44898.373,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-379e83aa1103",
+        "scheduler_started": 1,
+        "sum_worker_ms": 27507.268,
+        "track": "a",
+        "wall_ms": 27507.268
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "r05-p1-analysis",
+        "latency_ms": 45886.29,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": null,
+        "run_id": "eval-fe15ac5bb0a9",
+        "scheduler_started": 2,
+        "sum_worker_ms": 45486.735,
+        "track": "a",
+        "wall_ms": 28354.586
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "r05-p1-analysis",
+        "latency_ms": 45800.782,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": "delegate_parallel",
+        "run_id": "eval-6b65e1ea8468",
+        "scheduler_started": 2,
+        "sum_worker_ms": 46222.241,
+        "track": "a",
+        "wall_ms": 28480.915
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "r05-p3-frozen-interface",
+        "latency_ms": 43278.644,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-aa4e287f87a1",
+        "scheduler_started": 1,
+        "sum_worker_ms": 25094.137,
+        "track": "a",
+        "wall_ms": 25094.137
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "r05-p3-frozen-interface",
+        "latency_ms": 59373.831,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": null,
+        "run_id": "eval-4b360f5606d7",
+        "scheduler_started": 2,
+        "sum_worker_ms": 78147.147,
+        "track": "a",
+        "wall_ms": 41678.814
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "r05-p3-frozen-interface",
+        "latency_ms": 64981.511,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": "delegate_parallel",
+        "run_id": "eval-014cecdb8c98",
+        "scheduler_started": 2,
+        "sum_worker_ms": 81723.312,
+        "track": "a",
+        "wall_ms": 47706.407
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "r05-p3-frozen-interface",
+        "latency_ms": 41323.887,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-75a36c664c37",
+        "scheduler_started": 1,
+        "sum_worker_ms": 23710.264,
+        "track": "a",
+        "wall_ms": 23710.264
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "r05-p3-frozen-interface",
+        "latency_ms": 103541.045,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": null,
+        "run_id": "eval-73baf3bb020f",
+        "scheduler_started": 2,
+        "sum_worker_ms": 165247.763,
+        "track": "a",
+        "wall_ms": 86166.561
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "r05-p3-frozen-interface",
+        "latency_ms": 110924.379,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": "delegate_parallel",
+        "run_id": "eval-6556d6724bdc",
+        "scheduler_started": 2,
+        "sum_worker_ms": 173051.365,
+        "track": "a",
+        "wall_ms": 92838.493
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "r05-p2-modules",
+        "latency_ms": 66659.199,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-3e3b3b4c55ca",
+        "scheduler_started": 1,
+        "sum_worker_ms": 48601.636,
+        "track": "a",
+        "wall_ms": 48601.636
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "r05-p2-modules",
+        "latency_ms": 71012.814,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": null,
+        "run_id": "eval-be58acf6b03d",
+        "scheduler_started": 2,
+        "sum_worker_ms": 90060.498,
+        "track": "a",
+        "wall_ms": 53408.597
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "r05-p2-modules",
+        "latency_ms": 63700.122,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": "delegate_parallel",
+        "run_id": "eval-b3268024a0b6",
+        "scheduler_started": 2,
+        "sum_worker_ms": 86716.394,
+        "track": "a",
+        "wall_ms": 46363.085
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "r05-p2-modules",
+        "latency_ms": 59181.737,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-ae96056cf7d7",
+        "scheduler_started": 1,
+        "sum_worker_ms": 41426.408,
+        "track": "a",
+        "wall_ms": 41426.408
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "r05-p2-modules",
+        "latency_ms": 64920.732,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": null,
+        "run_id": "eval-fbe242fdad8a",
+        "scheduler_started": 2,
+        "sum_worker_ms": 83795.234,
+        "track": "a",
+        "wall_ms": 47235.35
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "r05-p2-modules",
+        "latency_ms": 57979.861,
+        "marker": null,
+        "observed_concurrency": 2,
+        "overlap_pairs": 1,
+        "route": "delegate_parallel",
+        "run_id": "eval-26a57ed0fac4",
+        "scheduler_started": 2,
+        "sum_worker_ms": 76381.525,
+        "track": "a",
+        "wall_ms": 40212.862
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "e1-01-config",
+        "latency_ms": 44565.038,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-50cffa49faec",
+        "scheduler_started": 1,
+        "sum_worker_ms": 26412.242,
+        "track": "b",
+        "wall_ms": 26412.242
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "e1-01-config",
+        "latency_ms": 67849.021,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": null,
+        "run_id": "eval-2c9e7afe957d",
+        "scheduler_started": 3,
+        "sum_worker_ms": 135342.343,
+        "track": "b",
+        "wall_ms": 47830.024
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "e1-01-config",
+        "latency_ms": 69285.987,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": "delegate_parallel",
+        "run_id": "eval-382877d89513",
+        "scheduler_started": 3,
+        "sum_worker_ms": 145631.356,
+        "track": "b",
+        "wall_ms": 51722.56
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "e1-01-config",
+        "latency_ms": 40295.889,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-9252d455c661",
+        "scheduler_started": 1,
+        "sum_worker_ms": 22896.239,
+        "track": "b",
+        "wall_ms": 22896.239
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "e1-01-config",
+        "latency_ms": 58945.429,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": null,
+        "run_id": "eval-92c64df04c4c",
+        "scheduler_started": 3,
+        "sum_worker_ms": 114048.747,
+        "track": "b",
+        "wall_ms": 41232.242
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "e1-01-config",
+        "latency_ms": 70408.699,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": "delegate_parallel",
+        "run_id": "eval-26dab4d935d1",
+        "scheduler_started": 3,
+        "sum_worker_ms": 139172.823,
+        "track": "b",
+        "wall_ms": 52942.347
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "e1-03-rbac",
+        "latency_ms": 42161.468,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-cf66fd8edda6",
+        "scheduler_started": 1,
+        "sum_worker_ms": 24013.634,
+        "track": "b",
+        "wall_ms": 24013.634
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "e1-03-rbac",
+        "latency_ms": 62523.59,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": null,
+        "run_id": "eval-151296b4da42",
+        "scheduler_started": 3,
+        "sum_worker_ms": 122987.31,
+        "track": "b",
+        "wall_ms": 44908.051
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "e1-03-rbac",
+        "latency_ms": 64355.138,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": "delegate_parallel",
+        "run_id": "eval-c5e203de4401",
+        "scheduler_started": 3,
+        "sum_worker_ms": 125159.562,
+        "track": "b",
+        "wall_ms": 46881.716
+      },
+      {
+        "arm": "a0",
+        "dag_width": null,
+        "definition": "e1-03-rbac",
+        "latency_ms": 38410.107,
+        "marker": null,
+        "observed_concurrency": 1,
+        "overlap_pairs": 0,
+        "route": null,
+        "run_id": "eval-a7fb71a5e35e",
+        "scheduler_started": 1,
+        "sum_worker_ms": 20684.703,
+        "track": "b",
+        "wall_ms": 20684.703
+      },
+      {
+        "arm": "a1",
+        "dag_width": null,
+        "definition": "e1-03-rbac",
+        "latency_ms": 63119.119,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": null,
+        "run_id": "eval-f5b7c83bfabf",
+        "scheduler_started": 3,
+        "sum_worker_ms": 119120.386,
+        "track": "b",
+        "wall_ms": 45504.717
+      },
+      {
+        "arm": "a2",
+        "dag_width": null,
+        "definition": "e1-03-rbac",
+        "latency_ms": 59559.64,
+        "marker": null,
+        "observed_concurrency": 3,
+        "overlap_pairs": 3,
+        "route": "delegate_parallel",
+        "run_id": "eval-ef35740e96bd",
+        "scheduler_started": 3,
+        "sum_worker_ms": 114441.814,
+        "track": "b",
+        "wall_ms": 41717.125
+      }
+    ]
+  },
+  "routes": {
+    "evidence_insufficiency": [],
+    "execution_failure": [
+      "e1-01-config",
+      "e1-03-rbac",
+      "r05-p2-modules",
+      "r05-p3-frozen-interface"
+    ],
+    "expected_negative": [
+      "r05-n1-shared-write",
+      "r05-n2-unfrozen-interface",
+      "r05-n3-linear-chain"
+    ],
+    "expected_positive": [
+      "r05-p1-analysis",
+      "r05-p2-modules",
+      "r05-p3-frozen-interface"
+    ],
+    "false_admission": [],
+    "false_rejection": [],
+    "negative_admission_count": 0,
+    "negative_rejection_count": 3,
+    "offline": {
+      "negative_ids": [
+        "r05-n1-shared-write",
+        "r05-n2-unfrozen-interface",
+        "r05-n3-linear-chain"
+      ],
+      "positive_ids": [
+        "r05-p1-analysis",
+        "r05-p2-modules",
+        "r05-p3-frozen-interface"
+      ],
+      "rows": [
+        {
+          "actual_route": "delegate_parallel",
+          "approved_task_ids": [
+            "pricing",
+            "inventory"
+          ],
+          "blocked_gates": [],
+          "contracts": [],
+          "dag_edges": [],
+          "decision": {
+            "approved_task_ids": [
+              "pricing",
+              "inventory"
+            ],
+            "blocked_gates": [],
+            "diagnostics": [],
+            "evidence_refs": [
+              "coverage:plan",
+              "write:pricing",
+              "risk:pricing",
+              "deliverable:pricing",
+              "context:pricing",
+              "write:inventory",
+              "risk:inventory",
+              "deliverable:inventory",
+              "context:inventory"
+            ],
+            "gates": [
+              {
+                "evidence_refs": [
+                  "coverage:plan"
+                ],
+                "gate": "GATE_0_PROPOSAL_VALIDITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "pricing",
+                  "inventory"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_1_DELEGATION_NECESSITY",
+                "reason_codes": [
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "pricing",
+                  "inventory"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_2_DEPENDENCY_COUPLING",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "pricing",
+                  "inventory"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_3_PARALLEL_OPPORTUNITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "pricing",
+                  "inventory"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "write:pricing",
+                  "risk:pricing",
+                  "deliverable:pricing",
+                  "context:pricing",
+                  "write:inventory",
+                  "risk:inventory",
+                  "deliverable:inventory",
+                  "context:inventory"
+                ],
+                "gate": "GATE_4_SIDE_EFFECT_RISK",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "pricing",
+                  "inventory"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "context:pricing",
+                  "context:inventory"
+                ],
+                "gate": "GATE_5_CONTEXT_SUFFICIENCY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "pricing",
+                  "inventory"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_6_ADMISSION",
+                "reason_codes": [
+                  "DELEGATION_ADMITTED",
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "pricing",
+                  "inventory"
+                ]
+              }
+            ],
+            "max_parallel_wave_width": 2,
+            "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+            "policy_version": "r0.1.0",
+            "proposal_id": "r05-p1-analysis:candidate",
+            "reason_codes": [
+              "DELEGATION_ADMITTED"
+            ],
+            "route": "delegate_parallel"
+          },
+          "decision_digest": "e3d9ee702584e1553e81a7dd82612ce9a03ec6978c722d6512c611ff0b76e578",
+          "evidence_kinds": [
+            "context",
+            "deliverable",
+            "goal_coverage",
+            "risk_class",
+            "write_paths"
+          ],
+          "evidence_status": {
+            "disproven": 0,
+            "proven": 9,
+            "unknown": 0
+          },
+          "expected_reason": "DELEGATION_ADMITTED",
+          "expected_route": "delegate_parallel",
+          "family": "P1",
+          "matches_expectation": true,
+          "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+          "policy_version": "r0.1.0",
+          "reason_codes": [
+            "DELEGATION_ADMITTED"
+          ],
+          "sample_id": "r05-p1-analysis",
+          "task_count": 2,
+          "wave_width": 2
+        },
+        {
+          "actual_route": "delegate_parallel",
+          "approved_task_ids": [
+            "entries",
+            "money"
+          ],
+          "blocked_gates": [],
+          "contracts": [],
+          "dag_edges": [],
+          "decision": {
+            "approved_task_ids": [
+              "entries",
+              "money"
+            ],
+            "blocked_gates": [],
+            "diagnostics": [],
+            "evidence_refs": [
+              "coverage:plan",
+              "write:entries",
+              "risk:entries",
+              "deliverable:entries",
+              "context:entries",
+              "write:money",
+              "risk:money",
+              "deliverable:money",
+              "context:money"
+            ],
+            "gates": [
+              {
+                "evidence_refs": [
+                  "coverage:plan"
+                ],
+                "gate": "GATE_0_PROPOSAL_VALIDITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "entries",
+                  "money"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_1_DELEGATION_NECESSITY",
+                "reason_codes": [
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "entries",
+                  "money"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_2_DEPENDENCY_COUPLING",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "entries",
+                  "money"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_3_PARALLEL_OPPORTUNITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "entries",
+                  "money"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "write:entries",
+                  "risk:entries",
+                  "deliverable:entries",
+                  "context:entries",
+                  "write:money",
+                  "risk:money",
+                  "deliverable:money",
+                  "context:money"
+                ],
+                "gate": "GATE_4_SIDE_EFFECT_RISK",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "entries",
+                  "money"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "context:entries",
+                  "context:money"
+                ],
+                "gate": "GATE_5_CONTEXT_SUFFICIENCY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "entries",
+                  "money"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_6_ADMISSION",
+                "reason_codes": [
+                  "DELEGATION_ADMITTED",
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "entries",
+                  "money"
+                ]
+              }
+            ],
+            "max_parallel_wave_width": 2,
+            "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+            "policy_version": "r0.1.0",
+            "proposal_id": "r05-p2-modules:candidate",
+            "reason_codes": [
+              "DELEGATION_ADMITTED"
+            ],
+            "route": "delegate_parallel"
+          },
+          "decision_digest": "b52005fecc7ad01b92faf85f8885d7b2fe6efa773b8228a4e7e3b5d4b33b146e",
+          "evidence_kinds": [
+            "context",
+            "deliverable",
+            "goal_coverage",
+            "risk_class",
+            "write_paths"
+          ],
+          "evidence_status": {
+            "disproven": 0,
+            "proven": 9,
+            "unknown": 0
+          },
+          "expected_reason": "DELEGATION_ADMITTED",
+          "expected_route": "delegate_parallel",
+          "family": "P2",
+          "matches_expectation": true,
+          "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+          "policy_version": "r0.1.0",
+          "reason_codes": [
+            "DELEGATION_ADMITTED"
+          ],
+          "sample_id": "r05-p2-modules",
+          "task_count": 2,
+          "wave_width": 2
+        },
+        {
+          "actual_route": "delegate_parallel",
+          "approved_task_ids": [
+            "clock",
+            "summary"
+          ],
+          "blocked_gates": [],
+          "contracts": [
+            {
+              "status": "proven",
+              "task_id": "clock",
+              "value": {
+                "declared": [
+                  "docs/INTERFACE.md"
+                ],
+                "missing": [],
+                "present": [
+                  "docs/INTERFACE.md"
+                ]
+              }
+            },
+            {
+              "status": "proven",
+              "task_id": "summary",
+              "value": {
+                "declared": [
+                  "docs/INTERFACE.md"
+                ],
+                "missing": [],
+                "present": [
+                  "docs/INTERFACE.md"
+                ]
+              }
+            }
+          ],
+          "dag_edges": [],
+          "decision": {
+            "approved_task_ids": [
+              "clock",
+              "summary"
+            ],
+            "blocked_gates": [],
+            "diagnostics": [],
+            "evidence_refs": [
+              "coverage:plan",
+              "write:clock",
+              "risk:clock",
+              "contract:clock",
+              "deliverable:clock",
+              "context:clock",
+              "write:summary",
+              "risk:summary",
+              "interface:summary",
+              "contract:summary",
+              "deliverable:summary",
+              "context:summary"
+            ],
+            "gates": [
+              {
+                "evidence_refs": [
+                  "coverage:plan"
+                ],
+                "gate": "GATE_0_PROPOSAL_VALIDITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_1_DELEGATION_NECESSITY",
+                "reason_codes": [
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_2_DEPENDENCY_COUPLING",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_3_PARALLEL_OPPORTUNITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "write:clock",
+                  "risk:clock",
+                  "contract:clock",
+                  "deliverable:clock",
+                  "context:clock",
+                  "write:summary",
+                  "risk:summary",
+                  "interface:summary",
+                  "contract:summary",
+                  "deliverable:summary",
+                  "context:summary"
+                ],
+                "gate": "GATE_4_SIDE_EFFECT_RISK",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "context:clock",
+                  "context:summary"
+                ],
+                "gate": "GATE_5_CONTEXT_SUFFICIENCY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_6_ADMISSION",
+                "reason_codes": [
+                  "DELEGATION_ADMITTED",
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              }
+            ],
+            "max_parallel_wave_width": 2,
+            "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+            "policy_version": "r0.1.0",
+            "proposal_id": "r05-p3-frozen-interface:candidate",
+            "reason_codes": [
+              "DELEGATION_ADMITTED"
+            ],
+            "route": "delegate_parallel"
+          },
+          "decision_digest": "c9c986d38fb16a6247ab303f210367a4756e12debaf9b702491d6178cde91dd4",
+          "evidence_kinds": [
+            "context",
+            "deliverable",
+            "goal_coverage",
+            "interface_contract",
+            "interface_symbols",
+            "risk_class",
+            "write_paths"
+          ],
+          "evidence_status": {
+            "disproven": 0,
+            "proven": 12,
+            "unknown": 0
+          },
+          "expected_reason": "DELEGATION_ADMITTED",
+          "expected_route": "delegate_parallel",
+          "family": "P3",
+          "matches_expectation": true,
+          "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+          "policy_version": "r0.1.0",
+          "reason_codes": [
+            "DELEGATION_ADMITTED"
+          ],
+          "sample_id": "r05-p3-frozen-interface",
+          "task_count": 2,
+          "wave_width": 2
+        },
+        {
+          "actual_route": "direct",
+          "approved_task_ids": [],
+          "blocked_gates": [
+            "GATE_2_DEPENDENCY_COUPLING"
+          ],
+          "contracts": [],
+          "dag_edges": [],
+          "decision": {
+            "approved_task_ids": [],
+            "blocked_gates": [
+              "GATE_2_DEPENDENCY_COUPLING"
+            ],
+            "diagnostics": [],
+            "evidence_refs": [
+              "coverage:plan",
+              "write:a",
+              "risk:a",
+              "deliverable:a",
+              "context:a",
+              "write:b",
+              "risk:b",
+              "deliverable:b",
+              "context:b"
+            ],
+            "gates": [
+              {
+                "evidence_refs": [
+                  "coverage:plan"
+                ],
+                "gate": "GATE_0_PROPOSAL_VALIDITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "a",
+                  "b"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_1_DELEGATION_NECESSITY",
+                "reason_codes": [
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "a",
+                  "b"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "write:a",
+                  "risk:a",
+                  "deliverable:a",
+                  "context:a",
+                  "write:b",
+                  "risk:b",
+                  "deliverable:b",
+                  "context:b"
+                ],
+                "gate": "GATE_2_DEPENDENCY_COUPLING",
+                "reason_codes": [
+                  "SHARED_WRITE_RISK"
+                ],
+                "status": "block",
+                "task_ids": [
+                  "a",
+                  "b"
+                ]
+              }
+            ],
+            "max_parallel_wave_width": 2,
+            "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+            "policy_version": "r0.1.0",
+            "proposal_id": "r05-n1-shared-write:candidate",
+            "reason_codes": [
+              "SHARED_WRITE_RISK"
+            ],
+            "route": "direct"
+          },
+          "decision_digest": "f206a81d6e4981fb4485dcf3a93baa6cab7d1099f21ff550c3a1711ec3a05837",
+          "evidence_kinds": [
+            "context",
+            "deliverable",
+            "goal_coverage",
+            "risk_class",
+            "write_paths"
+          ],
+          "evidence_status": {
+            "disproven": 0,
+            "proven": 9,
+            "unknown": 0
+          },
+          "expected_reason": "SHARED_WRITE_RISK",
+          "expected_route": "direct",
+          "family": "N1",
+          "matches_expectation": true,
+          "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+          "policy_version": "r0.1.0",
+          "reason_codes": [
+            "SHARED_WRITE_RISK"
+          ],
+          "sample_id": "r05-n1-shared-write",
+          "task_count": 2,
+          "wave_width": 2
+        },
+        {
+          "actual_route": "direct",
+          "approved_task_ids": [],
+          "blocked_gates": [
+            "GATE_2_DEPENDENCY_COUPLING"
+          ],
+          "contracts": [
+            {
+              "status": "unknown",
+              "task_id": "clock",
+              "value": {
+                "declared": [
+                  "docs/INTERFACE.md"
+                ],
+                "missing": [
+                  "docs/INTERFACE.md"
+                ],
+                "present": []
+              }
+            },
+            {
+              "status": "unknown",
+              "task_id": "summary",
+              "value": {
+                "declared": [
+                  "docs/INTERFACE.md"
+                ],
+                "missing": [
+                  "docs/INTERFACE.md"
+                ],
+                "present": []
+              }
+            }
+          ],
+          "dag_edges": [],
+          "decision": {
+            "approved_task_ids": [],
+            "blocked_gates": [
+              "GATE_2_DEPENDENCY_COUPLING"
+            ],
+            "diagnostics": [],
+            "evidence_refs": [
+              "coverage:plan",
+              "write:summary",
+              "risk:summary",
+              "interface:summary",
+              "contract:summary",
+              "deliverable:summary",
+              "context:summary"
+            ],
+            "gates": [
+              {
+                "evidence_refs": [
+                  "coverage:plan"
+                ],
+                "gate": "GATE_0_PROPOSAL_VALIDITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_1_DELEGATION_NECESSITY",
+                "reason_codes": [
+                  "INDEPENDENT_DELIVERABLES"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "write:summary",
+                  "risk:summary",
+                  "interface:summary",
+                  "contract:summary",
+                  "deliverable:summary",
+                  "context:summary"
+                ],
+                "gate": "GATE_2_DEPENDENCY_COUPLING",
+                "reason_codes": [
+                  "UNSTABLE_INTERFACE"
+                ],
+                "status": "block",
+                "task_ids": [
+                  "clock",
+                  "summary"
+                ]
+              }
+            ],
+            "max_parallel_wave_width": 2,
+            "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+            "policy_version": "r0.1.0",
+            "proposal_id": "r05-n2-unfrozen-interface:candidate",
+            "reason_codes": [
+              "UNSTABLE_INTERFACE"
+            ],
+            "route": "direct"
+          },
+          "decision_digest": "7332fe3d4b1636e2326a54ef7fd8791e58c8a2344d6724772e43937ea4f82fd9",
+          "evidence_kinds": [
+            "context",
+            "deliverable",
+            "goal_coverage",
+            "interface_contract",
+            "interface_symbols",
+            "risk_class",
+            "write_paths"
+          ],
+          "evidence_status": {
+            "disproven": 0,
+            "proven": 10,
+            "unknown": 2
+          },
+          "expected_reason": "UNSTABLE_INTERFACE",
+          "expected_route": "direct",
+          "family": "N2",
+          "matches_expectation": true,
+          "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+          "policy_version": "r0.1.0",
+          "reason_codes": [
+            "UNSTABLE_INTERFACE"
+          ],
+          "sample_id": "r05-n2-unfrozen-interface",
+          "task_count": 2,
+          "wave_width": 2
+        },
+        {
+          "actual_route": "direct",
+          "approved_task_ids": [],
+          "blocked_gates": [
+            "GATE_3_PARALLEL_OPPORTUNITY"
+          ],
+          "contracts": [],
+          "dag_edges": [
+            "first->second"
+          ],
+          "decision": {
+            "approved_task_ids": [],
+            "blocked_gates": [
+              "GATE_3_PARALLEL_OPPORTUNITY"
+            ],
+            "diagnostics": [],
+            "evidence_refs": [
+              "coverage:plan",
+              "write:first",
+              "risk:first",
+              "deliverable:first",
+              "context:first"
+            ],
+            "gates": [
+              {
+                "evidence_refs": [
+                  "coverage:plan"
+                ],
+                "gate": "GATE_0_PROPOSAL_VALIDITY",
+                "reason_codes": [],
+                "status": "pass",
+                "task_ids": [
+                  "first",
+                  "second"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_1_DELEGATION_NECESSITY",
+                "reason_codes": [
+                  "NO_PARALLEL_WAVE"
+                ],
+                "status": "info",
+                "task_ids": [
+                  "first",
+                  "second"
+                ]
+              },
+              {
+                "evidence_refs": [
+                  "write:first",
+                  "risk:first",
+                  "deliverable:first",
+                  "context:first"
+                ],
+                "gate": "GATE_2_DEPENDENCY_COUPLING",
+                "reason_codes": [
+                  "DATA_DEPENDENCY"
+                ],
+                "status": "pass",
+                "task_ids": [
+                  "first",
+                  "second"
+                ]
+              },
+              {
+                "evidence_refs": [],
+                "gate": "GATE_3_PARALLEL_OPPORTUNITY",
+                "reason_codes": [
+                  "NO_PARALLEL_WAVE"
+                ],
+                "status": "block",
+                "task_ids": []
+              }
+            ],
+            "max_parallel_wave_width": 1,
+            "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+            "policy_version": "r0.1.0",
+            "proposal_id": "r05-n3-linear-chain:candidate",
+            "reason_codes": [
+              "NO_PARALLEL_WAVE"
+            ],
+            "route": "direct"
+          },
+          "decision_digest": "cada14915fc891fce4d2ed34b64e5788de0068336711d9b4858d624af0ced68f",
+          "evidence_kinds": [
+            "context",
+            "deliverable",
+            "goal_coverage",
+            "risk_class",
+            "write_paths"
+          ],
+          "evidence_status": {
+            "disproven": 0,
+            "proven": 9,
+            "unknown": 0
+          },
+          "expected_reason": "NO_PARALLEL_WAVE",
+          "expected_route": "direct",
+          "family": "N3",
+          "matches_expectation": true,
+          "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+          "policy_version": "r0.1.0",
+          "reason_codes": [
+            "NO_PARALLEL_WAVE"
+          ],
+          "sample_id": "r05-n3-linear-chain",
+          "task_count": 2,
+          "wave_width": 1
+        }
+      ],
+      "summary": {
+        "mismatches": [],
+        "negative_admitted": 0,
+        "negative_rejected": 3,
+        "policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+        "policy_version": "r0.1.0",
+        "positive_admitted": 3,
+        "positive_rejected": 0,
+        "routes": {
+          "r05-n1-shared-write": "direct",
+          "r05-n2-unfrozen-interface": "direct",
+          "r05-n3-linear-chain": "direct",
+          "r05-p1-analysis": "delegate_parallel",
+          "r05-p2-modules": "delegate_parallel",
+          "r05-p3-frozen-interface": "delegate_parallel"
+        },
+        "unknown_evidence_count": 1
+      }
+    },
+    "policy_constraint": [],
+    "positive_admission_count": 6,
+    "positive_rejection_count": 0,
+    "positive_runs": 6,
+    "unknown_evidence_count": 1
+  },
+  "run_count": 30,
+  "runs": [
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 32768,
+      "cache_miss_tokens": 4995,
+      "completion_tokens": 2179,
+      "cost_usd": 0.00430991,
+      "definition": "r05-p1-analysis",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 46257.972,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 9,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 37763,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T083348Z",
+      "route": "",
+      "run_id": "eval-dbaf5bef188b",
+      "sum_worker_duration_ms": 28252.475,
+      "task_success": true,
+      "tool_calls": 13,
+      "total_run_wall_time_ms": 28252.475,
+      "track": "a",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 72960,
+      "cache_miss_tokens": 8713,
+      "completion_tokens": 4190,
+      "cost_usd": 0.00807966,
+      "definition": "r05-p1-analysis",
+      "executed_worker_count": 2,
+      "failure_class": "ORACLE_FAILURE",
+      "integrity_passed": true,
+      "latency_ms": 54089.692,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 21,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 81673,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T083348Z",
+      "route": "",
+      "run_id": "eval-9a36f53e025f",
+      "sum_worker_duration_ms": 65844.508,
+      "task_success": false,
+      "tool_calls": 22,
+      "total_run_wall_time_ms": 36580.777,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 40192,
+      "cache_miss_tokens": 4249,
+      "completion_tokens": 2181,
+      "cost_usd": 0.00413305,
+      "definition": "r05-p1-analysis",
+      "executed_worker_count": 2,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 39171.318,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 14,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "r0.1.0",
+      "prompt_tokens": 44441,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T083348Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-a363a85e01c1",
+      "sum_worker_duration_ms": 40297.063,
+      "task_success": true,
+      "tool_calls": 14,
+      "total_run_wall_time_ms": 21806.663,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 2
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 35327,
+      "cache_miss_tokens": 3130,
+      "completion_tokens": 2177,
+      "cost_usd": 0.00376336,
+      "definition": "r05-p1-analysis",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 44898.373,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 9,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 38457,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T083348Z",
+      "route": "",
+      "run_id": "eval-379e83aa1103",
+      "sum_worker_duration_ms": 27507.268,
+      "task_success": true,
+      "tool_calls": 13,
+      "total_run_wall_time_ms": 27507.268,
+      "track": "a",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 52224,
+      "cache_miss_tokens": 4153,
+      "completion_tokens": 2624,
+      "cost_usd": 0.00470804,
+      "definition": "r05-p1-analysis",
+      "executed_worker_count": 2,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 45886.29,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 17,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 56377,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T083348Z",
+      "route": "",
+      "run_id": "eval-fe15ac5bb0a9",
+      "sum_worker_duration_ms": 45486.735,
+      "task_success": true,
+      "tool_calls": 17,
+      "total_run_wall_time_ms": 28354.586,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 2
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 53120,
+      "cache_miss_tokens": 4442,
+      "completion_tokens": 2603,
+      "cost_usd": 0.00477492,
+      "definition": "r05-p1-analysis",
+      "executed_worker_count": 2,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 45800.782,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 17,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "r0.1.0",
+      "prompt_tokens": 57562,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T083348Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-6b65e1ea8468",
+      "sum_worker_duration_ms": 46222.241,
+      "task_success": true,
+      "tool_calls": 17,
+      "total_run_wall_time_ms": 28480.915,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 2
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 25856,
+      "cache_miss_tokens": 3751,
+      "completion_tokens": 2526,
+      "cost_usd": 0.00431164,
+      "definition": "r05-p3-frozen-interface",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 43278.644,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 8,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 29607,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T084454Z",
+      "route": "",
+      "run_id": "eval-aa4e287f87a1",
+      "sum_worker_duration_ms": 25094.137,
+      "task_success": true,
+      "tool_calls": 9,
+      "total_run_wall_time_ms": 25094.137,
+      "track": "a",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 76416,
+      "cache_miss_tokens": 9284,
+      "completion_tokens": 6136,
+      "cost_usd": 0.0106069,
+      "definition": "r05-p3-frozen-interface",
+      "executed_worker_count": 2,
+      "failure_class": "ORACLE_FAILURE",
+      "integrity_passed": true,
+      "latency_ms": 59373.831,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 20,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 85700,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T084454Z",
+      "route": "",
+      "run_id": "eval-4b360f5606d7",
+      "sum_worker_duration_ms": 78147.147,
+      "task_success": false,
+      "tool_calls": 21,
+      "total_run_wall_time_ms": 41678.814,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 95868,
+      "cache_miss_tokens": 6816,
+      "completion_tokens": 6977,
+      "cost_usd": 0.01099241,
+      "definition": "r05-p3-frozen-interface",
+      "executed_worker_count": 2,
+      "failure_class": "ORACLE_FAILURE",
+      "integrity_passed": true,
+      "latency_ms": 64981.511,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": true,
+      "model_turns": 23,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "r0.1.0",
+      "prompt_tokens": 102684,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T084454Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-014cecdb8c98",
+      "sum_worker_duration_ms": 81723.312,
+      "task_success": false,
+      "tool_calls": 26,
+      "total_run_wall_time_ms": 47706.407,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 26496,
+      "cache_miss_tokens": 2056,
+      "completion_tokens": 2655,
+      "cost_usd": 0.00396178,
+      "definition": "r05-p3-frozen-interface",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 41323.887,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 8,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 28552,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T084454Z",
+      "route": "",
+      "run_id": "eval-75a36c664c37",
+      "sum_worker_duration_ms": 23710.264,
+      "task_success": true,
+      "tool_calls": 8,
+      "total_run_wall_time_ms": 23710.264,
+      "track": "a",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 99324,
+      "cache_miss_tokens": 6724,
+      "completion_tokens": 6416,
+      "cost_usd": 0.01031234,
+      "definition": "r05-p3-frozen-interface",
+      "executed_worker_count": 2,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 103541.045,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 23,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 106048,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T084454Z",
+      "route": "",
+      "run_id": "eval-73baf3bb020f",
+      "sum_worker_duration_ms": 165247.763,
+      "task_success": false,
+      "tool_calls": 10,
+      "total_run_wall_time_ms": 86166.561,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 75900,
+      "cache_miss_tokens": 4726,
+      "completion_tokens": 6402,
+      "cost_usd": 0.0095556,
+      "definition": "r05-p3-frozen-interface",
+      "executed_worker_count": 2,
+      "failure_class": "ORACLE_FAILURE",
+      "integrity_passed": true,
+      "latency_ms": 110924.379,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 19,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "r0.1.0",
+      "prompt_tokens": 80626,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T084454Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-6556d6724bdc",
+      "sum_worker_duration_ms": 173051.365,
+      "task_success": false,
+      "tool_calls": 22,
+      "total_run_wall_time_ms": 92838.493,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 74240,
+      "cache_miss_tokens": 4888,
+      "completion_tokens": 7570,
+      "cost_usd": 0.01099584,
+      "definition": "r05-p2-modules",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 66659.199,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 11,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 79128,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T090452Z",
+      "route": "",
+      "run_id": "eval-3e3b3b4c55ca",
+      "sum_worker_duration_ms": 48601.636,
+      "task_success": true,
+      "tool_calls": 13,
+      "total_run_wall_time_ms": 48601.636,
+      "track": "a",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 96256,
+      "cache_miss_tokens": 7003,
+      "completion_tokens": 8244,
+      "cost_usd": 0.01257124,
+      "definition": "r05-p2-modules",
+      "executed_worker_count": 2,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 71012.814,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 22,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 103259,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T090452Z",
+      "route": "",
+      "run_id": "eval-be58acf6b03d",
+      "sum_worker_duration_ms": 90060.498,
+      "task_success": false,
+      "tool_calls": 9,
+      "total_run_wall_time_ms": 53408.597,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 86528,
+      "cache_miss_tokens": 6851,
+      "completion_tokens": 7744,
+      "cost_usd": 0.01186727,
+      "definition": "r05-p2-modules",
+      "executed_worker_count": 2,
+      "failure_class": "ORACLE_FAILURE",
+      "integrity_passed": true,
+      "latency_ms": 63700.122,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 20,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "r0.1.0",
+      "prompt_tokens": 93379,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 0,
+      "round_id": "r05-a-20261111T090452Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-b3268024a0b6",
+      "sum_worker_duration_ms": 86716.394,
+      "task_success": false,
+      "tool_calls": 21,
+      "total_run_wall_time_ms": 46363.085,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 59904,
+      "cache_miss_tokens": 4083,
+      "completion_tokens": 6490,
+      "cost_usd": 0.00937232,
+      "definition": "r05-p2-modules",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 59181.737,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 10,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 63987,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T090452Z",
+      "route": "",
+      "run_id": "eval-ae96056cf7d7",
+      "sum_worker_duration_ms": 41426.408,
+      "task_success": true,
+      "tool_calls": 12,
+      "total_run_wall_time_ms": 41426.408,
+      "track": "a",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 94976,
+      "cache_miss_tokens": 7416,
+      "completion_tokens": 7782,
+      "cost_usd": 0.01213306,
+      "definition": "r05-p2-modules",
+      "executed_worker_count": 2,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 64920.732,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 22,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 102392,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T090452Z",
+      "route": "",
+      "run_id": "eval-fbe242fdad8a",
+      "sum_worker_duration_ms": 83795.234,
+      "task_success": false,
+      "tool_calls": 10,
+      "total_run_wall_time_ms": 47235.35,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 70912,
+      "cache_miss_tokens": 7726,
+      "completion_tokens": 6030,
+      "cost_usd": 0.00997927,
+      "definition": "r05-p2-modules",
+      "executed_worker_count": 2,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 57979.861,
+      "max_observed_concurrency": 2,
+      "max_turns_reached": false,
+      "model_turns": 18,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 1,
+      "parallel_marker": "",
+      "policy_version": "r0.1.0",
+      "prompt_tokens": 78638,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 1,
+      "round_id": "r05-a-20261111T090452Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-26a57ed0fac4",
+      "sum_worker_duration_ms": 76381.525,
+      "task_success": true,
+      "tool_calls": 18,
+      "total_run_wall_time_ms": 40212.862,
+      "track": "a",
+      "workers_started": 2,
+      "workers_succeeded": 2
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 19712,
+      "cache_miss_tokens": 1409,
+      "completion_tokens": 2208,
+      "cost_usd": 0.00319057,
+      "definition": "e1-01-config",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 44565.038,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 7,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 21121,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-b-20261111T085203Z",
+      "route": "",
+      "run_id": "eval-50cffa49faec",
+      "sum_worker_duration_ms": 26412.242,
+      "task_success": true,
+      "tool_calls": 9,
+      "total_run_wall_time_ms": 26412.242,
+      "track": "b",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 89088,
+      "cache_miss_tokens": 9254,
+      "completion_tokens": 6430,
+      "cost_usd": 0.01102673,
+      "definition": "e1-01-config",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 67849.021,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 27,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 98342,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-b-20261111T085203Z",
+      "route": "",
+      "run_id": "eval-2c9e7afe957d",
+      "sum_worker_duration_ms": 135342.343,
+      "task_success": false,
+      "tool_calls": 18,
+      "total_run_wall_time_ms": 47830.024,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 2
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 95616,
+      "cache_miss_tokens": 9744,
+      "completion_tokens": 6669,
+      "cost_usd": 0.0114997,
+      "definition": "e1-01-config",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 69285.987,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 30,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "r0.2.0",
+      "prompt_tokens": 105360,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 0,
+      "round_id": "r05-b-20261111T085203Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-382877d89513",
+      "sum_worker_duration_ms": 145631.356,
+      "task_success": false,
+      "tool_calls": 0,
+      "total_run_wall_time_ms": 51722.56,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 0
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 18944,
+      "cache_miss_tokens": 1473,
+      "completion_tokens": 2138,
+      "cost_usd": 0.00312116,
+      "definition": "e1-01-config",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 40295.889,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 7,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 20417,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-b-20261111T085203Z",
+      "route": "",
+      "run_id": "eval-9252d455c661",
+      "sum_worker_duration_ms": 22896.239,
+      "task_success": true,
+      "tool_calls": 9,
+      "total_run_wall_time_ms": 22896.239,
+      "track": "b",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 81280,
+      "cache_miss_tokens": 14882,
+      "completion_tokens": 5479,
+      "cost_usd": 0.01152708,
+      "definition": "e1-01-config",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 58945.429,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 23,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 96162,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-b-20261111T085203Z",
+      "route": "",
+      "run_id": "eval-92c64df04c4c",
+      "sum_worker_duration_ms": 114048.747,
+      "task_success": false,
+      "tool_calls": 8,
+      "total_run_wall_time_ms": 41232.242,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 90368,
+      "cache_miss_tokens": 14051,
+      "completion_tokens": 6742,
+      "cost_usd": 0.01284791,
+      "definition": "e1-01-config",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 70408.699,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 26,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "r0.2.0",
+      "prompt_tokens": 104419,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 1,
+      "round_id": "r05-b-20261111T085203Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-26dab4d935d1",
+      "sum_worker_duration_ms": 139172.823,
+      "task_success": false,
+      "tool_calls": 18,
+      "total_run_wall_time_ms": 52942.347,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 2
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 18944,
+      "cache_miss_tokens": 1254,
+      "completion_tokens": 1860,
+      "cost_usd": 0.00272186,
+      "definition": "e1-03-rbac",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 42161.468,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 7,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 20198,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-b-20261111T085805Z",
+      "route": "",
+      "run_id": "eval-cf66fd8edda6",
+      "sum_worker_duration_ms": 24013.634,
+      "task_success": true,
+      "tool_calls": 9,
+      "total_run_wall_time_ms": 24013.634,
+      "track": "b",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 93184,
+      "cache_miss_tokens": 12842,
+      "completion_tokens": 4949,
+      "cost_usd": 0.0103505,
+      "definition": "e1-03-rbac",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 62523.59,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 29,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 106026,
+      "reasons": "",
+      "repetition": 0,
+      "round_id": "r05-b-20261111T085805Z",
+      "route": "",
+      "run_id": "eval-151296b4da42",
+      "sum_worker_duration_ms": 122987.31,
+      "task_success": false,
+      "tool_calls": 0,
+      "total_run_wall_time_ms": 44908.051,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 0
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 95360,
+      "cache_miss_tokens": 11211,
+      "completion_tokens": 4386,
+      "cost_usd": 0.00919866,
+      "definition": "e1-03-rbac",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 64355.138,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 30,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "r0.2.0",
+      "prompt_tokens": 106571,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 0,
+      "round_id": "r05-b-20261111T085805Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-c5e203de4401",
+      "sum_worker_duration_ms": 125159.562,
+      "task_success": false,
+      "tool_calls": 10,
+      "total_run_wall_time_ms": 46881.716,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a0",
+      "budget_exceeded": false,
+      "cache_hit_tokens": 18176,
+      "cache_miss_tokens": 1756,
+      "completion_tokens": 1609,
+      "cost_usd": 0.00256666,
+      "definition": "e1-03-rbac",
+      "executed_worker_count": 1,
+      "failure_class": "TASK_SUCCESS",
+      "integrity_passed": true,
+      "latency_ms": 38410.107,
+      "max_observed_concurrency": 1,
+      "max_turns_reached": false,
+      "model_turns": 7,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": true,
+      "overlap_pair_count": 0,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 19932,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-b-20261111T085805Z",
+      "route": "",
+      "run_id": "eval-a7fb71a5e35e",
+      "sum_worker_duration_ms": 20684.703,
+      "task_success": true,
+      "tool_calls": 9,
+      "total_run_wall_time_ms": 20684.703,
+      "track": "b",
+      "workers_started": 1,
+      "workers_succeeded": 1
+    },
+    {
+      "arm": "a1",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 91776,
+      "cache_miss_tokens": 17438,
+      "completion_tokens": 4495,
+      "cost_usd": 0.01117606,
+      "definition": "e1-03-rbac",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 63119.119,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 27,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "",
+      "prompt_tokens": 109214,
+      "reasons": "",
+      "repetition": 1,
+      "round_id": "r05-b-20261111T085805Z",
+      "route": "",
+      "run_id": "eval-f5b7c83bfabf",
+      "sum_worker_duration_ms": 119120.386,
+      "task_success": false,
+      "tool_calls": 0,
+      "total_run_wall_time_ms": 45504.717,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 0
+    },
+    {
+      "arm": "a2",
+      "budget_exceeded": true,
+      "cache_hit_tokens": 93312,
+      "cache_miss_tokens": 15026,
+      "completion_tokens": 3511,
+      "cost_usd": 0.00928087,
+      "definition": "e1-03-rbac",
+      "executed_worker_count": 3,
+      "failure_class": "BUDGET_EXCEEDED",
+      "integrity_passed": true,
+      "latency_ms": 59559.64,
+      "max_observed_concurrency": 3,
+      "max_turns_reached": false,
+      "model_turns": 26,
+      "network_markers": 0,
+      "oracle_markers": 0,
+      "oracle_passed": false,
+      "overlap_pair_count": 3,
+      "parallel_marker": "",
+      "policy_version": "r0.2.0",
+      "prompt_tokens": 108338,
+      "reasons": "DELEGATION_ADMITTED",
+      "repetition": 1,
+      "round_id": "r05-b-20261111T085805Z",
+      "route": "delegate_parallel",
+      "run_id": "eval-ef35740e96bd",
+      "sum_worker_duration_ms": 114441.814,
+      "task_success": false,
+      "tool_calls": 0,
+      "total_run_wall_time_ms": 41717.125,
+      "track": "b",
+      "workers_started": 3,
+      "workers_succeeded": 0
+    }
+  ],
+  "tasks": {
+    "a:r05-p1-analysis": {
+      "arms": {
+        "a0": {
+          "cost_per_run": 0.004,
+          "cost_usd": 0.008073,
+          "failure_classes": [
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            46257.972,
+            44898.373
+          ],
+          "max_concurrency": [
+            1,
+            1
+          ],
+          "oracle_pass": 2,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            28252.475,
+            27507.268
+          ],
+          "worker_count": [
+            1,
+            1
+          ]
+        },
+        "a1": {
+          "cost_per_run": 0.0064,
+          "cost_usd": 0.012788,
+          "failure_classes": [
+            "ORACLE_FAILURE",
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            54089.692,
+            45886.29
+          ],
+          "max_concurrency": [
+            2,
+            2
+          ],
+          "oracle_pass": 1,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            36580.777,
+            28354.586
+          ],
+          "worker_count": [
+            2,
+            2
+          ]
+        },
+        "a2": {
+          "cost_per_run": 0.0045,
+          "cost_usd": 0.008908,
+          "failure_classes": [
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            39171.318,
+            45800.782
+          ],
+          "max_concurrency": [
+            2,
+            2
+          ],
+          "oracle_pass": 2,
+          "reasons": [
+            "DELEGATION_ADMITTED"
+          ],
+          "routes": [
+            "delegate_parallel"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            21806.663,
+            28480.915
+          ],
+          "worker_count": [
+            2,
+            2
+          ]
+        }
+      },
+      "definition": "r05-p1-analysis",
+      "track": "a"
+    },
+    "a:r05-p2-modules": {
+      "arms": {
+        "a0": {
+          "cost_per_run": 0.0102,
+          "cost_usd": 0.020368,
+          "failure_classes": [
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            66659.199,
+            59181.737
+          ],
+          "max_concurrency": [
+            1,
+            1
+          ],
+          "oracle_pass": 2,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            48601.636,
+            41426.408
+          ],
+          "worker_count": [
+            1,
+            1
+          ]
+        },
+        "a1": {
+          "cost_per_run": 0.0124,
+          "cost_usd": 0.024704,
+          "failure_classes": [
+            "BUDGET_EXCEEDED"
+          ],
+          "latency_ms": [
+            71012.814,
+            64920.732
+          ],
+          "max_concurrency": [
+            2,
+            2
+          ],
+          "oracle_pass": 1,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            53408.597,
+            47235.35
+          ],
+          "worker_count": [
+            2,
+            2
+          ]
+        },
+        "a2": {
+          "cost_per_run": 0.0109,
+          "cost_usd": 0.021847,
+          "failure_classes": [
+            "ORACLE_FAILURE",
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            63700.122,
+            57979.861
+          ],
+          "max_concurrency": [
+            2,
+            2
+          ],
+          "oracle_pass": 1,
+          "reasons": [
+            "DELEGATION_ADMITTED"
+          ],
+          "routes": [
+            "delegate_parallel"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            46363.085,
+            40212.862
+          ],
+          "worker_count": [
+            2,
+            2
+          ]
+        }
+      },
+      "definition": "r05-p2-modules",
+      "track": "a"
+    },
+    "a:r05-p3-frozen-interface": {
+      "arms": {
+        "a0": {
+          "cost_per_run": 0.0041,
+          "cost_usd": 0.008273,
+          "failure_classes": [
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            43278.644,
+            41323.887
+          ],
+          "max_concurrency": [
+            1,
+            1
+          ],
+          "oracle_pass": 2,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            25094.137,
+            23710.264
+          ],
+          "worker_count": [
+            1,
+            1
+          ]
+        },
+        "a1": {
+          "cost_per_run": 0.0105,
+          "cost_usd": 0.020919,
+          "failure_classes": [
+            "BUDGET_EXCEEDED",
+            "ORACLE_FAILURE"
+          ],
+          "latency_ms": [
+            59373.831,
+            103541.045
+          ],
+          "max_concurrency": [
+            2,
+            2
+          ],
+          "oracle_pass": 0,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            41678.814,
+            86166.561
+          ],
+          "worker_count": [
+            2,
+            2
+          ]
+        },
+        "a2": {
+          "cost_per_run": 0.0103,
+          "cost_usd": 0.020548,
+          "failure_classes": [
+            "ORACLE_FAILURE"
+          ],
+          "latency_ms": [
+            64981.511,
+            110924.379
+          ],
+          "max_concurrency": [
+            2,
+            2
+          ],
+          "oracle_pass": 0,
+          "reasons": [
+            "DELEGATION_ADMITTED"
+          ],
+          "routes": [
+            "delegate_parallel"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            47706.407,
+            92838.493
+          ],
+          "worker_count": [
+            2,
+            2
+          ]
+        }
+      },
+      "definition": "r05-p3-frozen-interface",
+      "track": "a"
+    },
+    "b:e1-01-config": {
+      "arms": {
+        "a0": {
+          "cost_per_run": 0.0032,
+          "cost_usd": 0.006312,
+          "failure_classes": [
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            44565.038,
+            40295.889
+          ],
+          "max_concurrency": [
+            1,
+            1
+          ],
+          "oracle_pass": 2,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            26412.242,
+            22896.239
+          ],
+          "worker_count": [
+            1,
+            1
+          ]
+        },
+        "a1": {
+          "cost_per_run": 0.0113,
+          "cost_usd": 0.022554,
+          "failure_classes": [
+            "BUDGET_EXCEEDED"
+          ],
+          "latency_ms": [
+            67849.021,
+            58945.429
+          ],
+          "max_concurrency": [
+            3,
+            3
+          ],
+          "oracle_pass": 2,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            47830.024,
+            41232.242
+          ],
+          "worker_count": [
+            3,
+            3
+          ]
+        },
+        "a2": {
+          "cost_per_run": 0.0122,
+          "cost_usd": 0.024348,
+          "failure_classes": [
+            "BUDGET_EXCEEDED"
+          ],
+          "latency_ms": [
+            69285.987,
+            70408.699
+          ],
+          "max_concurrency": [
+            3,
+            3
+          ],
+          "oracle_pass": 2,
+          "reasons": [
+            "DELEGATION_ADMITTED"
+          ],
+          "routes": [
+            "delegate_parallel"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            51722.56,
+            52942.347
+          ],
+          "worker_count": [
+            3,
+            3
+          ]
+        }
+      },
+      "definition": "e1-01-config",
+      "track": "b"
+    },
+    "b:e1-03-rbac": {
+      "arms": {
+        "a0": {
+          "cost_per_run": 0.0026,
+          "cost_usd": 0.005289,
+          "failure_classes": [
+            "TASK_SUCCESS"
+          ],
+          "latency_ms": [
+            42161.468,
+            38410.107
+          ],
+          "max_concurrency": [
+            1,
+            1
+          ],
+          "oracle_pass": 2,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            24013.634,
+            20684.703
+          ],
+          "worker_count": [
+            1,
+            1
+          ]
+        },
+        "a1": {
+          "cost_per_run": 0.0108,
+          "cost_usd": 0.021527,
+          "failure_classes": [
+            "BUDGET_EXCEEDED"
+          ],
+          "latency_ms": [
+            62523.59,
+            63119.119
+          ],
+          "max_concurrency": [
+            3,
+            3
+          ],
+          "oracle_pass": 0,
+          "reasons": [],
+          "routes": [
+            "None"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            44908.051,
+            45504.717
+          ],
+          "worker_count": [
+            3,
+            3
+          ]
+        },
+        "a2": {
+          "cost_per_run": 0.0092,
+          "cost_usd": 0.01848,
+          "failure_classes": [
+            "BUDGET_EXCEEDED"
+          ],
+          "latency_ms": [
+            64355.138,
+            59559.64
+          ],
+          "max_concurrency": [
+            3,
+            3
+          ],
+          "oracle_pass": 0,
+          "reasons": [
+            "DELEGATION_ADMITTED"
+          ],
+          "routes": [
+            "delegate_parallel"
+          ],
+          "runs": 2,
+          "wall_time_ms": [
+            46881.716,
+            41717.125
+          ],
+          "worker_count": [
+            3,
+            3
+          ]
+        }
+      },
+      "definition": "e1-03-rbac",
+      "track": "b"
+    }
+  },
+  "versions": {
+    "excluded_families": [
+      "r05-p2-modules"
+    ],
+    "mismatched_families": [
+      "r05-p2-modules"
+    ],
+    "rows": [
+      {
+        "benchmark_version": "r0.5.1",
+        "digest": "aa1594aaf7b78b5d6ed619d04ca22c3c7c9c09a9a067c02f243f8b85260adbc2",
+        "frozen_digest": "aa1594aaf7b78b5d6ed619d04ca22c3c7c9c09a9a067c02f243f8b85260adbc2",
+        "matches": true,
+        "round_id": "r05-a-20261111T083348Z",
+        "sample_id": "r05-p1-analysis"
+      },
+      {
+        "benchmark_version": "r0.5.1",
+        "digest": "ed9a69dea9e6fb2e9fe08cedf5108736c735e9365e2b4d4d810e37c69f4cee0e",
+        "frozen_digest": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+        "matches": false,
+        "round_id": "r05-a-20261111T083830Z",
+        "sample_id": "r05-p2-modules"
+      },
+      {
+        "benchmark_version": "r0.5.1",
+        "digest": "442e0c37001fffdc12288562cdecb96bed42eb600ee048ff9964eed2e7562bc4",
+        "frozen_digest": "442e0c37001fffdc12288562cdecb96bed42eb600ee048ff9964eed2e7562bc4",
+        "matches": true,
+        "round_id": "r05-a-20261111T084454Z",
+        "sample_id": "r05-p3-frozen-interface"
+      },
+      {
+        "benchmark_version": "r0.5.2",
+        "digest": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+        "frozen_digest": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+        "matches": true,
+        "round_id": "r05-a-20261111T090452Z",
+        "sample_id": "r05-p2-modules"
+      }
+    ],
+    "track_b_note": "Track B runs Stage E1 tasks; their fixture digests are pinned by the Stage E1 tests and are unaffected by the R0.5 benchmark version",
+    "versions": [
+      "r0.5.1",
+      "r0.5.2"
+    ]
+  }
+}
