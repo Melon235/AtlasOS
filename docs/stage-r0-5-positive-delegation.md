@@ -445,6 +445,11 @@ Scope note: the PR also carries the 22 previously unpushed stage commits (Stage 
 which account for about 93 of the 143 changed files, mostly committed evaluation artifacts under
 `experiments/results/`. The R0.5 review surface is the five commits listed in §14.
 
+**Updated in Stage R1-0.** The stack was split without rewriting history: the prerequisite stages
+became `feat/stage-g1-r0-prerequisites` (PR #2, base `master`), and PR #1 was retargeted onto it.
+PR #1 now shows 13 files and 5 commits — exactly the R0.5 surface above. See
+`docs/stage-r1-0-failure-attribution.md` §14.
+
 ---
 
 ## 16. Reviewer checklist

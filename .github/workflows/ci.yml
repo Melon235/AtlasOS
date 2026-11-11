@@ -1,0 +1,59 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    name: offline checks (no provider, no sandbox service)
+    # The suite runs on Windows because the in-repo fake sandbox helper drives a `cmd` shell
+    # (tests/helpers/fake_sandbox_provider.py) and the M5 sandbox integration tests clone through
+    # it. That is a pre-existing property of the test helper, not of the runtime; a Linux runner
+    # would report those four M5 tests as failures. Everything else here is platform neutral.
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      # Belt and braces: the pytest addopts already deselect the `live` marker.
+      ATLASOS_RUN_LIVE_TESTS: "0"
+      ATLASOS_RUN_LIVE_SANDBOX: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Create the venv pyright is configured against
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install --upgrade pip
+
+      - name: Install
+        run: |
+          # Extras the offline suite actually imports: the local app tests need fastapi/typer and
+          # the sandbox adapter tests need the OpenSandbox/Daytona clients. ContextPilot, mcp and
+          # the embedding stack stay optional because those tests use pytest.importorskip (and the
+          # ContextPilot wheel installs a .pth hook that pollutes every child process on Windows).
+          .venv\Scripts\python -m pip install -e ".[dev,sandbox,app]"
+
+      - name: Tests
+        run: .venv\Scripts\python -m pytest
+
+      - name: Lint
+        run: .venv\Scripts\python -m ruff check .
+
+      - name: Format
+        run: .venv\Scripts\python -m ruff format --check .
+
+      - name: Types
+        run: .venv\Scripts\python -m pyright

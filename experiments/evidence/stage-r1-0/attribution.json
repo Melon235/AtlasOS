@@ -1,0 +1,1056 @@
+[
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-dbaf5bef188b",
+    "verification": {
+      "adhoc_attempts": 5,
+      "adhoc_failures": 3,
+      "integration_attempts": 0,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "ORACLE_FAILURE",
+    "oracle_passed": false,
+    "primary": "DELIVERABLE_INCOMPLETE",
+    "reasons": [
+      {
+        "code": "DELIVERABLE_INCOMPLETE",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "pricing:reports/pricing.md=MISSING"
+        ],
+        "symptom": "a declared artifact is missing or still a stub at export time"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=catalog/pricing.py worker=pricing",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p1-pricing-contract: the source was read and the implementation contradicts it"
+      }
+    ],
+    "run_id": "eval-9a36f53e025f",
+    "verification": {
+      "adhoc_attempts": 13,
+      "adhoc_failures": 2,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-a363a85e01c1",
+    "verification": {
+      "adhoc_attempts": 4,
+      "adhoc_failures": 2,
+      "integration_attempts": 2,
+      "integration_failures": 1,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-379e83aa1103",
+    "verification": {
+      "adhoc_attempts": 4,
+      "adhoc_failures": 2,
+      "integration_attempts": 0,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 1"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      }
+    ],
+    "run_id": "eval-fe15ac5bb0a9",
+    "verification": {
+      "adhoc_attempts": 8,
+      "adhoc_failures": 3,
+      "integration_attempts": 3,
+      "integration_failures": 2,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-6b65e1ea8468",
+    "verification": {
+      "adhoc_attempts": 6,
+      "adhoc_failures": 3,
+      "integration_attempts": 2,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-aa4e287f87a1",
+    "verification": {
+      "adhoc_attempts": 3,
+      "adhoc_failures": 1,
+      "integration_attempts": 2,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "ORACLE_FAILURE",
+    "oracle_passed": false,
+    "primary": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+    "reasons": [
+      {
+        "code": "INTEGRATION_FAILED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "the failure may be a probe written by the worker, not the delivered artifact"
+        ],
+        "evidence": [
+          "3 failing command(s)",
+          "cd /workspace/project && python3 - <<'EOF' from consumers.report import summarize from providers.clock import to_epoch, from_epoch # Contract example assert sum"
+        ],
+        "symptom": "a cross-module check was executed and failed"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=docs/INTERFACE.md worker=clock",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p3-epoch-zero: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=docs/INTERFACE.md worker=clock",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p3-malformed-dates: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "IMPLEMENTATION_ERROR",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "hidden_tests_passed=False"
+        ],
+        "symptom": "the artifact exists and is implemented, but the hidden test rejects it"
+      }
+    ],
+    "run_id": "eval-4b360f5606d7",
+    "verification": {
+      "adhoc_attempts": 11,
+      "adhoc_failures": 3,
+      "integration_attempts": 5,
+      "integration_failures": 3,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "ORACLE_FAILURE",
+    "oracle_passed": false,
+    "primary": "MAX_TURNS",
+    "reasons": [
+      {
+        "code": "MAX_TURNS",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['max_turns', 'success']"
+        ],
+        "symptom": "a worker reached the turn limit"
+      },
+      {
+        "code": "INTEGRATION_FAILED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "the failure may be a probe written by the worker, not the delivered artifact"
+        ],
+        "evidence": [
+          "4 failing command(s)",
+          "cd /workspace/project && python3 - <<'EOF' import datetime as dt from providers.clock import to_epoch, from_epoch assert to_epoch(\"1970-01-01\") == 0 assert from"
+        ],
+        "symptom": "a cross-module check was executed and failed"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: ['docs/INTERFACE.md']",
+          "shared commands: 0"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=docs/INTERFACE.md worker=clock",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p3-epoch-zero: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=docs/INTERFACE.md worker=clock",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p3-malformed-dates: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "IMPLEMENTATION_ERROR",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "hidden_tests_passed=False"
+        ],
+        "symptom": "the artifact exists and is implemented, but the hidden test rejects it"
+      }
+    ],
+    "run_id": "eval-014cecdb8c98",
+    "verification": {
+      "adhoc_attempts": 11,
+      "adhoc_failures": 4,
+      "integration_attempts": 6,
+      "integration_failures": 4,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-75a36c664c37",
+    "verification": {
+      "adhoc_attempts": 3,
+      "adhoc_failures": 0,
+      "integration_attempts": 2,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": false,
+    "primary": "DELIVERABLE_INCOMPLETE",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'success']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-73baf3bb020f-clock needs ~13258 tokens (used 112464, reserved 0), 7536 of 120000 left",
+          "remaining_tokens=7536"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "DELIVERABLE_INCOMPLETE",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "the worker may have reverted its own write before finishing"
+        ],
+        "evidence": [
+          "summary:consumers/report.py=STUB",
+          "completed write but absent at export: ['summary:consumers/report.py']"
+        ],
+        "symptom": "a declared artifact is missing or still a stub at export time"
+      },
+      {
+        "code": "INTEGRATION_FAILED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "the failure may be a probe written by the worker, not the delivered artifact"
+        ],
+        "evidence": [
+          "2 failing command(s)",
+          "cd /workspace/project && python3 - <<'EOF' from consumers.report import summarize from providers.clock import to_epoch, from_epoch # contract example assert sum"
+        ],
+        "symptom": "a cross-module check was executed and failed"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: ['docs/INTERFACE.md']",
+          "shared commands: 0"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=docs/INTERFACE.md worker=clock",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p3-epoch-zero: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=docs/INTERFACE.md worker=clock",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p3-malformed-dates: the source was read and the implementation contradicts it"
+      }
+    ],
+    "run_id": "eval-73baf3bb020f",
+    "verification": {
+      "adhoc_attempts": 4,
+      "adhoc_failures": 3,
+      "integration_attempts": 2,
+      "integration_failures": 2,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "ORACLE_FAILURE",
+    "oracle_passed": false,
+    "primary": "WORKSPACE_INTERFERENCE",
+    "reasons": [
+      {
+        "code": "DELIVERABLE_INCOMPLETE",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "the worker may have reverted its own write before finishing"
+        ],
+        "evidence": [
+          "summary:consumers/report.py=STUB",
+          "completed write but absent at export: ['summary:consumers/report.py']"
+        ],
+        "symptom": "a declared artifact is missing or still a stub at export time"
+      },
+      {
+        "code": "INTEGRATION_FAILED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "the failure may be a probe written by the worker, not the delivered artifact"
+        ],
+        "evidence": [
+          "1 failing command(s)",
+          "cd /workspace/project && python3 - <<'EOF' import datetime, random from providers.clock import to_epoch, from_epoch # Contract examples assert to_epoch(\"1970-01"
+        ],
+        "symptom": "a cross-module check was executed and failed"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: ['docs/INTERFACE.md']",
+          "shared commands: 0"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=docs/INTERFACE.md worker=summary",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p3-summary-shape: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "WORKSPACE_INTERFERENCE",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "the revert may have happened after the artifact was already graded"
+        ],
+        "evidence": [
+          "clock -> cd /workspace/project && stat -c '%y %n' providers/clock.py consumers/report.py docs/INTERFACE.md && echo \"--- restoring consumer ---\" && git checkout -- consumers/report.py && rm -rf providers/__pyca"
+        ],
+        "symptom": "a worker reverted a path owned by another worker in the shared workspace"
+      }
+    ],
+    "run_id": "eval-6556d6724bdc",
+    "verification": {
+      "adhoc_attempts": 7,
+      "adhoc_failures": 1,
+      "integration_attempts": 6,
+      "integration_failures": 1,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-3e3b3b4c55ca",
+    "verification": {
+      "adhoc_attempts": 6,
+      "adhoc_failures": 4,
+      "integration_attempts": 4,
+      "integration_failures": 4,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'success']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-be58acf6b03d-money needs ~14061 tokens (used 111503, reserved 0), 8497 of 120000 left",
+          "remaining_tokens=8497"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      }
+    ],
+    "run_id": "eval-be58acf6b03d",
+    "verification": {
+      "adhoc_attempts": 3,
+      "adhoc_failures": 0,
+      "integration_attempts": 2,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "ORACLE_FAILURE",
+    "oracle_passed": false,
+    "primary": "WORKSPACE_INTERFERENCE",
+    "reasons": [
+      {
+        "code": "DELIVERABLE_INCOMPLETE",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "the worker may have reverted its own write before finishing"
+        ],
+        "evidence": [
+          "money:ledger/money.py=STUB",
+          "completed write but absent at export: ['money:ledger/money.py']"
+        ],
+        "symptom": "a declared artifact is missing or still a stub at export time"
+      },
+      {
+        "code": "INTEGRATION_FAILED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "the failure may be a probe written by the worker, not the delivered artifact"
+        ],
+        "evidence": [
+          "1 failing command(s)",
+          "cd /workspace/project && cat > /tmp/check_entries.py <<'EOF' import sys sys.path.insert(0, \"/workspace/project\") from ledger.entries import parse_entry, total_f"
+        ],
+        "symptom": "a cross-module check was executed and failed"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 1"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=ledger/money.py worker=money",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p2-money-contract: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "WORKSPACE_INTERFERENCE",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "the revert may have happened after the artifact was already graded"
+        ],
+        "evidence": [
+          "entries -> cd /workspace/project && git checkout -- ledger/money.py && git status --short && echo \"--- money.py restored ---\" && head -5 ledger/money.py && echo \"--- entries.py final ---\" && cat ledger/entries.p"
+        ],
+        "symptom": "a worker reverted a path owned by another worker in the shared workspace"
+      }
+    ],
+    "run_id": "eval-b3268024a0b6",
+    "verification": {
+      "adhoc_attempts": 9,
+      "adhoc_failures": 5,
+      "integration_attempts": 2,
+      "integration_failures": 1,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-ae96056cf7d7",
+    "verification": {
+      "adhoc_attempts": 5,
+      "adhoc_failures": 3,
+      "integration_attempts": 3,
+      "integration_failures": 2,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": false,
+    "primary": "BUDGET_EXHAUSTED",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'success']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-fbe242fdad8a-money needs ~14061 tokens (used 110174, reserved 0), 9826 of 120000 left",
+          "remaining_tokens=9826"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 1"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      },
+      {
+        "code": "CONTEXT_READ_BUT_MISUNDERSTOOD",
+        "confidence": "HIGH",
+        "counterevidence": [
+          "reading a file is not proof that the relevant lines were used"
+        ],
+        "evidence": [
+          "source=ledger/money.py worker=money",
+          "the source file appears in the worker's own tool calls"
+        ],
+        "symptom": "p2-money-contract: the source was read and the implementation contradicts it"
+      },
+      {
+        "code": "IMPLEMENTATION_ERROR",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "hidden_tests_passed=False"
+        ],
+        "symptom": "the artifact exists and is implemented, but the hidden test rejects it"
+      }
+    ],
+    "run_id": "eval-fbe242fdad8a",
+    "verification": {
+      "adhoc_attempts": 4,
+      "adhoc_failures": 1,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 1"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      }
+    ],
+    "run_id": "eval-26a57ed0fac4",
+    "verification": {
+      "adhoc_attempts": 5,
+      "adhoc_failures": 0,
+      "integration_attempts": 0,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-50cffa49faec",
+    "verification": {
+      "adhoc_attempts": 1,
+      "adhoc_failures": 0,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'success', 'success']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-2c9e7afe957d-loader needs ~12082 tokens (used 92759, reserved 20944), 6297 of 120000 left",
+          "remaining_tokens=15228"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 2"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      }
+    ],
+    "run_id": "eval-2c9e7afe957d",
+    "verification": {
+      "adhoc_attempts": 2,
+      "adhoc_failures": 0,
+      "integration_attempts": 2,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'budget_exceeded', 'budget_exceeded']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-382877d89513-validate needs ~9893 tokens (used 112029, reserved 0), 7971 of 120000 left",
+          "remaining_tokens=7971"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 1"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      }
+    ],
+    "run_id": "eval-382877d89513",
+    "verification": {
+      "adhoc_attempts": 0,
+      "adhoc_failures": 0,
+      "integration_attempts": 0,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-9252d455c661",
+    "verification": {
+      "adhoc_attempts": 2,
+      "adhoc_failures": 0,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'budget_exceeded', 'success']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-92c64df04c4c-loader needs ~20395 tokens (used 96137, reserved 9945), 13918 of 120000 left",
+          "remaining_tokens=18359"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 1"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      }
+    ],
+    "run_id": "eval-92c64df04c4c",
+    "verification": {
+      "adhoc_attempts": 1,
+      "adhoc_failures": 0,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'success', 'success']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-26dab4d935d1-loader needs ~16152 tokens (used 86817, reserved 19586), 13597 of 120000 left",
+          "remaining_tokens=8839"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "REDUNDANT_EXPLORATION",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "shared reads: []",
+          "shared commands: 1"
+        ],
+        "symptom": "two workers repeated the same read or command"
+      }
+    ],
+    "run_id": "eval-26dab4d935d1",
+    "verification": {
+      "adhoc_attempts": 3,
+      "adhoc_failures": 1,
+      "integration_attempts": 3,
+      "integration_failures": 1,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-cf66fd8edda6",
+    "verification": {
+      "adhoc_attempts": 1,
+      "adhoc_failures": 0,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": false,
+    "primary": "BUDGET_EXHAUSTED",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'budget_exceeded', 'budget_exceeded']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-151296b4da42-policy needs ~11681 tokens (used 110975, reserved 0), 9025 of 120000 left",
+          "remaining_tokens=9025"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "INTEGRATION_NOT_VERIFIED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "a frozen-interface split makes local integration impossible until both finish"
+        ],
+        "evidence": [
+          "workers=3",
+          "no bash command imported two modules or ran a combined test"
+        ],
+        "symptom": "no cross-module or end-to-end check was executed"
+      },
+      {
+        "code": "IMPLEMENTATION_ERROR",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "hidden_tests_passed=False"
+        ],
+        "symptom": "the artifact exists and is implemented, but the hidden test rejects it"
+      }
+    ],
+    "run_id": "eval-151296b4da42",
+    "verification": {
+      "adhoc_attempts": 1,
+      "adhoc_failures": 0,
+      "integration_attempts": 0,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": false,
+    "primary": "BUDGET_EXHAUSTED",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'budget_exceeded', 'success']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-c5e203de4401-service needs ~9533 tokens (used 110957, reserved 0), 9043 of 120000 left",
+          "remaining_tokens=9043"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "IMPLEMENTATION_ERROR",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "hidden_tests_passed=False"
+        ],
+        "symptom": "the artifact exists and is implemented, but the hidden test rejects it"
+      }
+    ],
+    "run_id": "eval-c5e203de4401",
+    "verification": {
+      "adhoc_attempts": 3,
+      "adhoc_failures": 2,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "TASK_SUCCESS",
+    "oracle_passed": true,
+    "primary": "NONE",
+    "reasons": [],
+    "run_id": "eval-a7fb71a5e35e",
+    "verification": {
+      "adhoc_attempts": 1,
+      "adhoc_failures": 0,
+      "integration_attempts": 1,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": false,
+    "primary": "BUDGET_EXHAUSTED",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'budget_exceeded', 'budget_exceeded']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-f5b7c83bfabf-roles needs ~9709 tokens (used 113709, reserved 0), 6291 of 120000 left",
+          "remaining_tokens=6291"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "INTEGRATION_NOT_VERIFIED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "a frozen-interface split makes local integration impossible until both finish"
+        ],
+        "evidence": [
+          "workers=3",
+          "no bash command imported two modules or ran a combined test"
+        ],
+        "symptom": "no cross-module or end-to-end check was executed"
+      },
+      {
+        "code": "IMPLEMENTATION_ERROR",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "hidden_tests_passed=False"
+        ],
+        "symptom": "the artifact exists and is implemented, but the hidden test rejects it"
+      }
+    ],
+    "run_id": "eval-f5b7c83bfabf",
+    "verification": {
+      "adhoc_attempts": 0,
+      "adhoc_failures": 0,
+      "integration_attempts": 0,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  },
+  {
+    "failure_class": "BUDGET_EXCEEDED",
+    "oracle_passed": false,
+    "primary": "BUDGET_EXHAUSTED",
+    "reasons": [
+      {
+        "code": "BUDGET_EXHAUSTED",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "stop codes=['budget_exceeded', 'budget_exceeded', 'budget_exceeded']",
+          "budget stop_reason=budget_exhausted: worker coding_worker:eval-ef35740e96bd-policy needs ~11396 tokens (used 111849, reserved 0), 8151 of 120000 left",
+          "remaining_tokens=8151"
+        ],
+        "symptom": "the shared budget guard ended at least one worker"
+      },
+      {
+        "code": "INTEGRATION_NOT_VERIFIED",
+        "confidence": "MEDIUM",
+        "counterevidence": [
+          "a frozen-interface split makes local integration impossible until both finish"
+        ],
+        "evidence": [
+          "workers=3",
+          "no bash command imported two modules or ran a combined test"
+        ],
+        "symptom": "no cross-module or end-to-end check was executed"
+      },
+      {
+        "code": "IMPLEMENTATION_ERROR",
+        "confidence": "HIGH",
+        "counterevidence": [],
+        "evidence": [
+          "hidden_tests_passed=False"
+        ],
+        "symptom": "the artifact exists and is implemented, but the hidden test rejects it"
+      }
+    ],
+    "run_id": "eval-ef35740e96bd",
+    "verification": {
+      "adhoc_attempts": 0,
+      "adhoc_failures": 0,
+      "integration_attempts": 0,
+      "integration_failures": 0,
+      "public_test_attempts": 0,
+      "public_tests_in_fixture": []
+    }
+  }
+]

@@ -6,6 +6,7 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+import pytest
 from anycode.providers.fake import FakeAdapter, FakeResponse
 from anycode.types import LLMChatOptions, LLMMessage
 
@@ -14,6 +15,10 @@ from atlasos.metrics import InferenceObservation, InferenceUsage
 from atlasos.metrics.fingerprint import full_prompt_hash, stable_prefix_hash
 from atlasos.runtime import AtlasRunResult, AtlasRuntime
 from atlasos.workflow import baseline_workflow
+
+#: The optional ContextPilot backend is not installed in CI; the sibling smoke test skips the same
+#: way. When the extra is present the module runs unchanged.
+pytest.importorskip("contextpilot")
 
 REPLIES = {
     "researcher-a": "out-a",

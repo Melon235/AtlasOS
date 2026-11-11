@@ -1,0 +1,187 @@
+{
+  "families": [
+    {
+      "digest": "aa1594aaf7b78b5d6ed619d04ca22c3c7c9c09a9a067c02f243f8b85260adbc2",
+      "family": "P1",
+      "sample_id": "r05-p1-analysis"
+    },
+    {
+      "digest": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+      "family": "P2",
+      "sample_id": "r05-p2-modules"
+    },
+    {
+      "digest": "442e0c37001fffdc12288562cdecb96bed42eb600ee048ff9964eed2e7562bc4",
+      "family": "P3",
+      "sample_id": "r05-p3-frozen-interface"
+    },
+    {
+      "digest": "67ded57a873490d469ffb0cc3e3968dfb864b7d546f721b023d08b1311b44b23",
+      "family": "N1",
+      "sample_id": "r05-n1-shared-write"
+    },
+    {
+      "digest": "a182180e9af0c7f8f6886565ad715acb426429a35d0bb746cf92fcf0f1ee72d1",
+      "family": "N2",
+      "sample_id": "r05-n2-unfrozen-interface"
+    },
+    {
+      "digest": "216bee1f8719e9ae6bd8355c24356ea6c2d0f7843800ac19f4f6c9a24cd5345a",
+      "family": "N3",
+      "sample_id": "r05-n3-linear-chain"
+    }
+  ],
+  "preregistration": {
+    "benchmark_version": "r0.5.2",
+    "experiment_matrix": {
+      "fixed_conditions": {
+        "budget_mode": "guarded",
+        "compaction_mode": "off",
+        "handoff_mode": "dual",
+        "max_tool_calls": 60,
+        "max_turns": 14,
+        "model": "deepseek-chat",
+        "provider": "deepseek",
+        "sandbox": "OpenSandbox",
+        "temperature": 0,
+        "token_budget": 120000,
+        "tool_error_mode": "corrected",
+        "tool_result_mode": "off",
+        "worker_contract_mode": "legacy"
+      },
+      "track_a": {
+        "arms": [
+          "a0",
+          "a1",
+          "a2"
+        ],
+        "families": [
+          "P1",
+          "P2",
+          "P3"
+        ],
+        "repetitions": 2,
+        "routing_policy_version": "r0.1.0",
+        "runs": 18,
+        "tasks": [
+          "r05-p1-analysis",
+          "r05-p2-modules",
+          "r05-p3-frozen-interface"
+        ]
+      },
+      "track_a_negative_audit": {
+        "arms": [],
+        "families": [
+          "N1",
+          "N2",
+          "N3"
+        ],
+        "repetitions": 0,
+        "routing_policy_version": "r0.1.0",
+        "runs": 0,
+        "tasks": [
+          "r05-n1-shared-write",
+          "r05-n2-unfrozen-interface",
+          "r05-n3-linear-chain"
+        ]
+      },
+      "track_b": {
+        "arms": [
+          "a0",
+          "a1",
+          "a2"
+        ],
+        "repetitions": 2,
+        "routing_policy_version": "r0.2.0",
+        "runs": 12,
+        "tasks": [
+          "e1-01-config",
+          "e1-03-rbac"
+        ]
+      }
+    },
+    "negative_task_definitions": {
+      "digests": {
+        "r05-n1-shared-write": "67ded57a873490d469ffb0cc3e3968dfb864b7d546f721b023d08b1311b44b23",
+        "r05-n2-unfrozen-interface": "a182180e9af0c7f8f6886565ad715acb426429a35d0bb746cf92fcf0f1ee72d1",
+        "r05-n3-linear-chain": "216bee1f8719e9ae6bd8355c24356ea6c2d0f7843800ac19f4f6c9a24cd5345a"
+      },
+      "ids": [
+        "r05-n1-shared-write",
+        "r05-n2-unfrozen-interface",
+        "r05-n3-linear-chain"
+      ]
+    },
+    "oracle_definition_digest": "4d69d20c2f057a25cecad0a27dd686563ee026d4219997e6d406db50fa102356",
+    "positive_task_definitions": {
+      "digests": {
+        "r05-p1-analysis": "aa1594aaf7b78b5d6ed619d04ca22c3c7c9c09a9a067c02f243f8b85260adbc2",
+        "r05-p2-modules": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+        "r05-p3-frozen-interface": "442e0c37001fffdc12288562cdecb96bed42eb600ee048ff9964eed2e7562bc4"
+      },
+      "ids": [
+        "r05-p1-analysis",
+        "r05-p2-modules",
+        "r05-p3-frozen-interface"
+      ]
+    },
+    "preregistration_digest": "57d8ff2b2d72d3e72ac24c5896ec6b3c9f3671a9369cba033bbd9b4b208fb8d4",
+    "public_contracts": {
+      "r05-n2-unfrozen-interface:clock:docs/INTERFACE.md": "MISSING",
+      "r05-n2-unfrozen-interface:summary:docs/INTERFACE.md": "MISSING",
+      "r05-p3-frozen-interface:clock:docs/INTERFACE.md": "85d36ead507cc010db7f12c9cb0a275cb477061a635e6decb35e0b1790affeec",
+      "r05-p3-frozen-interface:summary:docs/INTERFACE.md": "85d36ead507cc010db7f12c9cb0a275cb477061a635e6decb35e0b1790affeec"
+    },
+    "routing_policy_digest": "5e13c9106f8927fc116c00ff3d4ee91e9848205d0623925521ad6af12fa99244",
+    "routing_policy_version": "r0.1.0",
+    "width_policy_digest": "c5969f615fcf56d77a03b89a9073d2d0524be8aa281a6948c6e560f00331fcba",
+    "width_policy_version": "r0.2.0"
+  },
+  "versions": {
+    "excluded_families": [
+      "r05-p2-modules"
+    ],
+    "mismatched_families": [
+      "r05-p2-modules"
+    ],
+    "rows": [
+      {
+        "benchmark_version": "r0.5.1",
+        "digest": "aa1594aaf7b78b5d6ed619d04ca22c3c7c9c09a9a067c02f243f8b85260adbc2",
+        "frozen_digest": "aa1594aaf7b78b5d6ed619d04ca22c3c7c9c09a9a067c02f243f8b85260adbc2",
+        "matches": true,
+        "round_id": "r05-a-20261111T083348Z",
+        "sample_id": "r05-p1-analysis"
+      },
+      {
+        "benchmark_version": "r0.5.1",
+        "digest": "ed9a69dea9e6fb2e9fe08cedf5108736c735e9365e2b4d4d810e37c69f4cee0e",
+        "frozen_digest": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+        "matches": false,
+        "round_id": "r05-a-20261111T083830Z",
+        "sample_id": "r05-p2-modules"
+      },
+      {
+        "benchmark_version": "r0.5.1",
+        "digest": "442e0c37001fffdc12288562cdecb96bed42eb600ee048ff9964eed2e7562bc4",
+        "frozen_digest": "442e0c37001fffdc12288562cdecb96bed42eb600ee048ff9964eed2e7562bc4",
+        "matches": true,
+        "round_id": "r05-a-20261111T084454Z",
+        "sample_id": "r05-p3-frozen-interface"
+      },
+      {
+        "benchmark_version": "r0.5.2",
+        "digest": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+        "frozen_digest": "27433621c2f4997edef0f0d0ed89147f95ae5002d6db4a006f3d01c225748bec",
+        "matches": true,
+        "round_id": "r05-a-20261111T090452Z",
+        "sample_id": "r05-p2-modules"
+      }
+    ],
+    "track_b_note": "Track B runs Stage E1 tasks; their fixture digests are pinned by the Stage E1 tests and are unaffected by the R0.5 benchmark version",
+    "versions": [
+      "r0.5.1",
+      "r0.5.2"
+    ]
+  }
+}
