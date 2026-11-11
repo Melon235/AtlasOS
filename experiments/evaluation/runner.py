@@ -163,6 +163,8 @@ class RunnerSettings:
     tool_result_mode: str = "off"
     worker_contract_mode: str = "legacy"
     delegation_route_mode: str = "off"
+    #: Stage R0.5: which frozen routing policy the selective arm must use.
+    delegation_policy_version: str = "r0.1.0"
 
     def digest(self) -> str:
         return canonical_digest(
@@ -186,6 +188,7 @@ class RunnerSettings:
                 "tool_result_mode": self.tool_result_mode,
                 "worker_contract_mode": self.worker_contract_mode,
                 "delegation_route_mode": self.delegation_route_mode,
+                "delegation_policy_version": self.delegation_policy_version,
                 "config": _config_digest(self.config_path),
             }
         )
@@ -594,6 +597,7 @@ async def run_sample(
         "tool_result_mode": settings.tool_result_mode,
         "worker_contract_mode": settings.worker_contract_mode,
         "delegation_route_mode": settings.delegation_route_mode,
+        "delegation_policy_version": settings.delegation_policy_version,
     }
     provider = None
     manager: ProjectSandboxManager | None = None
@@ -680,7 +684,7 @@ async def run_sample(
             routed = plan_route(
                 task,
                 capabilities_from_catalog(WorkerCatalog()),
-                routing_policy(),
+                routing_policy(settings.delegation_policy_version),
             )
             routing_record = routed.as_dict()
             routing_record["mode"] = route_mode
@@ -812,16 +816,20 @@ async def run_sample(
 
         def on_progress(event: Any) -> None:
             if settings.capture_evidence:
+                # Stage R0.5: task/agent identity is recorded for *every* event so a start can be
+                # paired with its own completion by runtime task id. This is measurement wiring
+                # only: it observes the scheduler, it never influences it.
                 recorded = {
                     "ts": datetime.now(UTC).isoformat(),
                     "type": str(event.type),
+                    "task": str(getattr(event, "task", "") or ""),
+                    "agent": str(getattr(event, "agent", "") or ""),
                 }
                 data = getattr(event, "data", None)
                 if data is not None:
                     recorded["title"] = getattr(data, "title", None)
                     recorded["assignee"] = getattr(data, "assignee", None)
                 if event.type == "task_complete":
-                    recorded["task"] = str(getattr(event, "task", "") or "")
                     recorded["task_status"] = str(getattr(event, "status", "") or "")
                 task_events.append(recorded)
             if event.type == "task_start" and getattr(event, "data", None) is not None:
