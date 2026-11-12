@@ -31,6 +31,8 @@ class EnvironmentConfig:
     platform: str = "linux/amd64"
     startup_timeout_seconds: int = 180
     start_services: bool = True
+    #: Extra container ports to publish on 127.0.0.1 (task metadata covers the rest).
+    extra_ports: tuple[int, ...] = ()
 
 
 @dataclass
@@ -78,7 +80,10 @@ class NativeEnvironment:
         self.run_dir = run_dir
         self.backend = backend
         self.config = config or EnvironmentConfig()
-        self.container_name = container_name or f"atlas-cab-{run_dir.name}"
+        # The default name must be unique per run: two environments may share the leaf directory
+        # name (e.g. ``<run>/native``), which produced a silent name conflict in the first B0-R2
+        # attempt.
+        self.container_name = container_name or f"atlas-cab-{_name_token(run_dir)}"
 
     # -- lifecycle --------------------------------------------------------
     def create(self) -> EnvironmentHandle:
@@ -114,6 +119,7 @@ class NativeEnvironment:
                     for mock in self.task.runtime_mocks.values()
                     if mock.get("port") is not None
                 ],
+                *[int(port) for port in self.config.extra_ports],
             }
         )
         container_started = time.perf_counter()
@@ -247,6 +253,15 @@ class NativeEnvironment:
 
 def _ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000.0, 3)
+
+
+def _name_token(path: Path) -> str:
+    """Stable, unique container suffix derived from the resolved run directory."""
+
+    import hashlib
+
+    digest = hashlib.sha256(str(path.resolve()).encode("utf-8")).hexdigest()[:12]
+    return f"{path.name}-{digest}"[:63]
 
 
 __all__ = [
