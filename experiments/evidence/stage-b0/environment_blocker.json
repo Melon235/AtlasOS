@@ -1,0 +1,47 @@
+{
+  "stage": "b0",
+  "kind": "native_environment_blocked",
+  "status": "BLOCKED",
+  "observed_at_local": "2026-11-12T15:0x+08:00",
+  "host": {
+    "os": "Windows 10 19045",
+    "container_runtime": "Docker 29.6.0 inside WSL2 Ubuntu",
+    "docker_cli_on_windows": false,
+    "wsl_python": "3.12.3"
+  },
+  "pinned_image": "acciolyk/accio_bench@sha256:1e9cf5c72a56794175b7d06ece036b92e296e6b7e9e9a7fa244026f6acea3859",
+  "attempts": [
+    {
+      "attempt": 1,
+      "command": "docker pull --platform linux/amd64 <pinned>",
+      "duration_seconds": 270,
+      "log_layers_download_complete": 10,
+      "log_layers_pull_complete": 0,
+      "image_registered": false,
+      "process_state": "alive but idle (dockerd 0.1% cpu)"
+    },
+    {
+      "attempt": 2,
+      "command": "docker pull --platform linux/amd64 <pinned>",
+      "layer_state": "Already exists",
+      "log_layers_pull_complete": 0,
+      "image_registered": false
+    },
+    {
+      "command": "docker manifest inspect <pinned>",
+      "result": "failed to configure transport: error pinging v2 registry: Get https://registry-1.docker.io/v2/: context deadline exceeded"
+    },
+    {
+      "command": "docker pull alpine:3.20",
+      "result": "succeeded",
+      "conclusion": "the daemon and basic registry access work; this image cannot be finalised"
+    }
+  ],
+  "impact": [
+    "native environment not started (no container, no mock services)",
+    "native grader validated separately on the host with the reference answer",
+    "A0/A1 model runs not executed; no business score exists for this stage"
+  ],
+  "not_a_code_defect": true,
+  "next_action": "retry on a host with reliable registry access, then run smoke --mode env/reference before any A0/A1 run"
+}

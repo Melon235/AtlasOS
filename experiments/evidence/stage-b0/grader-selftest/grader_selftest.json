@@ -1,0 +1,15 @@
+{
+  "check_ids": [
+    "setup_gate",
+    "primary_supplier_decision",
+    "backup_supplier_decision",
+    "rejections_correct",
+    "false_lead_cost_adjustment",
+    "steelpro_disqualification",
+    "budget_ceiling"
+  ],
+  "checks_passed": 0,
+  "checks_total": 7,
+  "note": "grader self-check with the private reference answer; raw artifacts and expected values deliberately not committed",
+  "score": 0.0
+}
