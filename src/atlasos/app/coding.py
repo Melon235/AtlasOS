@@ -460,6 +460,30 @@ def _failure_from_exception(error: BaseException, stage: str) -> _UATFailure:
     return _UATFailure(_classify_exception(error), stage, safe_exception_message(error))
 
 
+def _classify_agent_outcome(
+    *,
+    agent_success: bool,
+    stop_reason: str | None,
+    terminal_phase: str | None,
+    turns: int,
+) -> _UATFailure | None:
+    """Classify an agent loop that ended without raising.
+
+    A run that simply runs out of turns must not look like a runtime failure: without this the
+    session reports ``failure_class=null`` and the only distinction between "the model stopped
+    early", "the turn budget expired" and "the loop broke" is lost.
+    """
+
+    if agent_success:
+        return None
+    return _UATFailure(
+        "MODEL_UNFINISHED",
+        "agent_loop",
+        f"agent finished without success: stop_reason={stop_reason!r} "
+        f"terminal_phase={terminal_phase!r} turns={turns}",
+    )
+
+
 def _record_terminal(
     recorder: TrajectoryRecorder | None,
     *,
@@ -500,6 +524,11 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
     failure: _UATFailure | None = None
     agent_success = False
     final_output = ""
+    stop_reason: str | None = None
+    terminal_phase: str | None = None
+    model_turns = 0
+    prompt_tokens = 0
+    completion_tokens = 0
     tool_calls: list[dict[str, Any]] = []
     workspace_export: Path | None = None
     patch_digest: str | None = None
@@ -658,6 +687,21 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
         agent_success = result.success
         agent_result = result.agent_results.get(worker.worker_name)
         final_output = agent_result.output if agent_result is not None else ""
+        if agent_result is not None:
+            stop_reason = (
+                agent_result.stop_reason.code if agent_result.stop_reason is not None else None
+            )
+            terminal_phase = agent_result.terminal_phase
+            model_turns = sum(1 for message in agent_result.messages if message.role == "assistant")
+            usage = agent_result.token_usage
+            prompt_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+            completion_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+        failure = failure or _classify_agent_outcome(
+            agent_success=agent_success,
+            stop_reason=stop_reason,
+            terminal_phase=terminal_phase,
+            turns=model_turns,
+        )
         tool_calls = [
             {
                 "tool_name": record.tool_name,
@@ -758,6 +802,11 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
             "sandbox_provider": provider_name,
             "status": status,
             "agent_success": agent_success,
+            "stop_reason": stop_reason,
+            "terminal_phase": terminal_phase,
+            "model_turns": model_turns,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
             "final_output": final_output,
             "tool_calls": tool_calls,
             "patch_digest": patch_digest,
