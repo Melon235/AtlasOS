@@ -1,0 +1,839 @@
+{
+  "runs": [
+    {
+      "run_id": "b0r2-af6ae89fa416",
+      "status": "ENVIRONMENT_FAILURE",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": null,
+        "stop_reason": null,
+        "runtime_success": null,
+        "worker_count": null,
+        "tool_calls": null,
+        "tool_call_names": null,
+        "denied_actions": null,
+        "model_turns": null,
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": null,
+        "resolved_model": null,
+        "observations": null
+      },
+      "native": {
+        "status": null,
+        "passed": null,
+        "score": null,
+        "checks_passed": null,
+        "checks_total": null,
+        "checks": []
+      },
+      "deliverables": null,
+      "timings_ms": {
+        "environment_startup": 348.554
+      },
+      "cleanup_failure": null,
+      "slack_transport": null
+    },
+    {
+      "run_id": "b0r2-3d3d3f128e05",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 2260.167,
+        "agent_execution": 7.385,
+        "grader": 267.045,
+        "cleanup": 549.906,
+        "end_to_end": 3084.503
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32769"
+    },
+    {
+      "run_id": "b0r2-34ad0ea893e3",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": false,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1650.886,
+        "agent_execution": 650.599,
+        "grader": 204.323,
+        "cleanup": 732.025,
+        "end_to_end": 3237.833
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32770"
+    },
+    {
+      "run_id": "b0r2-e62f73bdf119",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1757.428,
+        "agent_execution": 7.353,
+        "grader": 194.626,
+        "cleanup": 497.696,
+        "end_to_end": 2457.103
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32771"
+    },
+    {
+      "run_id": "b0r2-9d139c3a955f",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1769.117,
+        "agent_execution": 8.309,
+        "grader": 243.704,
+        "cleanup": 482.767,
+        "end_to_end": 2503.897
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32772"
+    },
+    {
+      "run_id": "b0r2-6c8f74c5573c",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1979.081,
+        "agent_execution": 8.978,
+        "grader": 169.417,
+        "cleanup": 535.008,
+        "end_to_end": 2692.4840000000004
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32773"
+    },
+    {
+      "run_id": "b0r2-1cf0102db938",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1631.138,
+        "agent_execution": 5.68,
+        "grader": 179.451,
+        "cleanup": 527.457,
+        "end_to_end": 2343.726
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32774"
+    },
+    {
+      "run_id": "b0r2-d0655cda1c86",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1865.006,
+        "agent_execution": 9.552,
+        "grader": 190.235,
+        "cleanup": 509.025,
+        "end_to_end": 2573.818
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32775"
+    },
+    {
+      "run_id": "b0r2-7dcfe8e5a913",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1793.482,
+        "agent_execution": 10.105,
+        "grader": 179.952,
+        "cleanup": 517.801,
+        "end_to_end": 2501.34
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32776"
+    },
+    {
+      "run_id": "b0r2-a6468d387ad6",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "PROVIDER_UNAVAILABLE",
+        "stop_reason": "no provider call was observed",
+        "runtime_success": true,
+        "worker_count": 1,
+        "tool_calls": 0,
+        "tool_call_names": [],
+        "denied_actions": null,
+        "model_turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cache_hit_tokens": null,
+        "cache_miss_tokens": null,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-chat",
+        "observations": 0
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1683.367,
+        "agent_execution": 6.9,
+        "grader": 216.861,
+        "cleanup": 529.845,
+        "end_to_end": 2436.973
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32780"
+    },
+    {
+      "run_id": "b0r2-5431bf5096ea",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": false,
+        "worker_count": 1,
+        "tool_calls": 4,
+        "tool_call_names": [
+          "bash",
+          "read_task_file",
+          "slack_list_messages"
+        ],
+        "denied_actions": null,
+        "model_turns": 3,
+        "prompt_tokens": 17502,
+        "completion_tokens": 212,
+        "cache_hit_tokens": 16896,
+        "cache_miss_tokens": 606,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-flash",
+        "observations": 3
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 1791.779,
+        "agent_execution": 3862.06,
+        "grader": 194.244,
+        "cleanup": 629.485,
+        "end_to_end": 6477.567999999999
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32781"
+    },
+    {
+      "run_id": "b0r2-c6a763b9d5fc",
+      "status": "NATIVE_FAIL",
+      "task_id": "api-slack-supplier-quote-thread-consolidation",
+      "agent": {
+        "execution_status": "EXECUTION_OK",
+        "stop_reason": null,
+        "runtime_success": false,
+        "worker_count": 1,
+        "tool_calls": 6,
+        "tool_call_names": [
+          "read_task_file",
+          "slack_list_messages"
+        ],
+        "denied_actions": 0,
+        "model_turns": 3,
+        "prompt_tokens": 14652,
+        "completion_tokens": 253,
+        "cache_hit_tokens": 12672,
+        "cache_miss_tokens": 1980,
+        "budget_exceeded": false,
+        "resolved_model": "deepseek-flash",
+        "observations": 3
+      },
+      "native": {
+        "status": "GRADER_OK",
+        "passed": false,
+        "score": 0.0,
+        "checks_passed": 0,
+        "checks_total": 7,
+        "checks": [
+          {
+            "id": "setup_gate",
+            "passed": false
+          },
+          {
+            "id": "primary_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "backup_supplier_decision",
+            "passed": false
+          },
+          {
+            "id": "rejections_correct",
+            "passed": false
+          },
+          {
+            "id": "false_lead_cost_adjustment",
+            "passed": false
+          },
+          {
+            "id": "steelpro_disqualification",
+            "passed": false
+          },
+          {
+            "id": "budget_ceiling",
+            "passed": false
+          }
+        ]
+      },
+      "deliverables": [
+        "mock_audit/slack_audit.json",
+        "mock_state/slack_final.json"
+      ],
+      "timings_ms": {
+        "environment_startup": 2190.681,
+        "agent_execution": 3960.177,
+        "grader": 536.35,
+        "cleanup": 965.042,
+        "end_to_end": 7652.250000000001
+      },
+      "cleanup_failure": null,
+      "slack_transport": "host:32782"
+    }
+  ]
+}

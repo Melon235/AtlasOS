@@ -1,0 +1,59 @@
+[
+  {
+    "worker": "business_worker:b0r2-c6a763b9d5fc-analyst",
+    "tool_name": "read_task_file",
+    "input": {
+      "path": "workspace/api_reference.md"
+    },
+    "output": "Tool \"read_task_file\" raised an error: build_slack_toolset.<locals>.read_task_file() takes 0 positional arguments but 2 were given",
+    "duration": 0.0,
+    "retry_safe": true
+  },
+  {
+    "worker": "business_worker:b0r2-c6a763b9d5fc-analyst",
+    "tool_name": "slack_list_messages",
+    "input": {
+      "channel": "#rfq-stainless-bottle",
+      "max_results": 50
+    },
+    "output": "Tool \"slack_list_messages\" raised an error: build_slack_toolset.<locals>.list_messages() takes 0 positional arguments but 2 were given",
+    "duration": 0.0,
+    "retry_safe": true
+  },
+  {
+    "worker": "business_worker:b0r2-c6a763b9d5fc-analyst",
+    "tool_name": "read_task_file",
+    "input": {
+      "path": "workspace/api_reference.md"
+    },
+    "output": "Tool \"read_task_file\" raised an error: build_slack_toolset.<locals>.read_task_file() takes 0 positional arguments but 2 were given",
+    "duration": 0.0,
+    "retry_safe": true
+  },
+  {
+    "worker": "business_worker:b0r2-c6a763b9d5fc-analyst",
+    "tool_name": "slack_list_messages",
+    "input": {
+      "channel": "#rfq-stainless-bottle"
+    },
+    "output": "Tool \"slack_list_messages\" raised an error: build_slack_toolset.<locals>.list_messages() takes 0 positional arguments but 2 were given",
+    "duration": 0.0,
+    "retry_safe": true
+  },
+  {
+    "worker": "business_worker:b0r2-c6a763b9d5fc-analyst",
+    "tool_name": "read_task_file",
+    "input": {},
+    "output": "Invalid input for tool \"read_task_file\": 1 validation error for ReadFileInput\npath\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.14/v/missing",
+    "duration": 0.0,
+    "retry_safe": false
+  },
+  {
+    "worker": "business_worker:b0r2-c6a763b9d5fc-analyst",
+    "tool_name": "slack_list_messages",
+    "input": {},
+    "output": "Tool \"slack_list_messages\" raised an error: build_slack_toolset.<locals>.list_messages() takes 0 positional arguments but 2 were given",
+    "duration": 0.0,
+    "retry_safe": true
+  }
+]

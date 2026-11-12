@@ -1,0 +1,105 @@
+{
+  "run_id": "b0r2-5511bce3d26d",
+  "status": "NATIVE_FAIL",
+  "task_id": "api-slack-supplier-quote-thread-consolidation",
+  "note": "Scripted smoke: 4 tool calls, both deliverables written, native grader 6/7 (setup_gate needs 19 message reads).",
+  "agent": {
+    "execution_status": "PROVIDER_UNAVAILABLE",
+    "stop_reason": "no provider call was observed",
+    "runtime_success": true,
+    "tool_calls": 4,
+    "tool_call_names": [
+      "read_task_file",
+      "slack_list_messages",
+      "write_deliverable"
+    ],
+    "denied_actions": 0,
+    "model_turns": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "cache_hit_tokens": null,
+    "cache_miss_tokens": null,
+    "budget_exceeded": false,
+    "resolved_model": "deepseek-chat"
+  },
+  "native": {
+    "status": "GRADER_OK",
+    "passed": false,
+    "score": 0.8571,
+    "checks_passed": 6,
+    "checks_total": 7,
+    "checks": [
+      {
+        "id": "setup_gate",
+        "passed": false
+      },
+      {
+        "id": "primary_supplier_decision",
+        "passed": true
+      },
+      {
+        "id": "backup_supplier_decision",
+        "passed": true
+      },
+      {
+        "id": "rejections_correct",
+        "passed": true
+      },
+      {
+        "id": "false_lead_cost_adjustment",
+        "passed": true
+      },
+      {
+        "id": "steelpro_disqualification",
+        "passed": true
+      },
+      {
+        "id": "budget_ceiling",
+        "passed": true
+      }
+    ]
+  },
+  "deliverables": [
+    "answer.json",
+    "mock_audit/slack_audit.json",
+    "mock_state/slack_final.json",
+    "quote_consolidation.md"
+  ],
+  "timings_ms": {
+    "environment_startup": 1787.042,
+    "agent_execution": 49.5,
+    "grader": 203.184,
+    "cleanup": 528.482,
+    "end_to_end": 2568.2079999999996
+  },
+  "cleanup_failure": null,
+  "slack_transport": "host:32784",
+  "config": {
+    "model": "deepseek-chat",
+    "max_turns": 40,
+    "token_budget": 220000,
+    "max_tool_calls": 60,
+    "budget_mode": "guarded",
+    "ownership_mode": "off",
+    "execution_integrity_mode": "record",
+    "compaction": "off",
+    "tool_result_offload": "off"
+  },
+  "tools": [
+    "slack_list_messages",
+    "slack_get_message",
+    "read_task_file",
+    "write_deliverable"
+  ],
+  "tool_schema_digest": "sha256:ac41051a06f6647d9c5efe9aabee8f93faba09c99b56000f8b841ca5edcdad0b",
+  "upstream": {
+    "commit": "d38bd1711aa3926653452458a1be02c1efd12930",
+    "image": "acciolyk/accio_bench@sha256:1e9cf5c72a56794175b7d06ece036b92e296e6b7e9e9a7fa244026f6acea3859",
+    "task_digests": {
+      "fixture_digest": "sha256:cab92dd8fe4d0ebb871cc3207d13ae9def640ac0ea8a640971d33eaed39d5095",
+      "task_definition_digest": "sha256:bf15666e6567c7c59a6c07dbd7df8dd568980629b1f7b313b8446fb6d6b67806",
+      "grader_digest": "sha256:53ed0bd28d74b143285917662f6a3778229410a74b1194e851c93406df525edd",
+      "private_digest": "sha256:0fb98afff40c559be795efa31ecf4e5bbaab68812cf0cd67a3793b418b8ce2f1"
+    }
+  }
+}

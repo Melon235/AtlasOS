@@ -1,0 +1,14 @@
+{
+  "run_id": "b0r2-c6a763b9d5fc",
+  "agent_name": "atlas-b0-r2",
+  "model": "deepseek-chat",
+  "status": "running",
+  "created_at": "2026-11-12T08:16:42.918204Z",
+  "updated_at": "2026-11-12T08:16:42.918204Z",
+  "last_heartbeat": "2026-11-12T08:16:42.918204Z",
+  "wake": null,
+  "metadata": {
+    "atlas_trajectory": "1"
+  },
+  "format_version": 1
+}

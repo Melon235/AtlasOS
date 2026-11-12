@@ -1,0 +1,46 @@
+{
+  "stage": "b0-r2",
+  "run_id": "b0r2-af6ae89fa416",
+  "task_id": "api-slack-supplier-quote-thread-consolidation",
+  "upstream": {
+    "commit": "d38bd1711aa3926653452458a1be02c1efd12930",
+    "image": "acciolyk/accio_bench@sha256:1e9cf5c72a56794175b7d06ece036b92e296e6b7e9e9a7fa244026f6acea3859",
+    "task_digests": {
+      "fixture_digest": "sha256:cab92dd8fe4d0ebb871cc3207d13ae9def640ac0ea8a640971d33eaed39d5095",
+      "task_definition_digest": "sha256:bf15666e6567c7c59a6c07dbd7df8dd568980629b1f7b313b8446fb6d6b67806",
+      "grader_digest": "sha256:53ed0bd28d74b143285917662f6a3778229410a74b1194e851c93406df525edd",
+      "private_digest": "sha256:0fb98afff40c559be795efa31ecf4e5bbaab68812cf0cd67a3793b418b8ce2f1"
+    }
+  },
+  "config": {
+    "model": "deepseek-chat",
+    "max_turns": 40,
+    "token_budget": 220000,
+    "max_tool_calls": 60,
+    "budget_mode": "guarded",
+    "ownership_mode": "off",
+    "execution_integrity_mode": "record",
+    "compaction": "off",
+    "tool_result_offload": "off"
+  },
+  "environment": {
+    "task_id": "api-slack-supplier-quote-thread-consolidation",
+    "container": "atlas-cab-native",
+    "run_dir": "D:\\Work\\AtlasOS\\experiments\\evidence\\stage-b0-r2\\runs\\20261112T075459Z-b0r2-af6ae89fa416-api-slack-supplier-quote-thread-consolidation\\native",
+    "workspace_dir": "D:\\Work\\AtlasOS\\experiments\\evidence\\stage-b0-r2\\runs\\20261112T075459Z-b0r2-af6ae89fa416-api-slack-supplier-quote-thread-consolidation\\native\\workspace",
+    "outputs_dir": "D:\\Work\\AtlasOS\\experiments\\evidence\\stage-b0-r2\\runs\\20261112T075459Z-b0r2-af6ae89fa416-api-slack-supplier-quote-thread-consolidation\\native\\workspace\\outputs",
+    "services_started": false,
+    "published_ports": {},
+    "timings_ms": {
+      "stage_ms": 1.979,
+      "container_ms": 346.526,
+      "cleanup_ms": 746.828
+    },
+    "environment_failure": "container_start_failed: docker run failed: docker: Error response from daemon: Conflict. The container name \"/atlas-cab-native\" is already in use by container \"90ceda5e74f74e7b0148ff90aba7f2535a0d4aa32328405ec19e2d76377642e4\". You have to remove (or rename) that container to be able to reuse that name.\n\nRun 'docker run --help' for more information\n"
+  },
+  "timings_ms": {
+    "environment_startup": 348.554
+  },
+  "status": "ENVIRONMENT_FAILURE",
+  "failure": "container_start_failed: docker run failed: docker: Error response from daemon: Conflict. The container name \"/atlas-cab-native\" is already in use by container \"90ceda5e74f74e7b0148ff90aba7f2535a0d4aa32328405ec19e2d76377642e4\". You have to remove (or rename) that container to be able to reuse that name.\n\nRun 'docker run --help' for more information\n"
+}

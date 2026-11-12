@@ -1,0 +1,13 @@
+{
+  "service": "slack",
+  "fixture": "/benchmark/private/api-slack-supplier-quote-thread-consolidation/mock_runtime/slack_messages.json",
+  "private_fixture_loaded": true,
+  "calls": [],
+  "sent_messages": [],
+  "drafts": [],
+  "pending_reply_count": 0,
+  "triggered_replies": [],
+  "created_events": [],
+  "deleted": [],
+  "updated_at": "2026-11-12T08:02:23.290714+00:00"
+}
