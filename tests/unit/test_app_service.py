@@ -158,3 +158,42 @@ def test_missing_trusted_suspension_is_not_resumable(tmp_path: Path) -> None:
     assert service.recovery("app-run")["state"] == "NONE"
     with pytest.raises(RecoveryAuthorityUnavailable):
         service.resume("app-run")
+
+
+def test_coding_mode_calls_the_runtime_composition_in_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: coding mode must not shell out to the evaluation harness."""
+
+    from atlasos.app import coding as coding_module
+    from atlasos.app.service import RunRecord
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    captured: dict[str, object] = {}
+
+    async def fake_session(options: coding_module.CodingRunOptions):
+        captured["options"] = options
+        return ({"run_id": "coding-1", "status": "completed", "sandbox": {}}, 0)
+
+    monkeypatch.setattr(coding_module, "run_coding_session", fake_session)
+
+    service = AtlasApplicationService(runs_root=tmp_path / "runs")
+    record = RunRecord(
+        run_id="app-coding",
+        mode="coding",
+        task="fix the parser",
+        workspace=str(workspace),
+        created_at="2026-11-12T00:00:00+00:00",
+    )
+    service._execute_coding(record, max_turns=5)
+
+    options = captured["options"]
+    assert isinstance(options, coding_module.CodingRunOptions)
+    assert options.fixture == workspace
+    assert options.task == "fix the parser"
+    assert options.max_turns == 5
+    assert options.require_real_sandbox is True
+    assert record.status == "COMPLETED"
+    assert record.uat_run_id == "coding-1"
+    assert record.session is not None
