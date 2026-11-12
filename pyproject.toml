@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "atlasos"
 version = "0.0.1"
-description = "Experimental cache-aware context runtime for long-horizon multi-agent workloads"
+description = "A context-aware and reliable agent execution runtime built on AnyCode"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "AtlasOS contributors" }]

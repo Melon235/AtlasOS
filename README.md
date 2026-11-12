@@ -1,283 +1,318 @@
 # AtlasRuntime
 
-**Reliable execution runtime for long-horizon agent workflows.**
+**A context-aware and reliable agent execution runtime built on AnyCode.**
 
-AtlasRuntime runs an AI coding agent inside a controlled sandbox and makes the run *survivable*:
-every action is authorized before it executes, recorded after it executes, and recoverable if the
-process dies or the outcome is unknown. It is built on top of
-[AnyCode 0.9.0](https://github.com/Quantlix/anycode) and adds the execution-control layer that an
-agent runtime needs before anyone trusts it with a real repository.
+AtlasRuntime runs AI coding agents inside a controlled sandbox and gives the run the things an agent
+runtime needs before anyone trusts it with a real repository: an explicit context plane, a progressive
+tool surface, scoped workers, an authorization gate, a durable action ledger, sandbox binding,
+durable suspension and approval, and an audit trail that survives a crash.
 
-- Application domain: autonomous software engineering tasks (multi-step edits, multi-module changes,
-  tool execution, interruption/resume, deliverable verification).
-- Not another agent framework, not another coding CLI, not a serving engine.
-- Evaluation: a 30-task coding benchmark with an independent oracle that runs in its own sandbox.
+- Built on [AnyCode 0.9.0](https://github.com/Quantlix/anycode): the agent loop, DAG scheduler,
+  checkpoints, provider adapters, tool executor and run store are upstream.
+- Domain: software engineering workflows.
+- Scope: a research-engineering runtime with a reproducible evaluation harness — not a commercial
+  agent product, not a serving engine, not another agent framework.
+- Honest boundary: it does **not** yet resume a killed coding run. Both coding compositions leave
+  AnyCode checkpointing off; what AtlasRuntime preserves through a crash is the evidence needed to
+  decide what happened. See [limitations §4](docs/limitations.md) and
+  [`docs/runtime-entrypoints.md`](docs/runtime-entrypoints.md) §4.
 
-Documentation: [architecture](docs/architecture.md) ·
-[AnyCode contribution delta](docs/anycode-delta.md) ·
-[design decisions](docs/design-decisions.md) ·
-[evidence](docs/evaluation-summary.md) ·
-[limitations](docs/limitations.md) ·
-[research history](docs/research-history.md)
+Start here: [`docs/README.md`](docs/README.md) (document index) ·
+[`docs/project-status.md`](docs/project-status.md) (current baseline) ·
+[`AGENTS.md`](AGENTS.md) (development contract) ·
+[`docs/final-roadmap.md`](docs/final-roadmap.md) (what comes next).
 
 ---
 
-## 1. The problem
+## 1. What is AtlasRuntime?
 
-An agent that can edit files and run shell commands is easy to build and hard to operate. The failure
-modes we actually observed while running multi-hour coding workloads:
+Five technical pillars, all of them load-bearing, each with its own evidence and its own limits:
 
-| Failure | What we measured |
-|---|---|
-| A model response executes partly, then a tool needs a human | No upstream seam between "model responded" and "tools ran" |
-| The process dies with a command in flight | The command's effect is unknown; retrying may duplicate it |
-| A tool result is lost from the run record | `result.json` held 365 of 591 recorded actions (**38 % missing**, concentrated in failed workers) |
-| N workers each get the full token budget | Upstream budget is per agent, so a 3-worker run can spend 3× |
-| A worker writes another worker's files | No cross-worker write protection at the tool boundary |
-| The grader runs next to the agent | Host code execution during grading, and ambiguous failures |
-| "It succeeded" is the worker's own claim | 8 of 36 multi-worker runs had every worker report success while the oracle failed |
+| Pillar | Question it answers | Code |
+|---|---|---|
+| **Context Engineering** | Which information does *this* task logically need, and how is it laid out so repeated prompts stay cheap? | `context/`, `placement/`, `durability/` |
+| **Tool Engineering** | How does a model work with hundreds of tools without paying for all their schemas? | `tools/` |
+| **Multi-Agent Coordination** | When is delegation worth it, and how is one budget, one identity, one handoff shared? | `workers/`, `workflow.py`, `handoff.py`, `budget.py` |
+| **Reliable Execution** | Who authorized this action, what happened, and what is true after a crash? | `actions/`, `ledger/`, `sandbox/`, `suspension/`, `approvals/` |
+| **Observability & Evaluation** | What actually ran, and did the deliverable pass an independent grader? | `trajectory/`, `metrics/`, `verification/`, `experiments/evaluation/` |
 
-The repository is the record of what we changed in response, including what did **not** work.
+## 2. Core Architecture
 
-## 2. Architecture
+Each pillar is stated as *problem → design → implementation → existing evidence → limitation*. The
+evidence numbers are historical (frozen at their own commit and task set); §5 explains what they may
+and may not be used for.
+
+### 2.1 Context Engineering
+
+*Problem.* Dependency outputs are injected in completion order, so the same logical context produces
+a different prompt every run, and prompt-cache reuse becomes accidental.
+
+*Design.* Logical context (`ContextBlock` / `ContextRef`) is separated from physical rendering:
+a selector decides **what** a task receives, a renderer decides **how** it is ordered —
+stable system prefix → stable role → stable task prefix → context blocks → dynamic tail. A transform
+(dedup) can sit between them; placement decides which agent executes which task by context locality;
+the store is rebuilt deterministically from a checkpoint on resume.
+
+*Implementation.* `context/models.py`, `context/store.py`, `context/selectors.py`
+(`TaskScopedSelector`), `context/renderer.py` (`StablePromptRenderer`), `context/transform.py`
+(`ContextPilotDedupTransform`), `placement/`, `durability/context_rebuild.py`.
+
+*Evidence.* Stable rendering makes the layout hash and the full prompt hash identical under an
+inverted completion order, while the naive renderer does not (S6 Table A). Dedup cuts prompt tokens
+by up to 44.0 % at ~50 % exact duplicates (S6 Table B). Context-locality placement cuts logical
+handoff by 50 % / 66.7 % / 80 % at chain length 2 / 3 / 5 (S6 Table C).
+
+*Limitation.* A shorter prompt is not a cheaper prompt: warm cache-miss reduction was 11.1 % at
+large scale but **negative** at small and medium scale, so the cache benefit is workload-dependent
+and is not claimed. Dedup is off by default.
+
+### 2.2 Tool Engineering
+
+*Problem.* Exposing every tool costs schema tokens on every request, and a large surface makes tool
+choice worse.
+
+*Design.* One registry holds every executable tool. Only core tools enter the native `tools[]`
+surface; everything else (project tools, MCP tools) is discoverable through `tool_search` and usable
+only after `dispatch_action` discloses it for the run. The native surface is hashed and must not
+change between turns.
+
+*Implementation.* `tools/runtime.py`, `tools/catalog.py`, `tools/search.py` (keyword and semantic),
+`tools/state.py` (`RunToolState`), `tools/dispatch.py`, MCP bridge in `tools/runtime.py`.
+
+*Evidence.* On a fixed 24-tool catalog and 24 queries: keyword Recall@1 0.792 vs semantic 0.875,
+Recall@3 0.958 vs 1.000, MRR 0.861 vs 0.938. Native schema 8 558 → 4 207 characters; tool-surface
+prompt 2 599 → 1 399 tokens (−46.2 %). Disclosure survives a task-level crash/resume.
+
+*Limitation.* The 46.2 % figure is a **tool-surface microbenchmark**, not an end-to-end coding cost
+reduction, and the shorter surface did not improve the cache-hit ratio in that sample. Recall@3 =
+1.000 holds for that catalog and query set only.
+
+### 2.3 Multi-Agent Coordination
+
+*Problem.* Every worker multiplies context and budget, and a decomposition can silently degrade the
+result.
+
+*Design.* A workflow is compiled to AnyCode task specs; each worker is constructed by
+`ScopedWorkerFactory` with a trusted `ExecutionContext` (run/task/worker/profile) rather than a
+prompt claim. One `RunBudgetState` is shared by the whole run and admitted before every request.
+Cross-worker transfer is either upstream task-output injection or a dual-channel handoff. Delegation
+is a separate, evidence-gated decision.
+
+*Implementation.* `workflow.py`, `workers/factory.py`, `workers/store.py`, `handoff.py`, `budget.py`,
+`workers/routing.py` (selective delegation).
+
+*Evidence.* Paired comparison over 72 runs: single worker 28/36 success vs static multi 3/36, prompt
+tokens 6.59×, cost 4.12×, p50 latency 1.94×. Later stages reproduced the direction (G3-4a 6/6 vs
+2/6; R0 5/6 vs 2/6; R0.5 forced-positive admission 6/6 admitted, still +40 % cost). Parallelism is
+real — 20/20 multi-worker runs overlapped in wall clock — but the net benefit is not.
+
+*Limitation.* Static delegation has a quality, cost and latency problem on the measured task
+families; the selective router has never admitted a live `DELEGATE_PARALLEL` in a benchmark, so its
+generalisation benefit is unproven. Single worker is the default.
+
+### 2.4 Reliable Execution
+
+*Problem.* A model response can partially execute; a process can die with a side effect in flight;
+"the worker said it succeeded" is not evidence.
+
+*Design.* Every project action passes one gate (`ALLOW` / `DENY` / `REQUIRE_HUMAN`) bound to a digest
+of the tool implementation and its input. A durable SQLite ledger is written **before** the side
+effect and closed after it; an interrupted action becomes `UNCERTAIN` and is never replayed
+automatically. A whole model response can be suspended before any of its tools run, and approvals are
+durable. Sandbox binding pins one run to one sandbox and reattachment is explicit, never automatic.
+
+*Implementation.* `actions/gate.py`, `actions/policy.py`, `actions/binding.py`, `ledger/`,
+`sandbox/binding.py`, `sandbox/reattachment.py`, `suspension/`, `approvals/`, `trusted_recovery.py`.
+
+*Evidence.* Deterministic control plane: 24 action requests → 15 ALLOW / 1 DENY / 8 REQUIRE_HUMAN,
+0 bypasses, 0 stale-approval reuses. 30-task benchmark: 0/90 unauthorized side effects, 0 host
+isolation violations. Tool-error semantics: oracle 2/4 → 4/4, `side_effect_unknown` 2 → 0, 3
+`UNCERTAIN` records, 0 replays.
+
+*Limitation.* Whole-response preflight is a barrier before execution, not transaction atomicity;
+ownership is a local OS lock, not a distributed lease; and no coding composition enables
+checkpointing, so crash recovery is accountability, not resumption.
+
+### 2.5 Observability and Evaluation
+
+*Problem.* The upstream task result is an incomplete record, and a grader that runs next to the agent
+cannot be trusted.
+
+*Design.* A recorder writes `action_proposed` before execution and the observation after, with input
+and result digests, and a worker-terminal event for workers that never return. Tokens, cache hit/miss,
+latency and cost are captured per call. Deliverables are checked by a deterministic contract engine
+(observation only), and hidden tests run in a disposable network-disabled sandbox with the oracle's
+own copy of the fixture.
+
+*Implementation.* `trajectory/recorder.py`, `trajectory/reconcile.py`, `metrics/collector.py`,
+`verification/engine.py`, `experiments/evaluation/sandboxed_oracle.py`.
+
+*Evidence.* Two records of the same 30 runs: `result.json` captured 365 actions, the trajectory 591 —
+38 % missing, concentrated in failed workers. After the fix, `input_digest_coverage = 1.00` over 32
+runs and 111 actions were recovered. Verification: 0 false positives on 66 deliverables at
+8.1 ms–5.0 s and 0 model tokens. Oracle isolation: 28/28 identical scores at ~6 s and 0 model tokens.
+
+*Limitation.* Verification recall is thin (23 TP / 23 FN) and it never blocks a run; 28/28 is a
+statement about those historical workspaces, not a security proof of the oracle.
+
+## 3. Runtime Architecture
 
 ```
-application        atlas CLI · run registry · HTTP projection
-                          │
-orchestration      AtlasRuntime facade · workflow compiler · scoped workers · delegation (opt-in)
-                          │
-execution runtime  tool runtime · action safety gate · execution ledger · sandbox binding · budget
-                          │
-reliability        suspension · approvals · durable manifest · trajectory · reconciler
-                          │
-AnyCode 0.9.0      agent loop · DAG scheduler · checkpoints · providers · tool executor · run store
+application     atlas CLI · run registry · HTTP projection · in-process coding session
+                        │
+coordination    workflow compiler · scoped workers · handoff · shared budget · delegation (opt-in)
+                        │
+execution       tool runtime · action gate · durable ledger · sandbox binding · trajectory · metrics
+                        │
+reliability     suspension · approvals · manifest · context rebuild · verification (evaluation only)
+                        │
+AnyCode 0.9.0   agent loop · DAG scheduler · checkpoints · providers · tool executor · run store
 ```
 
-The boundary is explicit: AnyCode owns the agent loop and scheduling; AtlasRuntime owns
-authorization, durable action state, sandbox lifecycle, suspension and evidence. The full mapping is
-in [`docs/anycode-delta.md`](docs/anycode-delta.md).
+The three entry points are **not** the same composition, and a claim must name its entry point:
 
-### Main execution path
+| | Workflow (`atlas run --mode workflow`) | App coding (`--mode coding`) | Evaluation (`experiments.evaluation.cli`) |
+|---|---|---|---|
+| Context plane (selector + stable renderer) | **on** | not wired | not wired |
+| Tool search + progressive disclosure | no tools at all | **on** | **on** |
+| Action gate + ledger | **off** | **on** | **on** |
+| Sandbox | none | **on** | **on** |
+| Durable suspension / approval | off | **on** | off |
+| AnyCode checkpoint + resume | **on** (library API) | **off** | **off** |
+| Verification / isolated oracle | none | none | **on** |
 
-```
-task text → run identity → scoped worker (trusted identity) → AnyCode agent loop
-   → tool call → action safety gate → execution ledger → sandbox execution
-   → trajectory + budget accounting → task result → optional verification → artifact
-```
-
-Recovery, multi-worker scheduling and the evaluation oracle are side paths, not part of the normal
-chain. `docs/architecture.md` §3–§9 gives the entry function, key classes, persisted state and tests
-for each path.
-
-## 3. Core design
-
-### Controlled tool execution
-
-*Problem* — the model sees every tool, and nothing decides whether *this* call, from *this* worker,
-with *this* argument digest, may run.
-
-*Design* — one registry holds every executable tool; the model sees `tool_search` and
-`dispatch_action`; a tool must be disclosed before dispatch. Every dispatch passes
-`ActionSafetyGate`, which returns `ALLOW`, `DENY` or `REQUIRE_HUMAN` from policy, reviewer,
-external policy and approval state, and binds the decision to a digest of the tool implementation and
-input.
-
-*Mechanism* — `tools/runtime.py`, `tools/catalog.py`, `tools/state.py`, `actions/gate.py`.
-
-*Evidence* — deterministic control plane: 24 action requests → 15 ALLOW / 1 DENY / 8 REQUIRE_HUMAN,
-0 bypasses, 0 hard-deny overrides. 30-task benchmark: 0/90 unauthorized side effects.
-
-*Limitation* — the gate judges a tool call, not intent; shell text classification is not OS
-isolation.
-
-### Reliable state and recovery
-
-*Problem* — idempotency exists upstream, but nothing records *what was authorized* and *what
-happened*, so an interrupted action cannot be classified.
-
-*Design* — a SQLite action ledger keyed by run/task/worker/tool/input digest, written by a bridge
-that sequences gate → execute → outcome. Unknown outcomes become `UNCERTAIN`, never an automatic
-retry. Approvals and suspensions are durable, and a whole model response is suspended **before** any
-of its tools execute.
-
-*Mechanism* — `ledger/*`, `suspension/*`, `approvals/*`, `tools/conversation.py`.
-
-*Evidence* — G3-1: `side_effect_unknown` workers 2 → 0, oracle 2/4 → 4/4, 3 `UNCERTAIN` records,
-0 replays. Integrated scripted run: 6 suspensions, 13 resume revalidations, 0 stale approvals.
-
-*Limitation* — settlement requires the operator harness; the CLI refuses to reattach a sandbox on
-its own.
-
-### Observable execution
-
-*Problem* — after a failed run you need to know which action produced which effect.
-
-*Design* — the recorder writes `action_proposed` before execution and `tool_observed` after, with
-input and result digests, plus a worker lifecycle terminal for workers that never return.
-
-*Mechanism* — `trajectory/recorder.py`, `trajectory/models.py`, `trajectory/reconcile.py`.
-
-*Evidence* — R1-0 showed the upstream task result loses 38 % of actions; after the change, trace
-coverage was `1.00` over 32 runs and 111 actions were recovered that the result object had dropped.
-
-*Limitation* — evidence writes are best-effort and not fsync'd.
-
-### Shared resource control
-
-*Problem* — budget per agent means a multi-worker run multiplies the allowance.
-
-*Design* — one `RunBudgetState` per run, admitted before each request, with a learned token ratio.
-A rejection is converted into a real `budget_exceeded` failure instead of an empty success.
-
-*Mechanism* — `budget.py`, `tools/conversation.py::AtlasToolAgent._apply_budget_outcome`.
-
-*Evidence* — G2a: 0/4 vs 2/4 overruns, total tokens −24 %, request accounting 95/95/0. Success rate
-unchanged (both arms 0/4), so this is a *capability*, not a speed-up.
-
-*Limitation* — the estimate is not an upper bound; the lock is process-local.
-
-### Verified deliverables and isolated grading
-
-*Problem* — "the agent said it finished" and "the grader ran next to the agent" are both unusable.
-
-*Design* — deterministic contract checks on produced files returning `PASS/FAIL/UNKNOWN`
-(observation only, never a gate), and hidden tests executed inside a disposable network-disabled
-sandbox.
-
-*Mechanism* — `verification/*`, `experiments/evaluation/sandboxed_oracle.py`.
-
-*Evidence* — 66 verified deliverables with **0 false positives** (8.1 ms static, 5.0 s dynamic,
-0 model tokens); 28/28 historical workspaces re-graded identically at ~6 s and 0 model tokens.
-
-*Limitation* — public-contract recall is thin (23 TP / 23 FN), so verification reports, it does not
-block.
+Full call chains, the recovery paths and the per-mechanism matrix:
+[`docs/runtime-entrypoints.md`](docs/runtime-entrypoints.md). The AnyCode boundary is
+[`docs/anycode-delta.md`](docs/anycode-delta.md).
 
 ## 4. Quick start
 
-Windows-native `.venv`, Python 3.12:
+Windows-native `.venv`, Python 3.12 (`requires-python = ">=3.12"`):
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev,sandbox,app]"
 ```
 
-Offline checks (these need no API key and no sandbox):
+Offline checks — no API key, no sandbox service (this is what CI runs):
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest                 # 895 tests
-.\.venv\Scripts\atlas.exe --help                     # CLI surface
-.\.venv\Scripts\python.exe examples\m1_demo.py       # deterministic tool-runtime demo
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
+.\.venv\Scripts\python.exe -m pyright
+.\.venv\Scripts\atlas.exe --help
+.\.venv\Scripts\python.exe examples\m1_demo.py      # deterministic tool-runtime demo, no provider
 ```
 
-The evaluation layer needs its own extra:
+The evaluation layer needs one more extra, because the Inspect AI adapter is imported at module
+scope:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[evaluation]"
-.\.venv\Scripts\python.exe -m experiments.evaluation.cli list   # 30 benchmark tasks
+.\.venv\Scripts\python.exe -m experiments.evaluation.cli list    # 30 benchmark tasks
 ```
 
 A real coding run needs a DeepSeek key and a self-hosted OpenSandbox:
 
 ```powershell
-# .env
+# .env (from .env.example)
 #   DEEPSEEK_API_KEY=...
 #   ATLASOS_SANDBOX_ENDPOINT=localhost:8080
 docker build -t atlas-uat-python:3.12 experiments/fixtures/uat_image
 
 .\.venv\Scripts\atlas.exe run "fix the CSV quoting bug in csv_parser.py" --mode coding
 .\.venv\Scripts\atlas.exe status <run_id>
-.\.venv\Scripts\atlas.exe logs <run_id>
+.\.venv\Scripts\atlas.exe logs <run_id> --follow
 ```
 
-One benchmark sample through the full runtime:
+`atlas run --mode coding` requires a **UAT-shaped workspace** under `experiments/fixtures` containing
+`csv_parser.py` (default: `experiments/fixtures/uat_repo`) and a reachable real sandbox provider;
+there is no fake fallback. `--mode workflow` needs the provider key but no sandbox. One benchmark
+sample through the full runtime:
 
 ```powershell
 .\.venv\Scripts\python.exe -m experiments.evaluation.cli run --sample bugfix-001-slugify --repetitions 1
 ```
 
-`atlas run --mode workflow` runs the workflow path (in-process `AtlasRuntime`) and needs the same
-provider key but no sandbox.
-
 ## 5. Evaluation
 
-Headline numbers, each with its own conditions (full detail and comparability warnings in
-[`docs/evaluation-summary.md`](docs/evaluation-summary.md)):
+Five kinds of evidence, deliberately separated:
+
+| Kind | What it is | Where |
+|---|---|---|
+| Historical microbenchmark | fixed tool catalog / context-scaling measurements, not end-to-end tasks | `experiments/results/` (M1, S6) |
+| Deterministic mechanism test | no model: control plane, ledger, suspension, sandbox, oracle isolation | `tests/`, `experiments/results/` |
+| Live model evaluation | real DeepSeek runs with an independent oracle | `docs/evaluation-summary.md` |
+| Current candidate regression | offline suite on this branch: 887 passed, 7 skipped, 1 deselected; ruff and pyright clean; 30 benchmark tasks load | `docs/final-1-5-repository-baseline.md` |
+| Final holdout evaluation | **pending** — not designed, not run | `docs/final-roadmap.md` |
+
+Selected historical results, each with its own conditions (never add these up — see
+[`docs/evaluation-summary.md`](docs/evaluation-summary.md) §8):
 
 | Experiment | Result |
 |---|---|
-| 30-task coding benchmark (90 runs, `deepseek-flash`) | **84/90 success**, 0/90 unauthorized side effects, 0 host-isolation violations |
+| 30-task coding benchmark (90 runs) | 84/90 success, 0/90 unauthorized side effects, 0 host-isolation violations |
 | Same benchmark vs matched AnyCode baseline (25 runs) | 21/25 vs 20/25 — **not** a capability claim |
-| Single vs static multi-worker (E1, 72 runs) | 28/36 vs 3/36; cost 4.12×, latency 1.94× |
-| Deliverable verification (66 artifacts) | 0 false positives, 0 model tokens |
+| Single vs static multi-worker (72 paired runs) | 28/36 vs 3/36; cost 4.12×, p50 latency 1.94× |
+| Tool discovery, semantic retrieval (24 tools) | Recall@1 0.875 / Recall@3 1.000 / MRR 0.938; surface 2 599 → 1 399 tokens |
+| Context plane, dedup scaling | up to 44.0 % prompt-token cut; no matching cache-miss win |
+| Deliverable verification (66 artifacts) | 0 false positives, weak recall, 0 model tokens |
 | Oracle sandbox isolation (28 workspaces) | 28/28 identical scores, ~6 s, 0 model tokens |
-| Execution trace integrity (32 runs) | input digest coverage 1.00; 111 actions recovered |
+| Execution-trace integrity (32 runs) | input-digest coverage 1.00; 111 actions recovered |
 | Ownership enforcement (32 runs) | enforce 1/16 vs baseline 7/16 — **negative**, default off |
 
-We do not claim that AtlasRuntime is a better agent than AnyCode, that multi-worker is faster, or
-that cache-aware context reduces cost. Each of those was tested and not supported.
+We do not claim that AtlasRuntime is a more capable agent than AnyCode, that multi-worker is better,
+or that cache-aware context reduces cost. Each was tested and not supported.
 
 ## 6. Design trade-offs
 
-- **Single worker by default.** Four independent comparisons put static multi-worker decomposition
-  below a single worker on task success, at 1.4–4.1× cost. Parallelism is real (20/20 runs
-  overlapped); the net benefit is not. See [design decisions §D3](docs/design-decisions.md).
-- **Context engineering is kept, the claim withdrawn.** Dedup cut prompt tokens up to 44 % while
-  warm cache misses went *up* at high duplicate ratio. A shorter prompt is not a cheaper prompt.
-- **Ownership enforcement is opt-in.** It blocked `python3 -m pytest` and scored 1/16 against 7/16.
+- **Single worker by default.** Four independent comparisons put static decomposition below a single
+  worker on success, at 1.4–4.1× cost. The router is kept because the question is still open, not
+  because it is already answered.
+- **The router is evaluation-only until it proves itself.** It can reject a bad decomposition, not
+  improve one; admitting it into the product path without evidence would be a default nobody asked
+  for.
+- **Most context mechanisms are optional.** Stable rendering is on where the context plane is used;
+  dedup and context-locality placement stay behind config because their benefit is workload-specific.
 - **The oracle runs in its own sandbox.** Host grading made failures ambiguous and let benchmark code
   touch host paths.
-- **No business-domain adapters.** A commerce benchmark adapter was built and verified end-to-end,
-  then the track was stopped: a second domain tests the adapter, not the runtime.
 - **Verification never blocks.** A detector with 0 false positives and weak recall is a report, not a
   gate.
+- **Ownership enforcement is opt-in and off.** It blocked `python3 -m pytest` and scored 1/16 against
+  7/16.
+- **Business-domain adaptation is closed.** A commerce adapter was built and verified end-to-end,
+  then the track was stopped: a second domain tests the adapter, not the runtime.
 
-## 7. Limitations
+## 7. Development
 
-Single host, SQLite state, no cross-host recovery, no CPU/memory quotas, text-level shell
-classification, small sample sizes, one model family, and several mechanisms with deterministic
-evidence only. The complete list is [`docs/limitations.md`](docs/limitations.md).
+- [`AGENTS.md`](AGENTS.md) — development contract, invariants, verification commands, Git rules.
+- [`docs/README.md`](docs/README.md) — ACTIVE / EVIDENCE / ARCHIVED document index.
+- [`docs/project-status.md`](docs/project-status.md) — baseline commit, per-pillar status, mechanism
+  status, closed directions.
+- [`docs/final-roadmap.md`](docs/final-roadmap.md) — Track A/B/C, holdout principle, stop conditions.
+- [`docs/runtime-entrypoints.md`](docs/runtime-entrypoints.md) — real call chains and capability
+  matrix.
+- [`docs/limitations.md`](docs/limitations.md) — every known constraint.
 
-## 8. Provenance
+`src/` and `tests/` are the runtime; `experiments/` is the evaluation harness and never a dependency
+of `src/`.
 
-| Component | Version / license | Role |
+## 8. Provenance and Limitations
+
+| Component | Version / licence | Role |
 |---|---|---|
 | [AnyCode](https://github.com/Quantlix/anycode) | `anycode-py==0.9.0`, MIT | Agent loop, DAG scheduler, checkpoints, providers, tool executor, run store |
 | [OpenSandbox](https://github.com/opensandbox/opensandbox) | `opensandbox>=1.2,<2`, Apache-2.0 | Self-hosted sandbox backend |
 | [Daytona](https://github.com/daytonaio/daytona) | optional extra | Alternative sandbox backend |
 | [ContextPilot](https://github.com/EfficientContext/ContextPilot) | `contextpilot==0.5.0`, optional extra | Dedup/reorder transform (off by default) |
 | [Inspect AI](https://github.com/UKGovernmentBEIS/inspect_ai) | `inspect-ai`, MIT, evaluation extra | External evaluation harness |
-| [DeepSeek API](https://platform.deepseek.com) | OpenAI-compatible | Reference inference provider and cache metrics |
+| [DeepSeek API](https://platform.deepseek.com) | OpenAI-compatible | Reference provider and prompt-cache metrics |
 
-Third-party acknowledgements and license texts: [`THIRD_PARTY.md`](THIRD_PARTY.md).
-AnyCode capabilities are attributed to AnyCode everywhere in this repository; the per-module delta
-is [`docs/anycode-delta.md`](docs/anycode-delta.md).
+Acknowledgements and licence texts: [`THIRD_PARTY.md`](THIRD_PARTY.md). Upstream capabilities are
+attributed to AnyCode everywhere in this repository: [`docs/anycode-delta.md`](docs/anycode-delta.md).
+Known constraints: [`docs/limitations.md`](docs/limitations.md).
 
-Naming: the project is **AtlasRuntime**. The repository (`Melon235/AtlasOS`), the Python package
-(`atlasos`), the CLI (`atlas`), `ATLASOS_*` environment variables and historical run IDs keep their
-original names; renaming them is a separate migration.
-
-## 9. Repository layout
-
-```
-src/atlasos/
-  app/          CLI, application service, HTTP projection, coding session composition
-  actions/      action catalog, policy, safety gate, reviewer
-  ledger/       durable action ledger, bridge, recovery classification
-  tools/        tool runtime, catalog, search, dispatch, conversation seam
-  sandbox/      binding store, ownership, reattachment, workspace tools
-  approvals/    persistent approvals and resume revalidation   (approvals/)
-  suspension/   durable suspension store and coordinator
-  trajectory/   recorder, payloads, reconciler
-  workers/      scoped worker factory, registry, delegation router
-  context/      logical context blocks, selectors, stable renderer
-  verification/ deterministic deliverable contracts
-  durability/   session sidecar manifest, context rebuild
-experiments/
-  evaluation/   benchmark tasks, runner, oracle, sandboxed oracle, analysis
-  fixtures/     UAT repo, sandbox image, acceptance oracle
-  configs/      baseline, benchmark, coding-session configuration
-  evidence/     sanitized aggregates only
-  results/      published reports and figures
-docs/           architecture, delta, decisions, evidence, limitations, stage history
-tests/          unit + integration (offline; live tests are opt-in)
-```
+Naming: the project is **AtlasRuntime** (`Melon235/AtlasRuntime`). The Python distribution and import
+package (`atlasos`), the CLI (`atlas`), the `ATLASOS_*` environment variables and historical run
+identifiers keep their original names; renaming them is a separate migration.
