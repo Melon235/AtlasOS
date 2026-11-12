@@ -54,6 +54,16 @@ master (local 07e18ec, 22 commits ahead of origin/master 3fbf3dd)
 | Stage B0-R2 | `fix/b0-r2-first-native-agent` (`31ef9fc`) | `docs/stage-b0-r2-first-native-agent.md` | First real agent run on a native business task failed | Not part of the coding runtime |
 | Stage B0-R3 | `fix/b0-r3-business-completion-contract` (`25afded`) | `docs/stage-b0-r3-business-completion-contract.md` | Frozen public task inputs, raw artifacts untracked, completion contract designed but **not implemented** | Track closed by decision, not by result |
 
+## Moved files (old paths still appear in historical reports)
+
+| Old path | New path | Reason |
+|---|---|---|
+| `experiments/uat_cli.py` | `src/atlasos/app/coding.py` | The coding composition is runtime code; the application calls it in-process instead of spawning a subprocess into the evaluation tree |
+
+Historical reports that reference `experiments/uat_cli.py` (for example
+`experiments/results/v2-user-acceptance.md` and `docs/verification/v2-system-verification.md`) still
+describe the behaviour correctly; only the path is stale.
+
 ## Why the business-benchmark track stopped
 
 The Commerce Agent Bench adapter worked: the upstream image built, the native Slack mock service ran,
