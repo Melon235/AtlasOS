@@ -30,10 +30,11 @@ environment variables, historical run ids and Git history keep `atlasos` / `atla
 | Final-0/1 consolidated candidate | `refactor/final-runtime-consolidation` = `16251d05c34cff41d280396a1647214914e51a31` |
 | Final-0/1 base | `fix/r1-2h-oracle-sandbox-isolation` = `facca984849c9821ec3bdc1df2eb6ee20bca757b` (confirmed ancestor) |
 | Current stage branch | `chore/final-1-5-repository-baseline` (this worktree) |
-| Stage baseline (`BASE_SHA`) | `16251d05c34cff41d280396a1647214914e51a31` |
+| Final-1.5 baseline (`BASE_SHA` of that stage) | `16251d05c34cff41d280396a1647214914e51a31` |
+| Final-1.6 ported fix | `1b4f6be` = cherry-pick of `18e523c` (coding-session outcome attribution, 2 files) |
 | Worktree | `D:\Work\AtlasRuntime` (primary research worktree remains `D:\Work\AtlasOS`) |
 | Recovery Pilot branch | `experiment/final-2-recovery-pilot` = `c5fce5cc5d3d96251968b264e8113685711ffc8e`, 3 commits on top of `16251d0` |
-| Recovery Pilot in the stable baseline? | **No.** Audited only; nothing ported (see §6 and `docs/final-1-5-repository-baseline.md` §4) |
+| Recovery Pilot in the stable baseline? | **One commit only** (`18e523c`, as `1b4f6be`). The rest is audited only — see `docs/final-1-5-repository-baseline.md` §4 and `docs/final-1-6-evaluation-baseline.md` §3 |
 | Local `master` | `07e18ec` (22 commits ahead of `origin/master`) |
 | Remote `master` | `3fbf3ddb7867b45c1cab40e8ff094c7d94d795af` (default branch, unchanged) |
 | Pushed branches | 9 historical branches on `origin` besides `master`; `refactor/final-runtime-consolidation` and `experiment/final-2-recovery-pilot` are **local only** |
@@ -138,7 +139,10 @@ identical (`docs/runtime-entrypoints.md`).
   `input_digest_coverage = 1.00` over 32 runs and 111 recovered actions; verification 0 false
   positives on 66 deliverables; oracle re-grading 28/28 identical at ~6 s and 0 model tokens.
 - Limitation: verification recall is thin (23 TP / 23 FN) and it never blocks; 28/28 is a statement
-  about those historical workspaces, not a security proof of the isolated oracle.
+  about those historical workspaces, not a security proof of the isolated oracle. The coding session's
+  `prompt_tokens` / `completion_tokens` come from `TokenUsage`, i.e. **cache-miss** input tokens —
+  they are not comparable with `result.json` or `inference.jsonl` `prompt_tokens`, which include
+  cache hits.
 
 ## 4. Mechanism Status
 
@@ -167,6 +171,7 @@ users would expect. `NOT_VALIDATED` = implemented, no live evidence.
 | Trajectory recorder | DEFAULT_ACTIVE / OPTIONAL | coding + evaluation always; workflow opt-in |
 | History compaction | OPTIONAL / RETAINED_RESEARCH | evaluation path only |
 | Tool-result offload (`history.read`) | OPTIONAL / RETAINED_RESEARCH | evaluation path only |
+| Coding-session failure attribution (`MODEL_UNFINISHED`) | DEFAULT_ACTIVE | application coding (`app/coding.py`) |
 | Deliverable verification | EVALUATION_ONLY (observation only) | evaluation path |
 | Isolated oracle | EVALUATION_ONLY, default `sandbox` | evaluation path |
 | Coding benchmark (30 tasks) | EVALUATION_ONLY | `experiments/evaluation/tasks.py` |
@@ -199,20 +204,27 @@ R1-1 input-digest coverage 1.00 over 32 runs; verification 0 false positives wit
 oracle isolation 28/28 identical scores.
 
 Not done by this stage: no number above was re-executed on `BASE_SHA`, and no live model run was
-performed. The Final-2 pilot's own results belong to `c5fce5c`, not to this branch.
+performed. The Final-2 pilot's own results belong to `c5fce5c`, not to this branch. The offline suite
+was re-measured after the Final-1.6 port: 891 passed / 6 skipped / 1 deselected
+(`docs/final-1-6-evaluation-baseline.md` §5).
 
 ## 6. Current Work
 
-1. Repository baseline (this stage) — identity, harness contract, document index, entry-point
+1. Repository baseline (Final-1.5) — identity, harness contract, document index, entry-point
    matrix, roadmap, regression record.
-2. Final evaluation protocol and holdout design (Final-2, not started).
-3. Complete module evaluation (Track A).
-4. Integrated runtime evaluation vs native AnyCode (Track B).
-5. Adaptive delegation pilot (Track C).
-6. Demo, release and public packaging (Final-6).
+2. Evaluation environment readiness (Final-1.6) — the `18e523c` attribution fix is ported as
+   `1b4f6be`; dependency inventory, skip analysis and the readiness matrix are in
+   `docs/final-1-6-evaluation-baseline.md`.
+3. Final evaluation protocol and holdout design (Final-2, not started).
+4. Complete module evaluation (Track A).
+5. Integrated runtime evaluation vs native AnyCode (Track B).
+6. Adaptive delegation pilot (Track C).
+7. Demo, release and public packaging (Final-6).
 
-Open decision for the project owner: whether to port the Recovery-Pilot general fix
-(`18e523c`, coding-session outcome classification) into the stable baseline. It is not ported here.
+Decisions still owed by the project owner (all are Final-2 design inputs, none is implemented):
+coding-composition checkpoint wiring, Context-Plane integration (if any), router C1 protocol and its
+candidate-DAG source, a semantic-retrieval evidence requirement, and the ContextPilot
+isolated-environment procedure (its `.pth` hook breaks 9 unrelated tests on Windows).
 
 ## 7. Closed Directions
 

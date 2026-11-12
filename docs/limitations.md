@@ -75,6 +75,16 @@ Real constraints of the current candidate. Nothing here is a backlog promise.
 21. **CI runs the offline suite only.** Live DeepSeek tests are opt-in and never required; the
     sandbox-live integration test is environment-gated and skipped in CI.
 
+    **The `contextpilot` extra cannot join the default suite on Windows.** Its wheel installs
+    `contextpilot_hook.pth`, which raises `ModuleNotFoundError: No module named 'contextpilot'` at
+    every interpreter start; nine unrelated tests that assert child-process stderr then fail
+    (`test_m6_sqlite_process.py`, `test_sqlite_idempotency_process.py`,
+    `test_stage_g3_2_ingress_offload.py`). The 4 ContextPilot tests are therefore skipped in the
+    measured baseline, and ContextPilot dedup is validated only in an isolated environment.
+    Semantic tool search (`sentence-transformers` + `faiss-cpu`) is installed and its
+    `all-MiniLM-L6-v2` weights are cached, but **no test exercises the embedding path**; the Inspect
+    AI adapter is likewise installed with no test.
+
 ## Repository
 
 22. **The package, CLI and environment variables are frozen** as `atlasos`, `atlas` and
