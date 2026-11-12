@@ -316,3 +316,23 @@ run.
    findings plus the isolated oracle verdict.
 
 Each step already exists; the demo work is packaging, not new capability.
+
+---
+
+## 19. Acceptance
+
+| Question | Verdict | Basis |
+|---|---|---|
+| Can AtlasRuntime be explained in one sentence? | **PASS** | README §0, `docs/architecture.md` §1 |
+| Is the AnyCode / AtlasRuntime split explicit? | **PASS** | `docs/anycode-delta.md` (25 capabilities, 20-row delta table, upstream-gap list) |
+| Can the real main path be drawn with every core module located? | **PASS** | `docs/architecture.md` §3–§9, verified against `runtime.py`, `anycode_engine.py`, `conversation.py`, `tools/runtime.py`, `gate.py` |
+| Does every core module have a stated engineering problem? | **PASS** | README §3, `docs/anycode-delta.md` §3 |
+| Is unrelated business code, duplicated prototype and obsolete experiment code out of the mainline? | **PASS** | 66 files removed; no `business_benchmarks` or `commerce_agent_bench` tracked; `experiments/` LOC −51.7 % |
+| Does a real coding agent still run? | **PARTIAL** | The composition (`src/atlasos/app/coding.py`) is in the runtime package, wired in-process and covered by a regression test; **no live run was executed in this stage** (needs a provider key and a running OpenSandbox), and it requires a UAT-shaped workspace |
+| Can the existing benchmark and oracle be reused? | **PASS** | `experiments/evaluation/cli.py list` returns 30 tasks; oracle, sandboxed oracle and verification suites pass |
+| Do the safety, recovery, trace and budget mechanisms still have test evidence? | **PASS** | 895 passed / 1 skipped; action gate, ledger, suspension, trajectory, budget suites all green |
+| Is the technical narrative complete for an AI-agent engineering role? | **PARTIAL** | README + 6 docs are complete; the branch is not pushed, so there is no CI run or public link, and no recorded demo yet |
+| Is one core metric selected instead of more business tasks? | **PASS** | §17 selects interruption recovery with declared acceptance and rejection criteria; no business track remains |
+
+Remaining work after this stage: push the branch and let CI run, execute the §17 experiment, and
+record the §18 demo.
