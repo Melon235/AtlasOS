@@ -209,6 +209,9 @@ def test_environment_stages_workspace_starts_services_and_tears_down(tmp_path: P
     assert targets[f"/benchmark/private/{TASK_ID}"].read_only is True
     assert handle.services_started is True
     assert any("start_services.sh" in command for _, command, _ in backend.execs)
+    # Deliverables live at /task/outputs, i.e. inside the workspace mount, not the /data mirror.
+    assert handle.outputs_dir == handle.workspace_dir / "outputs"
+    assert targets["/data/amt-out"].read_only is False
     assert env.teardown(handle) is None
     assert backend.destroyed == [handle.container]
 

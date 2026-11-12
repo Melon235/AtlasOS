@@ -84,10 +84,14 @@ class NativeEnvironment:
     def create(self) -> EnvironmentHandle:
         timings: dict[str, float] = {}
         workspace = self.run_dir / "workspace"
-        outputs = self.run_dir / "outputs"
+        # The task writes its deliverables to ``/task/outputs`` (upstream contract), which is the
+        # workspace mount, not the separate ``/data/amt-out`` mirror. The graded directory is
+        # therefore ``workspace/outputs``.
+        outputs = workspace / "outputs"
+        artifacts = self.run_dir / "outputs"
         logs = self.run_dir / "host-logs"
         started = time.perf_counter()
-        for path in (workspace, outputs, logs):
+        for path in (workspace, outputs, artifacts, logs):
             path.mkdir(parents=True, exist_ok=True)
         self._stage_workspace(workspace)
         timings["stage_ms"] = _ms(started)
@@ -119,7 +123,7 @@ class NativeEnvironment:
                 image=self.config.image or self.task.image,
                 mounts=[
                     Mount(workspace, REMOTE_WORKSPACE),
-                    Mount(outputs, REMOTE_OUTPUTS),
+                    Mount(artifacts, REMOTE_OUTPUTS),
                     Mount(logs, REMOTE_LOGS),
                     Mount(self.task.root, f"/benchmark/tasks/{self.task.task_id}", read_only=True),
                     Mount(
