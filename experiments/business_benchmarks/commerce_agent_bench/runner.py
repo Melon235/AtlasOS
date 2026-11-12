@@ -26,6 +26,9 @@ from experiments.business_benchmarks.commerce_agent_bench.environment import (
     NativeEnvironment,
 )
 from experiments.business_benchmarks.commerce_agent_bench.grader import NativeGrader, NativeScore
+from experiments.business_benchmarks.commerce_agent_bench.public_inputs import (
+    PublicInputManifest,
+)
 from experiments.business_benchmarks.commerce_agent_bench.tool_bridge import (
     SLACK_PORT,
     SlackTransport,
@@ -59,7 +62,10 @@ from atlasos.workers import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-EVIDENCE_ROOT = REPO_ROOT / "experiments" / "evidence" / "stage-b0-r2"
+#: Raw runs (ledger, trajectory, reward, mock state) live outside the published evidence tree:
+#: they contain hidden-grader output and must never be committed.
+EVIDENCE_ROOT = REPO_ROOT / "experiments" / "runs" / "stage-b0-r2"
+PUBLIC_SUMMARY_ROOT = REPO_ROOT / "experiments" / "evidence" / "stage-b0-r2"
 DEFAULT_TASK = "api-slack-supplier-quote-thread-consolidation"
 DELIVERABLES = ("outputs/answer.json", "outputs/quote_consolidation.md")
 
@@ -250,13 +256,23 @@ async def _execute_and_grade(
     record["environment"]["slack_transport"] = (
         f"host:{transport.host_port}" if transport.host_port else "container-exec"
     )
+    # Freeze the readable inputs from the pristine task workspace, before any service wrote state.
+    manifest = PublicInputManifest.freeze(handle.workspace_dir, source_root=task.workspace)
     toolset = build_slack_toolset(
-        transport, workspace=handle.workspace_dir, allowed_deliverables=DELIVERABLES
+        transport,
+        workspace=handle.workspace_dir,
+        allowed_deliverables=DELIVERABLES,
+        manifest=manifest,
     )
     record["tools"] = {
         "names": list(toolset.agent_tools()),
         "schema_digest": toolset.schema_digest,
         "actions": toolset.actions,
+    }
+    record["public_inputs"] = {
+        "digest": manifest.digest,
+        "entries": len(manifest.entries),
+        "paths": sorted(manifest.entries),
     }
 
     observations: list[Any] = []

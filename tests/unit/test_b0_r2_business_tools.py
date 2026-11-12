@@ -6,6 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
+from experiments.business_benchmarks.commerce_agent_bench.public_inputs import (
+    PublicInputManifest,
+)
 from experiments.business_benchmarks.commerce_agent_bench.tool_bridge import (
     MAX_DELIVERABLE_BYTES,
     BusinessToolset,
@@ -28,12 +31,38 @@ class FakeTransport:
 
 
 def _toolset(tmp_path: Path, transport) -> BusinessToolset:
+    """Stage a workspace the way the runner does: freeze inputs, then let services write state."""
+
+    source = tmp_path / "source"
+    (source / "api_reference.md").parent.mkdir(parents=True, exist_ok=True)
+    (source / "api_reference.md").write_text("# api\n", encoding="utf-8")
+    (source / "state_manifest.md").write_text("# state\n", encoding="utf-8")
     workspace = tmp_path / "workspace"
-    (workspace / "outputs").mkdir(parents=True, exist_ok=True)
-    (workspace / "api_reference.md").write_text("# api\n", encoding="utf-8")
+    for item in source.rglob("*"):
+        if item.is_file():
+            target = workspace / item.relative_to(source)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(item.read_bytes())
+    # Runtime-generated files that must stay unreadable even though they sit in the workspace.
+    (workspace / "outputs" / "mock_state").mkdir(parents=True, exist_ok=True)
+    (workspace / "outputs" / "mock_audit").mkdir(parents=True, exist_ok=True)
+    (workspace / "outputs" / "mock_state" / "slack_final.json").write_text(
+        '{"internal": true}', encoding="utf-8"
+    )
+    (workspace / "outputs" / "mock_audit" / "slack_audit.json").write_text(
+        '{"calls": []}', encoding="utf-8"
+    )
     (workspace / "private").mkdir(exist_ok=True)
     (workspace / "private" / "expected_answer.json").write_text("{}", encoding="utf-8")
-    return build_slack_toolset(transport, workspace=workspace, allowed_deliverables=DELIVERABLES)
+    (workspace / "tmp").mkdir(exist_ok=True)
+    (workspace / "tmp" / "slack.log").write_text("service log\n", encoding="utf-8")
+    manifest = PublicInputManifest.freeze(workspace, source_root=source)
+    return build_slack_toolset(
+        transport,
+        workspace=workspace,
+        allowed_deliverables=DELIVERABLES,
+        manifest=manifest,
+    )
 
 
 def _run(toolset, name: str, **kwargs):
@@ -53,15 +82,49 @@ def test_public_file_is_readable(tmp_path: Path) -> None:
     [
         "../outside.txt",
         "/etc/passwd",
+        "C:/Windows/win.ini",
+        "//server/share/x.txt",
         "private/expected_answer.json",
         "grader/run.sh",
         "outputs/../../escape.txt",
+        "outputs/mock_state/slack_final.json",
+        "outputs/mock_audit/slack_audit.json",
+        "tmp/slack.log",
+        "not_registered.md",
     ],
 )
-def test_path_escapes_and_hidden_directories_are_refused(tmp_path: Path, path: str) -> None:
+def test_internal_state_and_escapes_are_refused(tmp_path: Path, path: str) -> None:
     toolset = _toolset(tmp_path, FakeTransport())
-    with pytest.raises((ToolBridgeError, FileNotFoundError)):
+    with pytest.raises(ToolBridgeError):
         _run(toolset, "read_task_file", path=path)
+
+
+def test_registered_public_inputs_are_readable(tmp_path: Path) -> None:
+    toolset = _toolset(tmp_path, FakeTransport())
+    assert _run(toolset, "read_task_file", path="api_reference.md") == "# api\n"
+    assert _run(toolset, "read_task_file", path="state_manifest.md") == "# state\n"
+    assert _run(toolset, "read_task_file", path="./api_reference.md") == "# api\n"
+
+
+def test_symlinked_input_is_refused(tmp_path: Path) -> None:
+    toolset = _toolset(tmp_path, FakeTransport())
+    workspace = tmp_path / "workspace"
+    link = workspace / "link.md"
+    try:
+        link.symlink_to(workspace / "api_reference.md")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks are not available on this platform")
+    with pytest.raises(ToolBridgeError):
+        _run(toolset, "read_task_file", path="link.md")
+
+
+def test_manifest_digest_is_recorded(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    (workspace / "a.md").parent.mkdir(parents=True, exist_ok=True)
+    (workspace / "a.md").write_text("x", encoding="utf-8")
+    manifest = PublicInputManifest.freeze(workspace, source_root=workspace)
+    assert manifest.digest.startswith("sha256:")
+    assert manifest.as_dict()["entries"] == 1
 
 
 def test_only_declared_deliverables_can_be_written(tmp_path: Path) -> None:

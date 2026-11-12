@@ -24,6 +24,10 @@ from typing import Any
 from anycode.tools.built_in import ToolDefinition
 from anycode.types import ToolResult
 from experiments.business_benchmarks.commerce_agent_bench.container import ContainerBackend
+from experiments.business_benchmarks.commerce_agent_bench.public_inputs import (
+    PublicInputError,
+    PublicInputManifest,
+)
 from pydantic import BaseModel, Field
 
 SLACK_PORT = 9110
@@ -60,16 +64,22 @@ _BLOCKED_PREFIXES = frozenset({"private", "grader", "tests"})
 
 
 def _safe_workspace_path(root: Path, raw: str) -> Path:
+    import os
+
     candidate = PurePosixPath(str(raw).replace("\\", "/"))
     if candidate.is_absolute() or not candidate.parts or ".." in candidate.parts:
         raise ToolBridgeError(f"path must be workspace-relative without '..': {raw!r}")
+    if len(str(raw)) >= 2 and str(raw)[1] == ":":
+        raise ToolBridgeError(f"drive-letter paths are not allowed: {raw!r}")
     if candidate.parts[0] in _BLOCKED_PREFIXES:
         raise ToolBridgeError(f"path {raw!r} is not part of the public workspace")
     if candidate.parts[:2] == ("outputs", "mock_audit"):
         raise ToolBridgeError("the mock audit directory is not writable")
     target = root.joinpath(*candidate.parts)
     resolved = target.resolve()
-    if not str(resolved).startswith(str(root.resolve())):
+    # Ownership by canonical containment, not by string prefix.
+    root_resolved = root.resolve()
+    if os.path.commonpath([str(root_resolved), str(resolved)]) != str(root_resolved):
         raise ToolBridgeError(f"path escapes the workspace: {raw!r}")
     if target.is_symlink():
         raise ToolBridgeError(f"symlinks are not readable: {raw!r}")
@@ -157,6 +167,7 @@ def build_slack_toolset(
     *,
     workspace: Path,
     allowed_deliverables: tuple[str, ...],
+    manifest: PublicInputManifest | None = None,
 ) -> BusinessToolset:
     import hashlib
 
@@ -183,9 +194,12 @@ def build_slack_toolset(
 
     def read_task_file(validated: ReadFileInput, context: Any) -> ToolResult:
         del context
-        target = _safe_workspace_path(workspace, str(validated.path or ""))
-        if not target.is_file():
-            raise ToolBridgeError(f"no such public file: {validated.path!r}")
+        if manifest is None:
+            raise ToolBridgeError("no public input manifest was frozen for this run")
+        try:
+            target = manifest.resolve(str(validated.path or ""))
+        except PublicInputError as error:
+            raise ToolBridgeError(str(error)) from error
         return ToolResult(data=target.read_text(encoding="utf-8", errors="replace"))
 
     def write_deliverable(validated: WriteDeliverableInput, context: Any) -> ToolResult:
