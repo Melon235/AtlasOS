@@ -1,4 +1,4 @@
-"""AtlasOS local CLI over the shared application service."""
+"""AtlasRuntime local CLI over the shared application service."""
 
 from __future__ import annotations
 
@@ -23,7 +23,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_RUNS_ROOT = Path(
     os.environ.get("ATLAS_APP_RUNS_ROOT", str(REPO_ROOT / "experiments" / "runs" / "app"))
 )
-app = typer.Typer(add_completion=False, help="AtlasOS local Agent Runtime interface")
+app = typer.Typer(
+    add_completion=False,
+    help="AtlasRuntime local execution interface. Python package: atlasos.",
+)
 console = Console()
 
 
@@ -106,7 +109,7 @@ def list_runs(
     if json_output:
         _print_json(items)
         return
-    table = Table(title="AtlasOS runs")
+    table = Table(title="AtlasRuntime runs")
     table.add_column("run")
     table.add_column("mode")
     table.add_column("status")
