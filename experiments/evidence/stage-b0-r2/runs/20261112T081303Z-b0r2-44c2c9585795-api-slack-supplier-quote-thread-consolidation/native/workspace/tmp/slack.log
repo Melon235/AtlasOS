@@ -1,3 +1,0 @@
-[slack] serving on port 9110; audit=/task/outputs/mock_audit/slack_audit.json; private=True
-[slack] 127.0.0.1 "GET /health HTTP/1.1" 200 -
-[slack] 172.17.0.1 "GET /health HTTP/1.1" 200 -
