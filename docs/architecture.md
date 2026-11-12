@@ -97,7 +97,7 @@ the runtime never imports it.
 Entry points, in the order the code actually runs:
 
 ```text
-atlas run --mode workflow --task "..."          app/cli.py::run_task
+atlas run "..." --mode workflow                app/cli.py::run_task
   └─ AtlasApplicationService.submit             app/service.py
       └─ thread _execute → _execute_workflow
           └─ AtlasRuntime(config).run(workflow) runtime.py
@@ -228,18 +228,22 @@ unknown outcome is recorded as `UNCERTAIN`; it is not replayed automatically.
 
 Two distinct mechanisms, deliberately separate:
 
-**A. Checkpoint resume (normal interruption)**
+**A. Checkpoint resume (normal interruption) — workflow path, library API only**
 
 ```text
-atlas resume <run_id>
-  └─ AtlasRuntime.resume(run_id, workflow)
-      ├─ active_suspensions(run_id) → raise SuspensionResumeRequired if any
-      └─ _resume
-          ├─ read atlas_manifest.json, verify_compatible(workflow, config hashes)
-          ├─ completed_task_ids → rebuild_context_store (deterministic, no model call)
-          ├─ _create_engine → engine.run_tasks(..., resume_from=checkpoint)
-          └─ _finalize(recovery=...)
+AtlasRuntime.resume(run_id, workflow)          # no CLI command reaches this
+  ├─ active_suspensions(run_id) → raise SuspensionResumeRequired if any
+  └─ _resume
+      ├─ read atlas_manifest.json, verify_compatible(workflow, config hashes)
+      ├─ completed_task_ids → rebuild_context_store (deterministic, no model call)
+      ├─ _create_engine → engine.run_tasks(..., resume_from=checkpoint)
+      └─ _finalize(recovery=...)
 ```
+
+Scope note: `app/coding.py`, `evaluation/runner.py` and `evaluation/baseline.py` build a bare
+`OrchestratorConfig()`, so `checkpoint=None` and **no coding run writes a checkpoint**. Checkpoint
+resume is reachable only through the workflow composition, which in turn has no action gate, no
+ledger and no sandbox.
 
 **B. Suspension settlement (approval / unknown side effect)**
 
@@ -249,6 +253,9 @@ atlas resume <run_id>        → service.recovery() reports RECOVERY_REQUIRED
 operator harness             → TrustedRecoverySession (trusted_recovery.py)
                                  → resume_execution_suspension (approvals/resume.py)
 ```
+
+`atlas resume` never performs a checkpoint resume: `AtlasApplicationService.resume` raises
+`RecoveryAuthorityUnavailable` unless an active trusted suspension exists.
 
 The application service deliberately refuses to reattach or destroy a sandbox on its own: without
 M5/M6 authority that would be an unreviewed remote side effect. Recovery requires the operator
@@ -286,11 +293,13 @@ workflow.py task text
                 └─ context/transform.py  IdentityContextTransform | ContextPilotDedupTransform
 ```
 
-Separation of concerns is preserved: selectors decide *what*, renderers decide *how*. The default
-application config is `policy="task_scoped"`, `renderer="stable_deterministic"`,
-`transform="identity"`. ContextPilot dedup stays behind `transform="contextpilot_dedup"` plus the
-optional extra, because it produced no measurable cache-miss win (see
-`docs/evaluation-summary.md` §7).
+Separation of concerns is preserved: selectors decide *what*, renderers decide *how*. The application
+service configures `policy="task_scoped"`, `renderer="stable_deterministic"`,
+`transform="identity"` for its workflow runs. The application coding path and the evaluation runner
+do **not** use this plane — they render prompts upstream — so a context-plane result does not
+describe them (see `docs/runtime-entrypoints.md` §6). ContextPilot dedup stays behind
+`transform="contextpilot_dedup"` plus the optional extra, because it produced no measurable
+cache-miss win (see `docs/evaluation-summary.md` §7).
 
 ---
 
@@ -299,18 +308,23 @@ optional extra, because it produced no measurable cache-miss win (see
 Every non-default mechanism is a config field, and the default configuration never enables a
 mechanism the experiments did not support.
 
+Defaults below are `config.py`'s, i.e. what library callers get from `AtlasConfig()`. The
+application service overrides the context pair; the coding session and the evaluation runner
+construct their tool runtime directly, so `tools.mode` does not apply to them.
+
 | Config field | Default | Values | Notes |
 |---|---|---|---|
 | `provider.model` | `deepseek-chat` | any provider model | DeepSeek adapter is the reference provider |
-| `context.policy` | `task_scoped` | `full` / `task_scoped` / `relevance` | |
-| `context.renderer` | `stable_deterministic` | `naive_order` / `stable_deterministic` | |
-| `context.transform.name` | `identity` | `identity` / `contextpilot_dedup` | requires `contextpilot` extra |
-| `scheduler.policy` | `upstream_default` | AnyCode assignment policies | recorded, not re-implemented |
-| `placement.policy` | `bypass` | `bypass` / `static` / `capability` / `context_locality` | `bypass` forced in the app |
-| `tools.mode` | `progressive` | `progressive` / `all` | `progressive` = search + dispatch |
+| `context.policy` | `upstream_default` | `upstream_default` / `task_scoped` | the app service sets `task_scoped` |
+| `context.renderer` | `upstream_default` | `upstream_default` / `naive_execution_order` / `stable_deterministic` | only two policy/renderer pairs are legal |
+| `context.transform.name` | `identity` | `identity` / `contextpilot_dedup` | requires `task_scoped` + `stable_deterministic` and the `contextpilot` extra |
+| `scheduler.policy` | `upstream_default` | any, but only `upstream_default` is accepted today | recorded, not re-implemented |
+| `placement.policy` | `bypass` | `bypass` / `static_baseline` / `capability_only` / `context_locality` | `bypass` used by the app |
+| `tools.mode` | `disabled` | `disabled` / `progressive` | `progressive` = search + dispatch; the coding and evaluation paths build the runtime themselves |
 | `tools.search_backend` | `keyword` | `keyword` / `semantic` | semantic requires `tools` extra |
-| `trajectory.enabled` | `true` | bool | M7 evidence |
-| `sandbox.provider` | `opensandbox` | `opensandbox` / `daytona` / `fake` | `fake` only for scripted tests |
+| `trajectory.enabled` | `false` | bool | opt-in on the workflow path; always on in coding/evaluation |
+| `sandbox.enabled` | `false` | bool | the coding/evaluation paths manage the sandbox explicitly |
+| `sandbox.provider` | `fake` | `fake` / `opensandbox` / `daytona` | the app and evaluation paths require a real provider |
 
 Opt-in mechanisms (not in the default config): durable suspension/approvals (M6), dual handoff,
 selective delegation, ownership enforcement, history compaction, ingress offload, worker task

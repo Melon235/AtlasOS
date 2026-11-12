@@ -258,7 +258,7 @@ transcripts, tool payloads and sandbox state from one model run. They contain no
 
 | Item | State |
 |---|---|
-| Repository | `Melon235/AtlasOS` (unchanged) |
+| Repository | `Melon235/AtlasOS` as of this stage; renamed to `Melon235/AtlasRuntime` afterwards (same repository, default branch `master`) |
 | `master` | local `07e18ec`, 22 commits ahead of `origin/master` `3fbf3dd`; **not pushed by this stage** |
 | Pull requests | PR #1 (R0.5), PR #3 (R1-0) exist historically; R1-1, R1-2A and R1-2H never had a PR |
 | Consolidation branch push | not performed (no approval requested in this stage) |
@@ -267,6 +267,14 @@ transcripts, tool payloads and sandbox state from one model run. They contain no
 | Live tests in CI | never run (`live` marker deselected, `ATLASOS_RUN_LIVE_*` forced to 0) |
 
 ## 17. Proposed main experiment
+
+> **SUPERSEDED BY FINAL EVALUATION ROADMAP.**
+> This recovery-only 90-run plan is no longer the single main experiment. Recovery is now one
+> reliability module inside Track A of [`final-roadmap.md`](final-roadmap.md), and the Final-2 pilot
+> (`experiment/final-2-recovery-pilot`, `c5fce5c`) already showed that neither arm can resume a
+> coding run on this candidate. The text below is kept as the historical design record and must not
+> be executed as written.
+
 
 ### Candidate comparison
 

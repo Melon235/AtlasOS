@@ -14,6 +14,15 @@ Real constraints of the current candidate. Nothing here is a backlog promise.
 4. **Recovery requires the operator harness.** `atlas resume` refuses to reattach a remote sandbox
    without M5/M6 authority. The trusted recovery composition exists and is tested, but it is not a
    one-command CLI operation.
+
+   **No coding run can be resumed.** `app/coding.py`, `evaluation/runner.py` and
+   `evaluation/baseline.py` all construct a bare `OrchestratorConfig()`, whose `checkpoint` is
+   `None`, so no checkpoint file is written and `run_tasks(resume_from=…)` is unreachable. Only the
+   workflow path has checkpointing, and it has no action gate or ledger. Measured in the Final-2
+   pilot: after an identical kill, native AnyCode left zero durable records and AtlasRuntime left one
+   `IN_PROGRESS` ledger row plus a binding, an idempotency claim and four trajectory events —
+   accountability, not resumption. An abrupt kill also leaks a live sandbox pair that must be reaped
+   manually.
 5. **Approve/reject requires a configured suspension store.** Without M6 wiring, an approval
    command has nothing to resolve.
 
@@ -21,7 +30,9 @@ Real constraints of the current candidate. Nothing here is a backlog promise.
 
 6. **CPU and memory quotas are not pinned** in the sandbox or in the oracle sandbox. Isolation is
    network and filesystem level, not resource-scheduling level.
-7. **One container per grading** in the isolated oracle (~3.1 s of a ~6 s grading budget).
+7. **One container per grading** in the isolated oracle (~3.1 s of a ~6 s grading budget). Isolation
+   is a process and network boundary: it is not a security proof against arbitrary hostile code, and
+   the 28/28 score agreement covers those 28 historical workspaces only.
 8. **Only `opensandbox` and `daytona` are wired**; the other AnyCode backends are reachable only
    through upstream code paths and are not exercised here.
 9. **Local ownership is an OS file lock**, not a lease protocol. It detects a concurrent local
@@ -66,8 +77,9 @@ Real constraints of the current candidate. Nothing here is a backlog promise.
 
 ## Repository
 
-22. **The package, CLI and repository names are frozen** as `atlasos`, `atlas` and
-    `Melon235/AtlasOS` for compatibility. The public project name is AtlasRuntime; the rename is a
-    separate migration.
+22. **The package, CLI and environment variables are frozen** as `atlasos`, `atlas` and
+    `ATLASOS_*`. The repository and public project name are `Melon235/AtlasRuntime` (renamed from
+    `AtlasOS`); renaming the internal identifiers is a separate migration, so prose and code
+    intentionally differ.
 23. **Historical stage branches are kept as-is.** They contain their own raw run artifacts; the
     final candidate branch does not.

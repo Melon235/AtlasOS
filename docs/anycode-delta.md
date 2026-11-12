@@ -185,9 +185,14 @@ Each entry answers: (1) what upstream already solved, (2) what upstream does not
 ### 3.6 Suspension and approvals — `src/atlasos/suspension/`, `src/atlasos/approvals/`
 
 1. Upstream: in-memory `ApprovalManager` with timeout and stdin/webhook gates.
-2. Missing: durability, whole-response atomicity, revalidation on resume.
-3. Delta: durable suspension record, batch preflight before any tool executes, SQLite approval
-   store with versioned resolutions, resume path that re-checks the binding digest.
+2. Missing: durability across a process exit, a pre-execution barrier over a whole model response,
+   revalidation on resume.
+3. Delta: durable suspension record; a **pre-execution barrier** that inspects every tool call in a
+   response before any of them executes; SQLite approval store with versioned resolutions; a resume
+   path that re-checks the binding digest. This is a barrier, **not transactional atomicity**: once
+   the barrier releases the batch the tools run one after another, and a crash between two of them
+   leaves the later ones unexecuted with no compensating rollback. Nothing in the runtime can undo a
+   side effect that already happened.
 4. Layer: reliability (Layer 4).
 5. Style: subclass seam (`AtlasAgentRunner._execute_tool_blocks`) + independent stores.
 6. Evidence: v2-integrated S1–S8; OS-process HITL recovery tests.

@@ -218,8 +218,12 @@ Dedup fired **0 times in 0/72 calls** — dependency outputs were too short. Tra
 
 Offline transform cost: ~1 ms at 30 K chars, ~3 ms at 110 K, ~7–8 ms at 250 K.
 
-**Reading.** A shorter prompt is not a cheaper prompt. At the duplicate ratio where dedup saves the
-most tokens (44 %), the warm cache miss rate got *worse*.
+**Reading.** A shorter prompt is not a cheaper prompt, and the sign convention matters: a positive
+"warm miss reduction" means the miss count fell. At small and medium scale the miss count *rose*
+(−55.7 % / −18.8 % / −28.4 % / −42.5 %), so dedup made the uncached tail worse; only at large scale
+did it fall, and only by 2.5 % / 11.1 % while prompt tokens fell 27.1 % / 44.0 %. Dedup is therefore
+a prompt-length optimisation with a workload-dependent cache effect, not an unconditional cache
+optimisation.
 
 Related negative results: rolling compaction raised prompt +9.3 %, cache miss +88 % and cost +43 %
 (G2b-1); ingress offload moved prompt +3.7 % and cost −0.7 % (noise) while `max_turns` workers went
@@ -262,6 +266,17 @@ These results are real and reproducible, but they are **not** model-capability m
 | Ownership write protection | rollback of `git checkout --` blocked by tests T2–T6 | deterministic |
 | `history.read` recovery | byte-exact paging, digest tamper rejection | deterministic; the model called it **0 times** in 12 real runs |
 
+### Recovery evidence must be read in two separate columns
+
+| Kind of evidence | What it shows | What it does not show |
+|---|---|---|
+| **Deterministic / OS-process** (Stage D, M4 crash windows, `test_recovery_repair_stale_uncertain_and_reconciler`, `test_restart_pending_hitl_and_modified_input`) | The ledger, suspension and approval stores behave correctly when a *test* crashes at a chosen point: `IN_PROGRESS` → repair or `UNCERTAIN`, no blind replay, no stale approval accepted. 11 real OS-process scenarios plus 8 deterministic injections. | That a *real coding run* with a real model can be resumed. Those tests drive the stores directly and never run an agent. |
+| **Real model runs** (Final-2 pilot on `experiment/final-2-recovery-pilot`, `c5fce5c`) | A killed coding run leaves a durable ledger row in `IN_PROGRESS`, a binding record, an idempotency claim and a trajectory, from which the unknown side effect can be enumerated. | Any automatic resume: neither coding composition enables AnyCode checkpointing, so there is no checkpoint to resume from. |
+
+No live run in this repository has ever resumed a coding task after a process kill. Until that
+happens, "recovery" in this project means *durable evidence plus an operator decision*, not an
+automatic continuation.
+
 Not validated (implemented, but no live evidence):
 
 - Suspension resume inside a real model run (never triggered).
@@ -280,8 +295,10 @@ Supported claims:
    zero host-isolation violations.
 2. Trajectory evidence is materially more complete than `result.json` (591 vs 365 actions) and made
    failure attribution possible.
-3. Deterministic deliverable verification achieves 0 false positives on 66 deliverables at
-   millisecond-to-second cost with no model tokens.
+3. Deterministic deliverable verification achieves 0 false positives on the 66 deliverables in that
+   study at millisecond-to-second cost with no model tokens. The claim is bounded by that sample and
+   by **detection, not recall**: 23 static findings were true positives against 23 misses, so roughly
+   half of the checked deliverables that violated a contract were not flagged.
 4. Sandboxed grading reproduces every historical score (28/28) at ~6 s and 0 model tokens.
 5. Static multi-worker decomposition is worse than a single worker on every task family measured.
 
@@ -291,6 +308,9 @@ Claims this evidence does **not** support:
 2. Progressive tool discovery, compaction, ingress offload, worker contracts, ownership
    enforcement, or delegation improve cost or quality.
 3. Cache-aware context layout reduces cost.
+4. A killed coding run is resumed automatically. No composition enables checkpointing, so there is
+   nothing to resume from; the recorded advantage is post-crash accountability.
 
-The proposed main experiment in `docs/final-consolidation-report.md` §17 targets the one claim that
-is supported but not yet isolated: reliability under failure versus an unmodified AnyCode baseline.
+Recovery is now one reliability module inside Track A of [`final-roadmap.md`](final-roadmap.md). The
+recovery-only 90-run plan in `docs/final-consolidation-report.md` §17 is superseded and is kept as
+historical design only.
