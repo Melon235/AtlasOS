@@ -1,4 +1,4 @@
-"""Per-request transform and batch-policy semantics."""
+"""Per-request context transform semantics."""
 
 from __future__ import annotations
 
@@ -11,12 +11,6 @@ from atlasos.context.transform import (
     ContextPilotUnavailable,
     IdentityContextTransform,
     TransformedContext,
-)
-from atlasos.experimental.batch import (
-    BatchPolicyUnavailable,
-    ContextPilotReorderPolicy,
-    IdentityBatchRequestPolicy,
-    RenderedRequest,
 )
 
 
@@ -88,28 +82,3 @@ def test_missing_contextpilot_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ContextPilotUnavailable, match="not installed"):
         ContextPilotDedupTransform().transform(blocks=[_block("a")], query="q")
-
-
-def _request(request_id: str) -> RenderedRequest:
-    return RenderedRequest(
-        request_id=request_id,
-        blocks=(_block(request_id),),
-        messages=({"role": "user", "content": request_id},),
-        prompt_hash=request_id,
-    )
-
-
-def test_identity_batch_policy_preserves_request_order() -> None:
-    requests = [_request("r1"), _request("r2")]
-
-    result = IdentityBatchRequestPolicy().order(requests)
-
-    assert result.order == ("r1", "r2")
-    assert result.reordered is False
-
-
-def test_missing_contextpilot_batch_policy_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(sys.modules, "contextpilot", None)
-
-    with pytest.raises(BatchPolicyUnavailable, match="not installed"):
-        ContextPilotReorderPolicy().order([_request("r1")])

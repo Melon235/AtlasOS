@@ -15,8 +15,13 @@ dist/
 # Local secrets
 .env
 
+# Local scratch: never a tracked artifact, never a source of evidence
+_debug_run/
+
 # Experiment outputs
 experiments/runs/
+# Raw per-run material stays local; only sanitized aggregates are published under evidence/.
+experiments/evidence/**/runs/
 experiments/results/evaluation/rounds/
 experiments/results/evaluation/inspect-*/
 experiments/results/stage-e1/

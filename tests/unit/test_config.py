@@ -30,19 +30,21 @@ def test_rejects_invalid_context_mode_pair() -> None:
         )
 
 
-def test_loads_stage2_variants() -> None:
-    configs = Path(__file__).resolve().parents[2] / "experiments" / "configs"
-    naive = load_config(configs / "stage2-naive.yaml")
-    stable = load_config(configs / "stage2-stable.yaml")
+def test_loads_the_two_reference_configurations() -> None:
+    """The baseline arm and the optimized arm must stay expressible in configuration."""
 
-    assert (naive.context.policy, naive.context.renderer) == (
-        "task_scoped",
-        "naive_execution_order",
+    baseline = load_config(BASELINE)
+    optimized = load_config(CONFIGS / "eval-benchmark.yaml")
+
+    assert (baseline.context.policy, baseline.context.renderer) == (
+        "upstream_default",
+        "upstream_default",
     )
-    assert (stable.context.policy, stable.context.renderer) == (
-        "task_scoped",
-        "stable_deterministic",
-    )
+    # The benchmark arm keeps AnyCode prompt construction and enables the runtime mechanisms.
+    assert optimized.context.policy == "upstream_default"
+    assert optimized.tools.mode == "progressive"
+    assert optimized.trajectory.enabled is True
+    assert optimized.sandbox.provider == "opensandbox"
 
 
 def test_rejects_unknown_scheduler_policy() -> None:
