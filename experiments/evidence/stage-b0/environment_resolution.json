@@ -1,0 +1,70 @@
+{
+  "stage": "b0-environment",
+  "kind": "native_environment_unblocked",
+  "status": "RESOLVED",
+  "pinned_image": "acciolyk/accio_bench@sha256:1e9cf5c72a56794175b7d06ece036b92e296e6b7e9e9a7fa244026f6acea3859",
+  "docker_deployment": {
+    "windows_docker_desktop": false,
+    "windows_docker_cli": false,
+    "windows_docker_service": false,
+    "wsl_distro": "Ubuntu",
+    "docker_engine": "29.6.0",
+    "storage_driver": "overlayfs (io.containerd.snapshotter.v1)",
+    "docker_root": "/var/lib/docker",
+    "daemon_proxy_config": "/etc/systemd/system/docker.service.d/http-proxy.conf",
+    "daemon_proxy": "http://172.26.96.1:7890 (NO_PROXY=localhost,127.0.0.1,::1)"
+  },
+  "root_cause": {
+    "summary": "Registry hosts resolve to IPv6-only addresses in WSL and direct IPv6 HTTPS is unreachable; the daemon can only reach the registry through its configured proxy, which made the first pull stall for minutes at a time while layers were re-fetched.",
+    "evidence": [
+      "getent hosts registry-1.docker.io -> 2a03:2880:f10c:283:face:b00c:0:25de (IPv6 only)",
+      "getent hosts auth.docker.io -> 2a03:2880:f10c:283:face:b00c:0:25de",
+      "getent hosts production.cloudflare.docker.com -> 2001::c73b:94de",
+      "curl https://registry-1.docker.io/v2/ without proxy: curl (28) Connection timed out after 20033 ms",
+      "daemon has HTTP_PROXY/HTTPS_PROXY set, so docker pull uses the proxy path",
+      "docker pull alpine:3.20 succeeded, proving daemon and proxy path work"
+    ],
+    "not_a_cause": [
+      "disk space (842G free)",
+      "corrupt image store (no pruning performed)",
+      "missing platform manifest (image is linux/amd64)"
+    ]
+  },
+  "resolution": {
+    "action": "retry the pull and let the daemon finish finalising the layers through its proxy",
+    "attempts_needed": 3,
+    "data_cleared": false,
+    "containers_removed_during_diagnosis": [
+      "temporary verification containers started from the pinned image; no OpenSandbox containers touched"
+    ]
+  },
+  "verification": {
+    "pull": "succeeded",
+    "image_inspect": "present",
+    "repo_digest": "acciolyk/accio_bench@sha256:1e9cf5c72a56794175b7d06ece036b92e296e6b7e9e9a7fa244026f6acea3859",
+    "os_arch": "linux/amd64",
+    "reported_size_bytes": 1035712926,
+    "container_run": "ok (entrypoint /entrypoint.sh, workstation stack starts)",
+    "native_mock_service": {
+      "task": "api-slack-supplier-quote-thread-consolidation",
+      "services_started": true,
+      "health_ok": true,
+      "messages_listed": 19,
+      "get_calls": 19,
+      "audit_file": "workspace/outputs/mock_audit/slack_audit.json",
+      "audit_call_entries": 22
+    },
+    "native_grader": {
+      "status": "GRADER_OK",
+      "score": 1.0,
+      "checks_passed": 7,
+      "checks_total": 7,
+      "note": "grader reachability check with a schema-valid deliverable built from the public task.md field list plus the live audit; this is an environment validation, not an agent result and not a benchmark score"
+    }
+  },
+  "adapter_defect_found_and_fixed": {
+    "issue": "outputs_dir pointed at the /data/amt-out mirror while the task writes to /task/outputs",
+    "fix": "outputs_dir is now <run>/workspace/outputs, matching the upstream contract",
+    "test": "tests/unit/test_b0_commerce_adapter.py asserts the graded directory"
+  }
+}

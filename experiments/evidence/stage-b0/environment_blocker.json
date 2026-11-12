@@ -1,7 +1,7 @@
 {
   "stage": "b0",
   "kind": "native_environment_blocked",
-  "status": "BLOCKED",
+  "status": "RESOLVED",
   "observed_at_local": "2026-11-12T15:0x+08:00",
   "host": {
     "os": "Windows 10 19045",
@@ -43,5 +43,6 @@
     "A0/A1 model runs not executed; no business score exists for this stage"
   ],
   "not_a_code_defect": true,
-  "next_action": "retry on a host with reliable registry access, then run smoke --mode env/reference before any A0/A1 run"
+  "next_action": "retry on a host with reliable registry access, then run smoke --mode env/reference before any A0/A1 run",
+  "resolved_by": "stage-b0-environment-resolution.json (docs/stage-b0-environment-resolution.md)"
 }
