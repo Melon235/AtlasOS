@@ -1,12 +1,16 @@
-"""Thin UAT CLI adapter over the frozen AtlasOS V2 runtime.
+"""Coding-mode session: one trusted sandbox, one scoped worker, one engine task.
 
-This is a user-facing test surface, not a new runtime. It parses a natural-language task, constructs
-the trusted Atlas Sandbox provider selected by Host configuration, stages the fixture into a
-one-task M5 binding, runs one engine task, and exports the remote workspace for external
-acceptance. It owns no scheduling, policy, execution, approval, or recovery logic.
+This is the composition that turns the runtime primitives into a working coding agent. It parses a
+natural-language task, constructs the trusted Atlas Sandbox provider selected by host
+configuration, stages the fixture into a one-task M5 binding, runs one engine task, and exports the
+remote workspace. It owns no scheduling, policy, execution, approval, or recovery logic: every one
+of those comes from the runtime components it wires together.
 
-Live coding UAT requires a real AnyCode-compatible provider (self-hosted OpenSandbox by default).
-The deterministic local provider is reachable only through the explicitly scripted smoke path; it is
+Both the CLI (`atlas run --mode coding`) and the standalone `python -m atlasos.app.coding` entry
+use this module directly, in-process. Nothing in the runtime shells out to the evaluation harness.
+
+Live coding requires a real AnyCode-compatible provider (self-hosted OpenSandbox by default). The
+deterministic local provider is reachable only through the explicitly scripted smoke path; it is
 never selected as a fallback when the real provider or its server is unavailable.
 """
 
@@ -22,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -88,10 +93,29 @@ from atlasos.tools.conversation import reset_current_task_id, set_current_task_i
 from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerStore
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = REPO_ROOT / "experiments" / "configs" / "v2-uat.yaml"
 _IGNORED_FIXTURE_PARTS = frozenset({".git", "__pycache__", ".pytest_cache"})
 _FAKE_IMAGE = "fake@sha256:0123456789abcdef"
+
+
+@dataclass(frozen=True)
+class CodingRunOptions:
+    """Everything one coding session needs. Attribute names match the CLI flags."""
+
+    task: str
+    fixture: Path
+    runs_root: Path
+    provider: str = "deepseek"
+    model: str = "deepseek-chat"
+    max_turns: int = 12
+    config: Path | None = None
+    sandbox_provider: str | None = None
+    require_real_sandbox: bool = False
+    retain_on_failure: bool = False
+    scripted: bool = False
+    # Injected only for the deterministic smoke path; the runtime never imports test helpers.
+    provider_factory: Callable[[Path], Any] | None = None
 
 
 class _UATFailure(RuntimeError):
@@ -182,7 +206,7 @@ class _SandboxMetrics:
 class ScriptedAdapter:
     """Smoke-only adapter; live UAT uses DeepSeek."""
 
-    def __init__(self, responses: list[Any], counter: list[int]) -> None:
+    def __init__(self, responses: list[Callable[[], list[Any]]], counter: list[int]) -> None:
         self.responses = responses
         self.counter = counter
         self.name = "scripted"
@@ -191,7 +215,7 @@ class ScriptedAdapter:
         del messages
         self.counter[0] += 1
         index = self.counter[0] - 1
-        blocks = (
+        blocks: list[Any] = (
             self.responses[index]() if index < len(self.responses) else [TextBlock(text="done")]
         )
         return LLMResponse(
@@ -330,23 +354,23 @@ def _stage_fixture_repo(fixture: Path, destination: Path) -> Path:
     return destination
 
 
-def _load_sandbox_config(args: argparse.Namespace) -> AtlasConfig:
-    path = args.config or (DEFAULT_CONFIG if DEFAULT_CONFIG.is_file() else None)
+def _load_sandbox_config(options: CodingRunOptions) -> AtlasConfig:
+    path = options.config or (DEFAULT_CONFIG if DEFAULT_CONFIG.is_file() else None)
     if path is not None:
         return load_config(path)
     return AtlasConfig()
 
 
-def _select_provider(args: argparse.Namespace, config: AtlasConfig) -> str:
-    if args.scripted:
-        if args.require_real_sandbox:
+def _select_provider(options: CodingRunOptions, config: AtlasConfig) -> str:
+    if options.scripted:
+        if options.require_real_sandbox:
             raise _UATFailure(
                 "ENVIRONMENT_FAILURE",
                 "configuration",
                 "--scripted cannot be combined with --require-real-sandbox",
             )
         return "fake"
-    name = args.sandbox_provider or config.sandbox.provider
+    name = options.sandbox_provider or config.sandbox.provider
     if name not in REAL_SANDBOX_PROVIDERS:
         raise _UATFailure(
             "SANDBOX_PROVIDER_FAILURE",
@@ -378,20 +402,23 @@ def _project_config(
 
 
 def _build_provider(
-    args: argparse.Namespace,
+    options: CodingRunOptions,
     provider_name: str,
     run_dir: Path,
     config: AtlasConfig,
 ) -> Any:
     if provider_name == "fake":
-        # The deterministic provider exists only for the explicit scripted smoke path. Importing it
-        # lazily keeps the live path free of test-only sandbox code.
-        from tests.helpers.fake_sandbox_provider import FakeSandboxProvider
-
-        shell = "git-bash" if os.name == "nt" else "cmd"
-        return FakeSandboxProvider(run_dir / "sandbox", shell=shell)
+        # A deterministic provider is test infrastructure, so it is injected instead of imported:
+        # the runtime package must not depend on the test tree.
+        if options.provider_factory is None:
+            raise _UATFailure(
+                "ENVIRONMENT_FAILURE",
+                "configuration",
+                "scripted mode requires an injected provider_factory",
+            )
+        return options.provider_factory(run_dir / "sandbox")
     sandbox = config.sandbox
-    options = OpenSandboxOptions(
+    sandbox_options = OpenSandboxOptions(
         endpoint=sandbox.endpoint,
         protocol=sandbox.protocol,
         timeout_minutes=sandbox.timeout_minutes,
@@ -400,7 +427,7 @@ def _build_provider(
         memory=sandbox.memory,
         use_server_proxy=sandbox.use_server_proxy,
     )
-    return build_sandbox_provider(provider_name, opensandbox_options=options)
+    return build_sandbox_provider(provider_name, opensandbox_options=sandbox_options)
 
 
 def _classify_exception(error: BaseException) -> str:
@@ -451,17 +478,17 @@ def _record_terminal(
         )
 
 
-async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any], int]:
     run_id = f"uat-{uuid.uuid4().hex}"
-    runs_root = args.runs_root.resolve()
+    runs_root = options.runs_root.resolve()
     run_dir = runs_root / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
-    fixture = args.fixture.resolve()
+    fixture = options.fixture.resolve()
     if not (fixture / "csv_parser.py").exists():
         raise SystemExit(f"fixture does not look like the UAT repo: {fixture}")
 
     load_dotenv(REPO_ROOT / ".env", override=False)
-    config = _load_sandbox_config(args)
+    config = _load_sandbox_config(options)
     provider_name = ""
     provider: Any = None
     manager: ProjectSandboxManager | None = None
@@ -483,22 +510,22 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     host_digest_before = _fixture_digest(fixture)
     metrics = _SandboxMetrics()
     metrics.host_fixture_digest_before = host_digest_before
-    metrics.retain_on_failure = bool(args.retain_on_failure)
+    metrics.retain_on_failure = bool(options.retain_on_failure)
 
     task_id = f"{run_id}-task"
     worker_id = f"{run_id}-worker"
     worker: Any = None
 
     try:
-        if not args.scripted and not os.environ.get("DEEPSEEK_API_KEY"):
+        if not options.scripted and not os.environ.get("DEEPSEEK_API_KEY"):
             raise _UATFailure(
                 "CREDENTIAL_BLOCKED",
                 "configuration",
                 "DEEPSEEK_API_KEY is not configured in the Host environment",
             )
-        provider_name = _select_provider(args, config)
+        provider_name = _select_provider(options, config)
         metrics.provider_name = provider_name
-        provider = _build_provider(args, provider_name, run_dir, config)
+        provider = _build_provider(options, provider_name, run_dir, config)
         capabilities = provider.capabilities()
         metrics.provider_capabilities = capability_summary(capabilities)
         metrics.capabilities_digest = capability_digest(capabilities)
@@ -514,12 +541,12 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if health.status == "unavailable":
             raise SandboxEnvironmentBlocked(f"sandbox provider is unavailable: {health.message}")
 
-        project_config = _project_config(config, provider_name, scripted=args.scripted)
+        project_config = _project_config(config, provider_name, scripted=options.scripted)
         metrics.workspace_root = project_config.workspace_root
-        _register_provider(args.provider, scripted=args.scripted)
+        _register_provider(options.provider, scripted=options.scripted)
 
         store = FilesystemRunStore(run_dir / "trajectory")
-        recorder = TrajectoryRecorder(store, run_id, agent_name="atlas-uat", model=args.model)
+        recorder = TrajectoryRecorder(store, run_id, agent_name="atlas-uat", model=options.model)
         suspension_store = SQLiteSuspensionStore(runs_root / "suspension.db")
         approval_store = SQLiteApprovalStore(runs_root / "approvals.db")
         ledger = SQLiteActionLedgerStore(runs_root / "ledger.db")
@@ -537,8 +564,8 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             },
         )
         worker_factory = ScopedWorkerFactory(
-            model=args.model,
-            provider=args.provider,
+            model=options.model,
+            provider=options.provider,
             store=WorkerStore(run_dir / "workers.json"),
             trajectory_recorder=recorder,
         )
@@ -553,7 +580,7 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             parent_agent="uat-cli",
             assignment=WorkerAssignment(
                 profile_id="coding_worker",
-                task=f"{environment_note} {args.task}",
+                task=f"{environment_note} {options.task}",
             ),
             worker_id=worker_id,
             task_id=task_id,
@@ -613,14 +640,14 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         agent_config = worker.agent_config.model_copy(
             update={
                 "tool_security": ToolSecurityPolicy(workspace_root="/workspace/project"),
-                "max_turns": args.max_turns,
+                "max_turns": options.max_turns,
             }
         )
         engine = AtlasContextEngine(OrchestratorConfig(), tool_runtime=runtime)
         team = engine.create_team("uat", TeamConfig(name="uat", agents=[agent_config]))
         task = TaskSpec(
             title="UAT coding task",
-            description=f"{environment_note} {args.task}",
+            description=f"{environment_note} {options.task}",
             assignee=worker.worker_name,
         )
         token = set_current_task_id(task_id)
@@ -679,7 +706,7 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
         retained = False
         if manager is not None and binding is not None:
-            if args.retain_on_failure and failure is not None:
+            if options.retain_on_failure and failure is not None:
                 retained = True
                 metrics.retained_sandbox_id = binding.sandbox_handle.id
             else:
@@ -719,11 +746,11 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         session: dict[str, Any] = {
             "run_id": run_id,
             "mode": "coding",
-            "task": args.task,
+            "task": options.task,
             "fixture": str(fixture),
             "workspace_export": str(workspace_export) if workspace_export else None,
-            "provider": args.provider,
-            "model": args.model,
+            "provider": options.provider,
+            "model": options.model,
             "worker_profile": "coding_worker",
             "worker_id": worker.worker_id if worker is not None else None,
             "task_id": task_id,
@@ -747,12 +774,12 @@ async def _run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
 
 def main() -> None:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(prog="atlas-uat")
-    parser.add_argument("task", help="natural-language task for the UAT coding session")
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+    parser = argparse.ArgumentParser(prog="atlas-coding-session")
+    parser.add_argument("task", help="natural-language task for the coding session")
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--runs-root", type=Path, default=REPO_ROOT / "experiments" / "runs")
     parser.add_argument("--provider", default="deepseek", help="LLM provider")
@@ -762,9 +789,20 @@ def main() -> None:
     parser.add_argument("--sandbox-provider", choices=sorted(REAL_SANDBOX_PROVIDERS), default=None)
     parser.add_argument("--require-real-sandbox", action="store_true")
     parser.add_argument("--retain-on-failure", action="store_true")
-    parser.add_argument("--scripted", action="store_true")
     args = parser.parse_args()
-    session, exit_code = asyncio.run(_run(args))
+    options = CodingRunOptions(
+        task=args.task,
+        fixture=args.fixture,
+        runs_root=args.runs_root,
+        provider=args.provider,
+        model=args.model,
+        max_turns=args.max_turns,
+        config=args.config,
+        sandbox_provider=args.sandbox_provider,
+        require_real_sandbox=args.require_real_sandbox,
+        retain_on_failure=args.retain_on_failure,
+    )
+    session, exit_code = asyncio.run(run_coding_session(options))
     print(json.dumps(session, ensure_ascii=False))
     raise SystemExit(exit_code)
 

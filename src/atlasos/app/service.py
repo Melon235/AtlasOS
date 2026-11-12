@@ -9,9 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-import subprocess
-import sys
 import threading
 import time
 import uuid
@@ -281,56 +278,24 @@ class AtlasApplicationService:
     def _execute_coding(self, record: RunRecord, max_turns: int) -> None:
         coding_root = self.runs_root / record.run_id / "coding"
         coding_root.mkdir(parents=True, exist_ok=True)
-        command = [
-            sys.executable,
-            "-m",
-            "experiments.uat_cli",
-            record.task,
-            "--fixture",
-            str(record.workspace),
-            "--runs-root",
-            str(coding_root),
-            "--provider",
-            "deepseek",
-            "--model",
-            "deepseek-chat",
-            "--max-turns",
-            str(max_turns),
-            "--sandbox-provider",
-            self.sandbox_provider,
-            "--require-real-sandbox",
-        ]
-        env = {
-            **os.environ,
-            "PYTHONPATH": os.pathsep.join([str(self.repo_root / "src"), str(self.repo_root)]),
-            "PYTHONDONTWRITEBYTECODE": "1",
-        }
         self._event(record, "coding_started", {"workspace": record.workspace})
-        process = subprocess.Popen(  # noqa: S603 - fixed command
-            command,
-            cwd=self.repo_root,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+        # The coding composition lives in the runtime package; it is called in-process so the
+        # application never depends on the evaluation harness.
+        from atlasos.app.coding import CodingRunOptions, run_coding_session
+
+        if record.workspace is None:
+            raise WorkspaceNotSupported("coding mode requires a workspace directory")
+        options = CodingRunOptions(
+            task=record.task,
+            fixture=Path(record.workspace),
+            runs_root=coding_root,
+            provider="deepseek",
+            model="deepseek-chat",
+            max_turns=max_turns,
+            sandbox_provider=self.sandbox_provider,
+            require_real_sandbox=True,
         )
-        stdout, stderr = process.communicate()
-        session: dict[str, Any] | None = None
-        for line in reversed((stdout or "").splitlines()):
-            if line.strip().startswith("{"):
-                try:
-                    session = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                break
-        if session is None:
-            record.error = (stderr or stdout or "coding session produced no JSON")[-4000:]
-            record.status = "FAILED"
-            record.failure_class = "CODING_RUNTIME_ERROR"
-            self._event(record, "run_failed", {"error": record.error})
-            return
+        session, _exit_code = asyncio.run(run_coding_session(options))
         record.session = session
         record.uat_run_id = str(session.get("run_id") or "")
         record.cleanup_error = (session.get("sandbox") or {}).get("cleanup_error")
