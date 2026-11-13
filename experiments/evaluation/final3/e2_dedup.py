@@ -2,12 +2,12 @@
 
 Run with the E2 interpreter (never the main ``.venv``):
 
-    D:\\Work\\AtlasRuntime-e2\\Scripts\\python.exe -m experiments.evaluation.final3.e2_dedup
+    <E2_VENV>\\Scripts\\python.exe -m experiments.evaluation.final3.e2_dedup
 
 Baseline is the identity transform, treatment is the shipped
 ``ContextPilotDedupTransform``. The workload is new (not the historical Stage 6 one): dependency
-outputs of realistic size with a controlled exact-duplicate ratio plus one unique tail fact that must
-survive.
+outputs of realistic size with a controlled exact-duplicate ratio plus one unique tail fact that
+must survive.
 """
 
 from __future__ import annotations
@@ -59,8 +59,7 @@ def measure() -> dict[str, object]:
                 "baseline_chars": context_chars(baseline.blocks),
                 "treatment_chars": context_chars(treatment.blocks),
                 "char_reduction": round(
-                    1.0
-                    - context_chars(treatment.blocks) / max(1, context_chars(baseline.blocks)),
+                    1.0 - context_chars(treatment.blocks) / max(1, context_chars(baseline.blocks)),
                     4,
                 ),
                 "transform_name": treatment.transform_name,

@@ -32,6 +32,7 @@ environment variables, historical run ids and Git history keep `atlasos` / `atla
 | Current stage branch | `chore/final-1-5-repository-baseline` (this worktree) |
 | Final-1.5 baseline (`BASE_SHA` of that stage) | `16251d05c34cff41d280396a1647214914e51a31` |
 | Final-1.6 ported fix | `1b4f6be` = cherry-pick of `18e523c` (coding-session outcome attribution, 2 files) |
+| Final-3 integrated runtime | `93cbd98` — Context Plane wired into the coding compositions (opt-in), shared budget in app coding, failure/token semantics fixed |
 | Worktree | `D:\Work\AtlasRuntime` (primary research worktree remains `D:\Work\AtlasOS`) |
 | Recovery Pilot branch | `experiment/final-2-recovery-pilot` = `c5fce5cc5d3d96251968b264e8113685711ffc8e`, 3 commits on top of `16251d0` |
 | Recovery Pilot in the stable baseline? | **One commit only** (`18e523c`, as `1b4f6be`). The rest is audited only — see `docs/final-1-5-repository-baseline.md` §4 and `docs/final-1-6-evaluation-baseline.md` §3 |
@@ -153,13 +154,13 @@ users would expect. `NOT_VALIDATED` = implemented, no live evidence.
 
 | Mechanism | Status | Where it is actually wired |
 |---|---|---|
-| Context selector + stable renderer | DEFAULT_ACTIVE / NOT_WIRED_IN_ALL_PATHS | workflow path only |
+| Context selector + stable renderer | DEFAULT_ACTIVE / ACTIVE_OPTIONAL | workflow path always; coding paths only with `context.policy="task_scoped"` (Final-3) |
 | ContextPilot dedup transform | OPTIONAL / RETAINED_RESEARCH | workflow path, requires `contextpilot` extra |
 | Context-locality placement | OPTIONAL / RETAINED_RESEARCH | workflow path, `placement.policy` |
 | Tool search + progressive disclosure | DEFAULT_ACTIVE / NOT_WIRED_IN_ALL_PATHS | coding + evaluation paths |
 | Scoped worker + trusted identity | DEFAULT_ACTIVE / NOT_WIRED_IN_ALL_PATHS | coding + evaluation paths |
 | Dual-channel handoff | OPTIONAL / RETAINED_RESEARCH | evaluation path (`handoff_mode="dual"`) |
-| Run-scoped shared budget | OPTIONAL | evaluation path (`budget_mode="guarded"`) |
+| Run-scoped shared budget | OPTIONAL | evaluation path (`budget_mode="guarded"`); app coding via `ATLASOS_CODING_TOKEN_BUDGET` |
 | Selective delegation router | EVALUATION_ONLY | `experiments/evaluation/runner.py` + `stage_r0_routing.py` |
 | Worker ownership enforcement | OPTIONAL, default off | evaluation path (`ownership_mode`) |
 | Action safety gate | DEFAULT_ACTIVE / NOT_WIRED_IN_ALL_PATHS | coding + evaluation; **off** in workflow path |
@@ -215,7 +216,7 @@ was re-measured after the Final-1.6 port: 891 passed / 6 skipped / 1 deselected
 2. Evaluation environment readiness (Final-1.6) — the `18e523c` attribution fix is ported as
    `1b4f6be`; dependency inventory, skip analysis and the readiness matrix are in
    `docs/final-1-6-evaluation-baseline.md`.
-3. Final evaluation protocol (Final-2) — **designed, awaiting approval**. Normative documents:
+3. Final evaluation protocol (Final-2) — **designed and approved for the minimal integration**. Normative documents:
    `docs/evaluation/` (module matrix, Track B/C specs, integration contract, metrics contract, holdout
    design, environment protocol) and `docs/final-2-evaluation-design-report.md`.
 4. Complete module evaluation (Track A) — Final-3.

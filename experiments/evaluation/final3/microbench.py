@@ -1,8 +1,8 @@
 """Final-3 module microbenchmarks (T2): deterministic, independent of the historical workloads.
 
-Each function returns measured numbers plus the workload it used, so the acceptance table can cite a
-real value instead of a historical one. No model is called and no reward is engineered: the inputs are
-new, and the unfavourable cases are included on purpose.
+Each function returns measured numbers plus the workload it used, so the acceptance table cites a
+real value instead of a historical one. No model is called and no reward is engineered: the inputs
+are new, and the unfavourable cases are included on purpose.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from typing import Any
 from anycode.types import ToolDefinition
 from pydantic import BaseModel
 
-from atlasos.actions.binding import tool_schema
 from atlasos.context import (
     InMemoryContextStore,
     NaiveExecutionOrderRenderer,
@@ -328,7 +327,11 @@ def retrieval() -> Measurement:
         for index, stats in ((keyword, keyword_stats), (semantic, semantic_stats)):
             ranked = [match.tool_id for match in index.search(query, top_k=3)]
             rank = next(
-                (position for position, tool_id in enumerate(ranked, start=1) if tool_id in expected),
+                (
+                    position
+                    for position, tool_id in enumerate(ranked, start=1)
+                    if tool_id in expected
+                ),
                 None,
             )
             if rank == 1:

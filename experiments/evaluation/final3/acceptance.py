@@ -203,8 +203,8 @@ def _rows(commit: str, measured: dict[str, Any]) -> list[Row]:
             failure_reason="",
             limitations=(
                 "the real API returned blocks_deduped=0 at 0/25/50% exact duplicates and the "
-                "adapter zips 1:1, so it can rewrite content but never drop a block; the historical "
-                "44% used a different payload shape"
+                "adapter zips 1:1, so it can rewrite content but never drop a block; "
+                "the historical 44% used a different payload shape"
             ),
         ),
         bench_row(
@@ -511,7 +511,8 @@ def _rows(commit: str, measured: dict[str, Any]) -> list[Row]:
             "ATLAS",
             "coding + evaluation",
             "T1 crash windows never become retryable",
-            "tests/integration/test_m1_m4_reliability.py, tests/integration/test_durable_actions.py",
+            "tests/integration/test_m1_m4_reliability.py, "
+            "tests/integration/test_durable_actions.py",
             benefit="POSITIVE",
             limitations="an operator still decides the outcome",
         ),
@@ -561,7 +562,8 @@ def _rows(commit: str, measured: dict[str, Any]) -> list[Row]:
             "ATLAS",
             "operator harness",
             "T1 continuity digest and mismatch classes",
-            "tests/unit/test_opensandbox_reattachment.py, tests/integration/test_verified_reattachment.py",
+            "tests/unit/test_opensandbox_reattachment.py, "
+            "tests/integration/test_verified_reattachment.py",
             benefit="INSUFFICIENT_EVIDENCE",
             limitations="explicit only; deterministic evidence, no live model",
         ),
@@ -591,7 +593,8 @@ def _rows(commit: str, measured: dict[str, Any]) -> list[Row]:
             "ATLAS",
             "coding path",
             "T1 stale version refused, revalidation on resume",
-            "tests/integration/test_m6_failure_matrix.py, tests/integration/test_control_plane_e2e.py",
+            "tests/integration/test_m6_failure_matrix.py, "
+            "tests/integration/test_control_plane_e2e.py",
             benefit="POSITIVE",
             limitations="resolution needs a live coordinator",
         ),
@@ -601,7 +604,8 @@ def _rows(commit: str, measured: dict[str, Any]) -> list[Row]:
             "ATLAS",
             "operator harness",
             "T1 identity validation and refusal paths",
-            "tests/integration/test_stage_d_recovery.py, tests/integration/test_verified_reattachment.py",
+            "tests/integration/test_stage_d_recovery.py, "
+            "tests/integration/test_verified_reattachment.py",
             benefit="INSUFFICIENT_EVIDENCE",
             limitations="manual; not a crash-resume engine",
         ),
@@ -621,7 +625,8 @@ def _rows(commit: str, measured: dict[str, Any]) -> list[Row]:
             "ATLAS-ON-ANYCODE",
             "coding + evaluation",
             "T1 exit-code classification and retry_safe tri-state",
-            "tests/unit/test_sandbox_tool_error_semantics.py, tests/integration/test_stage_g3_1_agent_tool_errors.py",
+            "tests/unit/test_sandbox_tool_error_semantics.py, "
+            "tests/integration/test_stage_g3_1_agent_tool_errors.py",
             benefit="CONDITIONAL",
             limitations="historical 2/4→4/4 oracle on two tasks; not re-run live",
         ),
@@ -632,7 +637,8 @@ def _rows(commit: str, measured: dict[str, Any]) -> list[Row]:
             "ATLAS",
             "coding + evaluation",
             "T1 append-only, ordering, redaction",
-            "tests/integration/test_m7_trajectory.py, tests/integration/test_m7_runtime_trajectory.py",
+            "tests/integration/test_m7_trajectory.py, "
+            "tests/integration/test_m7_runtime_trajectory.py",
             benefit="POSITIVE",
             limitations="best-effort writes, not fsync'd",
         ),

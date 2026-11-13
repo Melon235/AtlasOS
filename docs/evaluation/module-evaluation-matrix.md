@@ -398,3 +398,30 @@ Evidence: `identity` block, settings digest.
    (`runtime-integration-contract.md`).
 4. A frozen task set and candidate DAGs (`holdout-design.md`).
 5. Owner approval of every source change listed in `final-2-evaluation-design-report.md` §11.
+
+---
+
+## 10. Final-3 acceptance results (2026-11-13)
+
+Runtime `93cbd98` (frozen); regression 925 passed / 6 skipped / 1 deselected.
+Full rows: `experiments/results/final3/module_acceptance.json` (+ `.csv`); narrative:
+`docs/final-3-module-acceptance-report.md`.
+
+**Functional: 59 / 59 PASS.**
+
+**Benefit POSITIVE (20):** A1-03 (irrelevant blocks 2 → 0), A1-04 (layout equality 0.0 → 1.0),
+A1-06 (handoff refs 3 → 0), A2-04 (Recall@1 0.80 → 0.90), A2-06 (schema chars 8 796 → 4 207),
+A4-01, A4-04, A4-05, A4-06, A4-07, A4-08, A4-10, A4-13, A4-14, A4-15, A4-17, A5-01, A5-02, A5-03,
+A5-07.
+
+**CONDITIONAL (3):** A3-07, A4-18, A5-08.
+**NEGATIVE (1):** A3-09 (1/16 vs 7/16, historical; not re-run live).
+**NEUTRAL (1):** A1-05 (real ContextPilot removed 0 blocks at 0/25/50 % duplicates in a new workload).
+**INSUFFICIENT_EVIDENCE (8):** A1-08, A1-09, A2-03, A3-06, A3-10, A4-12, A4-16, A5-09.
+**NOT_APPLICABLE (26):** A1-01, A1-02, A1-07, A1-10, A2-01, A2-02, A2-05, A2-07, A2-08, A2-09,
+A2-10, A3-01, A3-02, A3-03, A3-04, A3-05, A3-08, A4-02, A4-03, A4-09, A4-11, A5-04, A5-05, A5-06,
+A5-10, A5-11.
+
+Live-model benefit studies (T3, X0/X1, native/Atlas acceptance) were **not executed**: no provider
+credential exists in the workspace. Native environment parity is **BLOCKED** (tool capability maps
+1:1; execution location and shell differ), so no cost or latency comparison is drawn.

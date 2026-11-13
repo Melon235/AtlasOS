@@ -38,6 +38,8 @@ results of the current branch unless the document says so.
 | [`final-1-5-repository-baseline.md`](final-1-5-repository-baseline.md) | Final-1.5 baseline: Git state, Recovery-Pilot review, regression record, readiness |
 | [`final-1-6-evaluation-baseline.md`](final-1-6-evaluation-baseline.md) | Final-1.6: the ported attribution fix, dependency inventory, measured regression, readiness matrix |
 | [`final-2-evaluation-design-report.md`](final-2-evaluation-design-report.md) | Final-2: the evaluation design itself — coverage, integration, workloads, budgets, required changes |
+| [`final-3-integration-report.md`](final-3-integration-report.md) | Final-3: what was integrated (R-4/R-5/R-6/R-7), with the real call chain and the parity blocker |
+| [`final-3-module-acceptance-report.md`](final-3-module-acceptance-report.md) | Final-3: 59-module acceptance status, measured metrics, negative and blocked results |
 | [`research-history.md`](research-history.md) | Which branch/SHA holds which historical stage |
 
 The Final-2 Recovery Pilot report (`docs/final-2-recovery-pilot.md`) lives on

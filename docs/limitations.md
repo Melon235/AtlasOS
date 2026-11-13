@@ -93,3 +93,19 @@ Real constraints of the current candidate. Nothing here is a backlog promise.
     intentionally differ.
 23. **Historical stage branches are kept as-is.** They contain their own raw run artifacts; the
     final candidate branch does not.
+
+## Final-3 measured constraints (2026-11-13)
+
+- **Native environment parity is blocked.** The native baseline still runs on the host with `cmd`;
+  Atlas runs in a Linux sandbox. Tool capability maps 1:1, execution location does not. No Track B
+  cost or latency claim is allowed until a neutral sandbox layer exists.
+- **No live model run has been executed on the Final-3 candidate.** There is no provider credential in
+  this workspace, so every T3 study, the X0/X1 context comparison and the native/Atlas acceptance run
+  are `BLOCKED` rather than passed.
+- **ContextPilot dedup is NEUTRAL in the new workload.** The real 0.5.0 API removed 0 of 12 blocks at
+  0/25/50 % exact duplicates (`blocks_deduped=0` even for byte-identical messages), and the adapter
+  zips results 1:1 so it can rewrite content but never drop a block. The historical 44 % came from a
+  different payload shape and must not be quoted as a current result.
+- **Context Plane integration is opt-in and single-task in the application path.** Dependency
+  selection is demonstrated on an evaluation DAG, not on `atlas run --mode coding`, which submits one
+  task.
