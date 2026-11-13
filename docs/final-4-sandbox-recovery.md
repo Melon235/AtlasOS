@@ -62,11 +62,14 @@ opensandbox-server`, `[server] host = "127.0.0.1"`, `[egress] mode = "dns+nft"`.
 ```python
 def build_sandbox_provider(name: str, *, environ=None, opensandbox_options=None) -> SandboxProvider:
     if name == "opensandbox":
-        return OpenSandboxProvider(opensandbox_options or OpenSandboxOptions(),
-                                   api_key=env.get("OPEN_SANDBOX_API_KEY") or None)
+        return OpenSandboxProvider(
+            opensandbox_options or OpenSandboxOptions(),
+            api_key=env.get("OPEN_SANDBOX_API_KEY") or None,
+        )
     if name not in REAL_SANDBOX_PROVIDERS:
         raise SandboxCredentialError(
-            f"sandbox provider {name!r} is not a configured real Atlas Sandbox provider; ...")
+            f"sandbox provider {name!r} is not a configured real Atlas Sandbox provider; ..."
+        )
 ```
 
 Final-4 called it as `build_sandbox_provider(cfg)` with a `SandboxConfig` object. The object is not the
@@ -82,7 +85,7 @@ sandbox provider SandboxConfig(enabled=False, provider='opensandbox', endpoint='
 Correct calls (both already used by the shipped code):
 
 ```python
-build_sandbox_provider("opensandbox")                     # → OpenSandboxProvider
+build_sandbox_provider("opensandbox")  # → OpenSandboxProvider
 build_sandbox_provider("opensandbox", opensandbox_options=OpenSandboxOptions(...))
 ```
 

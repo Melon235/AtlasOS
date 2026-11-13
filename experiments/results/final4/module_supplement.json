@@ -8,7 +8,7 @@
     ],
     "note": "levels are labels, not a monotone score"
   },
-  "generated_at": "2026-11-13T10:37:53.005711+00:00",
+  "generated_at": "2026-11-13T11:28:57.671394+00:00",
   "modules": [
     {
       "active_entrypoint": "workflow + coding (via builder)",
@@ -1863,7 +1863,7 @@
           "leaf_prompt_chars": 108,
           "required_dependencies": 3,
           "required_present": 1,
-          "selection_render_ms_median": 0.066,
+          "selection_render_ms_median": 0.07,
           "topology": "chain4"
         },
         {
@@ -1874,7 +1874,7 @@
           "leaf_prompt_chars": 197,
           "required_dependencies": 2,
           "required_present": 2,
-          "selection_render_ms_median": 0.054,
+          "selection_render_ms_median": 0.063,
           "topology": "fork_join"
         },
         {
@@ -1885,7 +1885,7 @@
           "leaf_prompt_chars": 274,
           "required_dependencies": 3,
           "required_present": 3,
-          "selection_render_ms_median": 0.08,
+          "selection_render_ms_median": 0.067,
           "topology": "multi_dep"
         },
         {
@@ -1896,7 +1896,7 @@
           "leaf_prompt_chars": 43,
           "required_dependencies": 0,
           "required_present": 0,
-          "selection_render_ms_median": 0.038,
+          "selection_render_ms_median": 0.039,
           "topology": "no_dep"
         },
         {
@@ -1907,7 +1907,7 @@
           "leaf_prompt_chars": 123,
           "required_dependencies": 1,
           "required_present": 1,
-          "selection_render_ms_median": 0.051,
+          "selection_render_ms_median": 0.056,
           "topology": "with_irrelevant"
         }
       ],
@@ -1932,7 +1932,7 @@
           "catalog_size": 64,
           "keyword": {
             "exact_canonical_id_at_1": 0.3125,
-            "index_build_ms": 0.158,
+            "index_build_ms": 0.162,
             "mrr": 0.7484,
             "negative_queries": 6.0,
             "negatives_returning_any_tool": 6.0,
@@ -1940,12 +1940,12 @@
             "recall_at_1": 0.6875,
             "recall_at_3": 0.7812,
             "recall_at_5": 0.8438,
-            "warm_query_ms_median": 0.183
+            "warm_query_ms_median": 0.182
           },
           "native_schema_chars_full": 6343,
           "semantic": {
             "exact_canonical_id_at_1": 0.3438,
-            "index_build_ms": 12200.771,
+            "index_build_ms": 12057.366,
             "mrr": 0.8646,
             "negative_queries": 6.0,
             "negatives_returning_any_tool": 6.0,
@@ -1953,14 +1953,14 @@
             "recall_at_1": 0.8125,
             "recall_at_3": 0.9375,
             "recall_at_5": 0.9375,
-            "warm_query_ms_median": 6.526
+            "warm_query_ms_median": 8.185
           }
         },
         {
           "catalog_size": 128,
           "keyword": {
             "exact_canonical_id_at_1": 0.3125,
-            "index_build_ms": 0.416,
+            "index_build_ms": 0.361,
             "mrr": 0.8125,
             "negative_queries": 6.0,
             "negatives_returning_any_tool": 6.0,
@@ -1968,12 +1968,12 @@
             "recall_at_1": 0.7812,
             "recall_at_3": 0.875,
             "recall_at_5": 0.875,
-            "warm_query_ms_median": 0.247
+            "warm_query_ms_median": 0.281
           },
           "native_schema_chars_full": 12717,
           "semantic": {
             "exact_canonical_id_at_1": 0.2812,
-            "index_build_ms": 230.348,
+            "index_build_ms": 258.095,
             "mrr": 0.9292,
             "negative_queries": 6.0,
             "negatives_returning_any_tool": 6.0,
@@ -1981,7 +1981,7 @@
             "recall_at_1": 0.9062,
             "recall_at_3": 0.9375,
             "recall_at_5": 1.0,
-            "warm_query_ms_median": 6.65
+            "warm_query_ms_median": 8.038
           }
         }
       ],
