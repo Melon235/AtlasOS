@@ -14,6 +14,15 @@ Machine-readable: `experiments/results/final4/{module_supplement,pilot_results,r
 and `pilot_results.csv`. Raw runs would live in `experiments/runs/final4/` (git-ignored); none were
 produced.
 
+> **Correction (2026-11-13).** The `SANDBOX_BLOCKED` status asserted below is **wrong** and is
+> superseded by [`final-4-sandbox-recovery.md`](final-4-sandbox-recovery.md). The local OpenSandbox
+> server was healthy the whole time; the `SandboxCredentialError` came from calling
+> `build_sandbox_provider()` with a `SandboxConfig` object instead of the provider name string, which
+> falls into the "not a configured provider" branch. A real create → write → read → execute → export →
+> destroy cycle passed (`sandbox 95b15e69-…`, `destroy_ok=true`, 0 leaked containers). The only
+> remaining live blocker is the missing `DEEPSEEK_API_KEY`; `pilot_results.json` has been regenerated
+> with the corrected reason.
+
 ---
 
 ## 1. Executive Summary

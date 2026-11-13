@@ -26,7 +26,7 @@ FINAL3 = REPO_ROOT / "experiments" / "results" / "final3" / "module_acceptance.j
 OUT = REPO_ROOT / "experiments" / "results" / "final4"
 
 LIVE_BLOCKER = "LIVE_PROVIDER_BLOCKED: no DEEPSEEK_API_KEY in this workspace"
-SANDBOX_BLOCKER = "SANDBOX_BLOCKED: opensandbox raises SandboxCredentialError"
+SANDBOX_BLOCKER = "LIVE_PROVIDER_BLOCKED: no DEEPSEEK_API_KEY; local sandbox verified up"
 
 
 def _final3_rows() -> list[dict[str, Any]]:

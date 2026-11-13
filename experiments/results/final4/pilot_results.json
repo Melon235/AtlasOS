@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-13T10:37:53.007712+00:00",
+  "generated_at": "2026-11-13T11:28:57.674397+00:00",
   "live_blocker": "LIVE_PROVIDER_BLOCKED: no DEEPSEEK_API_KEY in this workspace",
   "runs": [
     {
       "actual_worker_count": null,
-      "blocked_reason": "SANDBOX_BLOCKED: opensandbox raises SandboxCredentialError",
+      "blocked_reason": "LIVE_PROVIDER_BLOCKED: no DEEPSEEK_API_KEY; local sandbox verified up",
       "configuration": "N0",
       "cost": null,
       "evaluation_sha": null,
@@ -72,7 +72,7 @@
     },
     {
       "actual_worker_count": null,
-      "blocked_reason": "SANDBOX_BLOCKED: opensandbox raises SandboxCredentialError",
+      "blocked_reason": "LIVE_PROVIDER_BLOCKED: no DEEPSEEK_API_KEY; local sandbox verified up",
       "configuration": "N0",
       "cost": null,
       "evaluation_sha": null,
@@ -140,7 +140,7 @@
     },
     {
       "actual_worker_count": null,
-      "blocked_reason": "SANDBOX_BLOCKED: opensandbox raises SandboxCredentialError",
+      "blocked_reason": "LIVE_PROVIDER_BLOCKED: no DEEPSEEK_API_KEY; local sandbox verified up",
       "configuration": "N0",
       "cost": null,
       "evaluation_sha": null,
@@ -310,7 +310,7 @@
     }
   ],
   "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
-  "sandbox_blocker": "SANDBOX_BLOCKED: opensandbox raises SandboxCredentialError",
+  "sandbox_blocker": "LIVE_PROVIDER_BLOCKED: no DEEPSEEK_API_KEY; local sandbox verified up",
   "summary": {
     "blocked": 18,
     "executed": 0,
