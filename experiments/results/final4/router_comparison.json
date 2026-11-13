@@ -1,0 +1,47 @@
+{
+  "candidate_plan_source": "externally provided, frozen before any run",
+  "cells": {
+    "validation-coupled": {
+      "N0": "NOT_RUN",
+      "R0": "NOT_RUN",
+      "R1": "NOT_RUN",
+      "R2": "NOT_RUN"
+    },
+    "validation-parallel": {
+      "FULL_EXPOSURE": "NOT_RUN",
+      "N0": "NOT_RUN",
+      "PROGRESSIVE": "NOT_RUN",
+      "R0": "NOT_RUN",
+      "R1": "NOT_RUN",
+      "R2": "NOT_RUN",
+      "X0": "NOT_RUN",
+      "X1": "NOT_RUN"
+    },
+    "validation-serial": {
+      "N0": "NOT_RUN",
+      "R0": "NOT_RUN",
+      "R1": "NOT_RUN",
+      "R2": "NOT_RUN",
+      "X0": "NOT_RUN",
+      "X1": "NOT_RUN"
+    }
+  },
+  "mechanism_checks": {
+    "delegate_one_has_no_distinct_execution_semantics": "verified: is_direct only",
+    "delegate_parallel_runs_candidate_dag": "verified in runner.py:860-862",
+    "direct_replaces_plan_with_single_worker": "verified: runner.py:847 is_direct",
+    "router_reads_oracle_data": false,
+    "router_wired_into_app_coding": false
+  },
+  "note": "no live run happened, so no Router observation exists; the mechanism statements above come from source reading, not from execution",
+  "observations": {
+    "actual_multi_execution_rate": null,
+    "avoided_delegation": null,
+    "beneficial_delegation": null,
+    "delegation_rate": null,
+    "harmful_delegation": null,
+    "routing_regret": null
+  },
+  "router_policy_version": "r0.1.0 (read from source; not modified)",
+  "status": "NOT_RUN_BLOCKED"
+}

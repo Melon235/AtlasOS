@@ -1,0 +1,49 @@
+﻿{
+  "cells": {
+    "D0_raw_multiline": {
+      "blocks_deduped": 12,
+      "blocks_total": 21,
+      "chars_after_measured": 4482,
+      "chars_before_measured": 6576,
+      "chars_before_reported": 3288,
+      "chars_saved_reported": 2094,
+      "content_changed": true,
+      "messages_in": 12
+    },
+    "D1_adapter_multiline": {
+      "blocks_in": 12,
+      "blocks_out": 12,
+      "char_reduction": 0.3184,
+      "chars_after": 4482,
+      "chars_before": 6576,
+      "deduplicated": true,
+      "latency_ms": 0.504,
+      "transform_name": "contextpilot_dedup",
+      "unique_markers_expected": 6,
+      "unique_markers_present": 6
+    },
+    "D2_raw_singleline": {
+      "blocks_deduped": 0,
+      "blocks_total": 12,
+      "chars_after_measured": 10680,
+      "chars_before_measured": 10680,
+      "chars_before_reported": 0,
+      "chars_saved_reported": 0,
+      "content_changed": false,
+      "messages_in": 12
+    },
+    "D3_adapter_singleline": {
+      "blocks_in": 12,
+      "blocks_out": 12,
+      "char_reduction": 0.0,
+      "chars_after": 10680,
+      "chars_before": 10680,
+      "deduplicated": false,
+      "latency_ms": 0.13,
+      "transform_name": "contextpilot_dedup",
+      "unique_markers_expected": 6,
+      "unique_markers_present": 6
+    }
+  },
+  "environment": "E2"
+}

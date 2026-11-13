@@ -116,6 +116,28 @@ def capability_report() -> ParityStatus:
     )
 
 
+def adapter_status() -> ParityStatus:
+    """Final-4: the tool-execution half is now implemented and measured.
+
+    ``capability_report`` still reports ``BASELINE_PARITY_BLOCKED`` for the *environment*
+    (no sandbox credential in this workspace), so a reader cannot mistake adapter readiness for a
+    container comparison.
+    """
+
+    return ParityStatus(
+        status="ADAPTER_READY_ENVIRONMENT_BLOCKED",
+        reason=(
+            "native AnyCode now runs the six tools through an external backend "
+            "final4/neutral_adapter.py) with no Atlas mechanism; the container "
+            "backend cannot be created here: provider raises SandboxCredentialError"
+        ),
+        missing=(
+            "real opensandbox credential and reachable endpoint",
+            "native-in-container acceptance run",
+        ),
+    )
+
+
 def uncovered_operations() -> tuple[str, ...]:
     """Operations required by SWE tasks that neither arm exposes as a dedicated tool."""
 
