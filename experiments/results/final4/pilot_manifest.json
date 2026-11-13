@@ -1,0 +1,135 @@
+{
+  "ablations": {
+    "X0": "upstream_default context",
+    "X1": "task_scoped + stable_deterministic + identity",
+    "tool_disclosure": "full exposure vs progressive"
+  },
+  "budget": {
+    "max_tool_calls": 40,
+    "run_level": "one shared budget per run",
+    "tokens_per_task": 120000,
+    "turns_per_worker": 14,
+    "wall_clock_seconds": 900
+  },
+  "budget_envelope": {
+    "max_task_runs": 24,
+    "max_usd": 2.0,
+    "spent_usd": 0.0
+  },
+  "configurations": {
+    "N0": "native AnyCode 0.9.0 single, neutral sandbox backend",
+    "R0": "Atlas single: progressive tools, gate, ledger, binding, budget, trajectory",
+    "R1": "Atlas multi: R0 core + frozen candidate DAG",
+    "R2": "Atlas router: same core, DIRECT -> R0 path, else R1 DAG"
+  },
+  "context_policy": "task_scoped + stable_deterministic + identity",
+  "generated_at": "2026-11-13T12:38:25.339467+00:00",
+  "handoff_mode": "legacy (dual is refused with task_scoped)",
+  "model": {
+    "provider": "deepseek",
+    "requested": "deepseek-chat",
+    "temperature": 0.0
+  },
+  "oracle": "independent, sandboxed hidden tests",
+  "router": {
+    "mode": "provided-proposal",
+    "modified": false,
+    "policy_version": "r0.1.0"
+  },
+  "run_units": [
+    {
+      "candidate_plan_digest": "b5f83450187b37481da638dca49b29d148acf49e2457b2c9e33b1ef09bada790",
+      "configuration": "N0",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-N0"
+    },
+    {
+      "candidate_plan_digest": "b5f83450187b37481da638dca49b29d148acf49e2457b2c9e33b1ef09bada790",
+      "configuration": "R0",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-R0"
+    },
+    {
+      "candidate_plan_digest": "b5f83450187b37481da638dca49b29d148acf49e2457b2c9e33b1ef09bada790",
+      "configuration": "R1",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-R1"
+    },
+    {
+      "candidate_plan_digest": "b5f83450187b37481da638dca49b29d148acf49e2457b2c9e33b1ef09bada790",
+      "configuration": "R2",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-R2"
+    },
+    {
+      "candidate_plan_digest": "5f0a7e32200463ad18de036bcbdc93efcadec43520cf01827eadc0826ace21b4",
+      "configuration": "N0",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-N0"
+    },
+    {
+      "candidate_plan_digest": "5f0a7e32200463ad18de036bcbdc93efcadec43520cf01827eadc0826ace21b4",
+      "configuration": "R0",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-R0"
+    },
+    {
+      "candidate_plan_digest": "5f0a7e32200463ad18de036bcbdc93efcadec43520cf01827eadc0826ace21b4",
+      "configuration": "R1",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-R1"
+    },
+    {
+      "candidate_plan_digest": "5f0a7e32200463ad18de036bcbdc93efcadec43520cf01827eadc0826ace21b4",
+      "configuration": "R2",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-R2"
+    },
+    {
+      "candidate_plan_digest": "c9af42922e5a050918f6b7390f75c7711da761c47d8a40be56c1f83e6a8d8eb4",
+      "configuration": "N0",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-N0"
+    },
+    {
+      "candidate_plan_digest": "c9af42922e5a050918f6b7390f75c7711da761c47d8a40be56c1f83e6a8d8eb4",
+      "configuration": "R0",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-R0"
+    },
+    {
+      "candidate_plan_digest": "c9af42922e5a050918f6b7390f75c7711da761c47d8a40be56c1f83e6a8d8eb4",
+      "configuration": "R1",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-R1"
+    },
+    {
+      "candidate_plan_digest": "c9af42922e5a050918f6b7390f75c7711da761c47d8a40be56c1f83e6a8d8eb4",
+      "configuration": "R2",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-R2"
+    }
+  ],
+  "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+  "sandbox": {
+    "cpu": "1",
+    "endpoint": "localhost:8080",
+    "image": "atlas-uat-python:3.12",
+    "memory": "1Gi",
+    "network": "none",
+    "provider": "opensandbox"
+  },
+  "search_backend": "keyword"
+}
