@@ -215,16 +215,19 @@ was re-measured after the Final-1.6 port: 891 passed / 6 skipped / 1 deselected
 2. Evaluation environment readiness (Final-1.6) — the `18e523c` attribution fix is ported as
    `1b4f6be`; dependency inventory, skip analysis and the readiness matrix are in
    `docs/final-1-6-evaluation-baseline.md`.
-3. Final evaluation protocol and holdout design (Final-2, not started).
-4. Complete module evaluation (Track A).
-5. Integrated runtime evaluation vs native AnyCode (Track B).
-6. Adaptive delegation pilot (Track C).
+3. Final evaluation protocol (Final-2) — **designed, awaiting approval**. Normative documents:
+   `docs/evaluation/` (module matrix, Track B/C specs, integration contract, metrics contract, holdout
+   design, environment protocol) and `docs/final-2-evaluation-design-report.md`.
+4. Complete module evaluation (Track A) — Final-3.
+5. Integrated runtime evaluation vs native AnyCode (Track B) — Final-4.
+6. Adaptive delegation pilot (Track C) — Final-4.
 7. Demo, release and public packaging (Final-6).
 
-Decisions still owed by the project owner (all are Final-2 design inputs, none is implemented):
-coding-composition checkpoint wiring, Context-Plane integration (if any), router C1 protocol and its
-candidate-DAG source, a semantic-retrieval evidence requirement, and the ContextPilot
-isolated-environment procedure (its `.pth` hook breaks 9 unrelated tests on Windows).
+Decisions owed by the project owner before Final-3 (from
+`docs/final-2-evaluation-design-report.md` §11): R-4/R-5 the minimal Context-Plane wiring plus
+shared-budget coverage in the coding path, R-6/R-7 the two metric-semantics fixes, R-10 the neutral
+environment adapter for the native arm. Ordinary coding crash recovery and an automatic planner are
+out of scope by decision (D4, D6).
 
 ## 7. Closed Directions
 

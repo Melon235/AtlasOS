@@ -15,7 +15,14 @@ Read these before changing code. They describe what exists today in this branch.
 | [`design-decisions.md`](design-decisions.md) | Trade-offs, rejected designs, why defaults are what they are |
 | [`limitations.md`](limitations.md) | Existing constraints; nothing here is a backlog promise |
 | [`final-roadmap.md`](final-roadmap.md) | The only forward plan: Track A/B/C, holdout principle, stop conditions |
+| [`evaluation/`](evaluation/) | The evaluation protocol (Final-2): module matrix, Track B/C specs, integration contract, metrics contract, holdout design, environment protocol |
 | [`decisions/`](decisions/) | ADRs 0001–0004 (AnyCode base, ContextPilot backend, cache metrics, no LangGraph) |
+
+The `evaluation/` bundle is normative for any measurement. Read
+[`evaluation/module-evaluation-matrix.md`](evaluation/module-evaluation-matrix.md) before claiming a
+module works, [`evaluation/metrics-contract.md`](evaluation/metrics-contract.md) before reporting a
+number, and [`evaluation/environment-protocol.md`](evaluation/environment-protocol.md) before running
+anything live.
 
 ## EVIDENCE — measured results
 
@@ -29,6 +36,8 @@ results of the current branch unless the document says so.
 | [`../../experiments/evidence/`](../../experiments/evidence/) | Sanitized public aggregates only (no raw payloads) |
 | [`final-consolidation-report.md`](final-consolidation-report.md) | Final-0/1 repository consolidation audit, 66 removed files, regression record |
 | [`final-1-5-repository-baseline.md`](final-1-5-repository-baseline.md) | Final-1.5 baseline: Git state, Recovery-Pilot review, regression record, readiness |
+| [`final-1-6-evaluation-baseline.md`](final-1-6-evaluation-baseline.md) | Final-1.6: the ported attribution fix, dependency inventory, measured regression, readiness matrix |
+| [`final-2-evaluation-design-report.md`](final-2-evaluation-design-report.md) | Final-2: the evaluation design itself — coverage, integration, workloads, budgets, required changes |
 | [`research-history.md`](research-history.md) | Which branch/SHA holds which historical stage |
 
 The Final-2 Recovery Pilot report (`docs/final-2-recovery-pilot.md`) lives on

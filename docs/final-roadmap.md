@@ -115,14 +115,29 @@ This stage creates no test set, no benchmark runner and no evaluation config.
 - If infrastructure blocks a track (no sandbox, no budget, no provider quota): mark the track
   `BLOCKED` with the evidence, and continue the tracks that are not blocked.
 
-## 6. Stage order after Final-1.5
+## 6. Stage order
 
 | Stage | Content | Gate |
 |---|---|---|
-| Final-2 | Evaluation protocol: acceptance matrix, holdout design, baseline wiring, router protocol | Owner approval of this baseline |
-| Final-3 | Complete module evaluation (Track A) | Final-2 protocol frozen |
-| Final-4 | Integrated runtime and adaptive delegation pilot (Tracks B, C) | Track A recorded |
-| Final-5 | Frozen final evaluation | Runtime, tasks, model, tools, budget, oracle and router frozen |
+| Final-2 | Evaluation protocol: module matrix, Track B/C specs, integration contract, metrics contract, holdout design, environment protocol | **designed** — see `docs/final-2-evaluation-design-report.md` and `docs/evaluation/`; awaiting owner approval |
+| Final-3 | Approved minimal integration + required test coverage, then complete module evaluation (Track A) | Owner decisions R-4/R-5/R-6/R-7/R-10; protocol frozen |
+| Final-4 | Integrated runtime and adaptive delegation pilot (Tracks B, C) on the validation set | Track A recorded; validation tasks imported |
+| Final-5 | Frozen final evaluation on the holdout | Runtime, tasks, candidate plans, model, tools, budget, oracle and router frozen |
 | Final-6 | Demo, release, packaging | Final-5 results published |
 
-Do not start Final-2 from this stage. It requires an explicit instruction.
+Do not start Final-3 from this stage. It requires an explicit instruction and the owner's decisions
+on `docs/final-2-evaluation-design-report.md` §11.
+
+### 6.1 Frozen protocol documents
+
+The evaluation protocol is normative and lives in `docs/evaluation/`:
+
+- `module-evaluation-matrix.md` — 59 modules, functional + benefit checks, readiness.
+- `final-evaluation-protocol.md` — Track B arms, environment equality, thresholds.
+- `router-evaluation-spec.md` — Track C arms, regret, success and stop conditions.
+- `runtime-integration-contract.md` — minimal wiring design, allowlist, acceptance gates.
+- `metrics-contract.md` — one definition per metric and the missing-value policy.
+- `holdout-design.md` — data classes, task structures, manifest schema, candidate slate.
+- `environment-protocol.md` — E1/E2/E3 and fault-injection safety.
+
+Editing these documents during a formal run invalidates it.
