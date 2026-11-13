@@ -34,6 +34,7 @@ environment variables, historical run ids and Git history keep `atlasos` / `atla
 | Final-1.6 ported fix | `1b4f6be` = cherry-pick of `18e523c` (coding-session outcome attribution, 2 files) |
 | Final-3 integrated runtime | `93cbd98` — Context Plane wired into the coding compositions (opt-in), shared budget in app coding, failure/token semantics fixed |
 | Worktree | `D:\Work\AtlasRuntime` (primary research worktree remains `D:\Work\AtlasOS`) |
+| Final-4 evaluation baseline | 28428e8 — neutral backend, 64/128-tool retrieval, D0–D3 dedup diagnosis, 59-row evidence levels; live cells NOT_RUN (no credentials) |
 | Recovery Pilot branch | `experiment/final-2-recovery-pilot` = `c5fce5cc5d3d96251968b264e8113685711ffc8e`, 3 commits on top of `16251d0` |
 | Recovery Pilot in the stable baseline? | **One commit only** (`18e523c`, as `1b4f6be`). The rest is audited only — see `docs/final-1-5-repository-baseline.md` §4 and `docs/final-1-6-evaluation-baseline.md` §3 |
 | Local `master` | `07e18ec` (22 commits ahead of `origin/master`) |
@@ -219,7 +220,7 @@ was re-measured after the Final-1.6 port: 891 passed / 6 skipped / 1 deselected
 3. Final evaluation protocol (Final-2) — **designed and approved for the minimal integration**. Normative documents:
    `docs/evaluation/` (module matrix, Track B/C specs, integration contract, metrics contract, holdout
    design, environment protocol) and `docs/final-2-evaluation-design-report.md`.
-4. Complete module evaluation (Track A) — Final-3.
+4. Complete module evaluation (Track A) — Final-3 offline, Final-4 supplement; live ablations blocked.
 5. Integrated runtime evaluation vs native AnyCode (Track B) — Final-4.
 6. Adaptive delegation pilot (Track C) — Final-4.
 7. Demo, release and public packaging (Final-6).

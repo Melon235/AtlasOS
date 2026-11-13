@@ -425,3 +425,30 @@ A5-10, A5-11.
 Live-model benefit studies (T3, X0/X1, native/Atlas acceptance) were **not executed**: no provider
 credential exists in the workspace. Native environment parity is **BLOCKED** (tool capability maps
 1:1; execution location and shell differ), so no cost or latency comparison is drawn.
+---
+
+## 11. Final-4 supplement (2026-11-13)
+
+Frozen runtime `93cbd98`; evaluation commit `28428e8`. Full rows:
+`experiments/results/final4/module_supplement.json`; narrative:
+`docs/final-4-module-evidence-supplement.md`.
+
+Evidence levels were added to every row (`functional_evidence_level`, `benefit_evidence_level`,
+`evidence_epoch`, `baseline_type`, plus separate current/historical/live result columns).
+
+Changes to this matrix:
+
+- **A1-05 ContextPilot dedup: NEUTRAL → POSITIVE (conditional).** D0–D3 show the real transform
+  reduces characters by 31.84 % on a multi-line 12-block payload at 50 % exact duplicates; the Final-3
+  zero was caused by single-line blocks the chunker cannot split. Condition: multi-line, chunkable
+  blocks. Single-line blocks still never dedup.
+- **A1-03 Selector / A1-04 Renderer:** re-measured on five topologies — 0 irrelevant blocks injected,
+  stable layout 5/5 vs naive 3/5, direct-dependency-only coverage 7/9 (transitive deps are not
+  included by design).
+- **A2-04 / A2-05:** scale study at 64 and 128 tools with 32 frozen positive queries + 6 negatives:
+  semantic Recall@1 0.81 → 0.91, MRR 0.86 → 0.93; unknown-tool rejection does **not** exist.
+- **A1-08, A1-09, A3-06, A3-10, A4-12, A4-16, A5-09:** remain `INSUFFICIENT_EVIDENCE`; no new workload
+  was executed this stage.
+- **All live-dependent claims:** `BLOCKED` (no provider credential). No row is `E4_LIVE_INTEGRATED`.
+
+Functional status is unchanged at 59/59 PASS; no mechanism was removed or re-scoped.

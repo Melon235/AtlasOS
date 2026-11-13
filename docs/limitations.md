@@ -109,3 +109,4 @@ Real constraints of the current candidate. Nothing here is a backlog promise.
 - **Context Plane integration is opt-in and single-task in the application path.** Dependency
   selection is demonstrated on an evaluation DAG, not on `atlas run --mode coding`, which submits one
   task.
+## Final-4 measured constraints (2026-11-13)

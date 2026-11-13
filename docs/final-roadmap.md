@@ -121,11 +121,11 @@ This stage creates no test set, no benchmark runner and no evaluation config.
 |---|---|---|
 | Final-2 | Evaluation protocol: module matrix, Track B/C specs, integration contract, metrics contract, holdout design, environment protocol | **designed** — see `docs/final-2-evaluation-design-report.md` and `docs/evaluation/`; awaiting owner approval |
 | Final-3 | Minimal integration + required coverage + Track A module acceptance | **done** (`93cbd98` / `97fa2d4`) — see `docs/final-3-*-report.md`; native parity blocked, live track blocked |
-| Final-4 | Integrated runtime and adaptive delegation pilot (Tracks B, C) on the validation set | Track A recorded; validation tasks imported |
+| Final-4 | Integrated runtime and adaptive delegation pilot (Tracks B, C) on the validation set | **partially done** (28428e8): offline supplement + neutral adapter; live pilot NOT_RUN — no provider or sandbox credential |
 | Final-5 | Frozen final evaluation on the holdout | Runtime, tasks, candidate plans, model, tools, budget, oracle and router frozen |
 | Final-6 | Demo, release, packaging | Final-5 results published |
 
-Do not start Final-4 from this stage. It requires an explicit instruction, a provider credential and a decision on native environment parity. Previous gate:
+Do not start Final-5 from this stage. It requires an explicit instruction, a provider credential and a decision on native environment parity. Previous gate:
 on `docs/final-2-evaluation-design-report.md` §11.
 
 ### 6.1 Frozen protocol documents
