@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import threading
 import time
 import uuid
@@ -79,6 +80,18 @@ class RunRecord:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _optional_int(value: str | None) -> int | None:
+    """Parse an optional positive integer from the environment; anything else means "unset"."""
+
+    if value is None or not value.strip():
+        return None
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    return parsed if parsed > 0 else None
 
 
 def _pricing() -> Pricing:
@@ -155,6 +168,9 @@ class AtlasApplicationService:
         self.repo_root = Path(repo_root).resolve()
         self.coding_workspace = Path(coding_workspace).resolve()
         self.sandbox_provider = sandbox_provider
+        #: Optional run-scoped token budget for coding runs. Unset keeps the historical behaviour;
+        #: this is the explicit switch required before the shared budget applies to the app path.
+        self.coding_token_budget = _optional_int(os.environ.get("ATLASOS_CODING_TOKEN_BUDGET"))
         self._records: dict[str, RunRecord] = {}
         self.runs_root.mkdir(parents=True, exist_ok=True)
         load_dotenv(self.repo_root / ".env", override=False)
@@ -292,6 +308,7 @@ class AtlasApplicationService:
             provider="deepseek",
             model="deepseek-chat",
             max_turns=max_turns,
+            token_budget=self.coding_token_budget,
             sandbox_provider=self.sandbox_provider,
             require_real_sandbox=True,
         )
@@ -488,8 +505,13 @@ class AtlasApplicationService:
                     "output": record.session.get("final_output"),
                 }
             ]
+            # Unified token semantics: ``prompt_tokens`` is the total prompt (miss + cache reads)
+            # and the cache split keeps its own keys. Missing values stay ``None``, never 0.
             metrics = {
-                "prompt_tokens": sum(int(item.get("tokens") or 0) for item in tool_calls),
+                "prompt_tokens": record.session.get("total_prompt_tokens"),
+                "prompt_tokens_cache_miss": record.session.get("cache_miss_tokens"),
+                "cache_hit_tokens": record.session.get("cache_hit_tokens"),
+                "completion_tokens": record.session.get("completion_tokens"),
                 "tool_calls": len(tool_calls),
             }
             export = record.session.get("workspace_export")

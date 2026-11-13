@@ -53,7 +53,16 @@ from dotenv import load_dotenv
 
 from atlasos.actions import ActionCatalog, ActionPolicy, ActionRule
 from atlasos.approvals.store import SQLiteApprovalStore
+from atlasos.budget import RunBudgetState
 from atlasos.config import AtlasConfig, load_config
+from atlasos.context import (
+    InMemoryContextStore,
+    NaiveExecutionOrderRenderer,
+    StablePromptRenderer,
+    TaskScopedSelector,
+)
+from atlasos.context.task_prompt import AtlasTaskPromptBuilder
+from atlasos.context.transform import ContextPilotDedupTransform, IdentityContextTransform
 from atlasos.integrations.anycode_engine import AtlasContextEngine
 from atlasos.integrations.deepseek import DeepSeekAdapter
 from atlasos.ledger import SQLiteActionLedgerStore
@@ -92,6 +101,7 @@ from atlasos.tools import AtlasToolRuntime
 from atlasos.tools.conversation import reset_current_task_id, set_current_task_id
 from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerStore
+from atlasos.workflow import AtlasTaskSpec
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = REPO_ROOT / "experiments" / "configs" / "v2-uat.yaml"
@@ -109,6 +119,8 @@ class CodingRunOptions:
     provider: str = "deepseek"
     model: str = "deepseek-chat"
     max_turns: int = 12
+    #: Optional run-scoped token budget. ``None`` keeps the historical behaviour (no budget).
+    token_budget: int | None = None
     config: Path | None = None
     sandbox_provider: str | None = None
     require_real_sandbox: bool = False
@@ -484,6 +496,123 @@ def _classify_agent_outcome(
     )
 
 
+def _build_context_plane(
+    *,
+    config: AtlasConfig,
+    spec: AtlasTaskSpec,
+    agent_config: Any,
+) -> AtlasTaskPromptBuilder | None:
+    """Wire the existing Context Plane into one coding task, or keep upstream behaviour.
+
+    The switch is the shipped YAML key ``context.policy``: ``upstream_default`` returns ``None``
+    and nothing changes. No second context runtime is created here — the builder only projects,
+    selects and renders with the components the workflow path already uses.
+    """
+
+    context_config = config.context
+    if context_config.policy != "task_scoped":
+        return None
+    renderer = (
+        NaiveExecutionOrderRenderer()
+        if context_config.renderer == "naive_execution_order"
+        else StablePromptRenderer(preserve_input_order=True)
+    )
+    transform = (
+        IdentityContextTransform()
+        if context_config.transform.name == "identity"
+        else ContextPilotDedupTransform()
+    )
+    return AtlasTaskPromptBuilder(
+        store=InMemoryContextStore(),
+        selector=TaskScopedSelector(),
+        renderer=renderer,
+        transform=transform,
+        specs_by_title={spec.title: spec},
+        agents_by_name={spec.assignee: (agent_config.system_prompt, "coding_worker")},
+    )
+
+
+def _token_evidence(usage: Any) -> dict[str, int]:
+    """Canonical token fields from one agent loop's ``TokenUsage``.
+
+    ``input_tokens`` is the cache-miss side only; ``total_prompt_tokens`` is the value comparable
+    with benchmark ``prompt_tokens``. Both are recorded so no consumer has to guess.
+    """
+
+    miss = int(getattr(usage, "input_tokens", 0) or 0)
+    hit = int(getattr(usage, "cache_read_input_tokens", 0) or 0)
+    return {
+        "prompt_tokens": miss,
+        "total_prompt_tokens": miss + hit,
+        "cache_hit_tokens": hit,
+        "cache_miss_tokens": miss,
+        "completion_tokens": int(getattr(usage, "output_tokens", 0) or 0),
+    }
+
+
+def _merge_failures(
+    agent_failure: _UATFailure | None,
+    cleanup_failure: _UATFailure | None,
+) -> tuple[_UATFailure | None, _UATFailure | None]:
+    """Return ``(primary, secondary)`` without ever losing a fact.
+
+    A resource failure outranks a model-loop classification; the agent outcome survives as the
+    secondary class instead of being dropped. Neither branch can turn a failed run into a success.
+    """
+
+    if cleanup_failure is None:
+        return agent_failure, None
+    secondary = agent_failure if agent_failure is not cleanup_failure else None
+    return cleanup_failure, secondary
+
+
+def _build_run_budget(options: CodingRunOptions) -> RunBudgetState | None:
+    """One run-scoped budget for the session, or ``None`` when the caller did not ask for one."""
+
+    if options.token_budget is None:
+        return None
+    return RunBudgetState(limit_tokens=max(1, int(options.token_budget)))
+
+
+def _context_evidence(
+    builder: AtlasTaskPromptBuilder | None,
+    atlas_task_id: str,
+) -> dict[str, Any] | None:
+    if builder is None:
+        return None
+    render = builder.last(atlas_task_id)
+    if render is None:
+        return None
+    return {
+        "enabled": True,
+        "context_layout_hash": render.context_layout_hash,
+        "full_prompt_hash": render.full_prompt_hash,
+        "stable_prefix_hash": render.stable_prefix_hash,
+        "rendered_dependency_order": list(render.rendered_dependency_order),
+        "transform_name": render.transform_name,
+        "deduplicated": render.deduplicated,
+        "transform_latency_ms": render.transform_latency_ms,
+        "stable_prefix_tokens": render.stable_prefix_tokens,
+        "context_block_tokens": render.context_block_tokens,
+    }
+
+
+def _budget_evidence(state: RunBudgetState | None) -> dict[str, Any] | None:
+    if state is None:
+        return None
+    return {
+        "limit_tokens": state.limit_tokens,
+        "used_prompt_tokens": state.used_prompt_tokens,
+        "used_completion_tokens": state.used_completion_tokens,
+        "used_tokens": state.used_tokens,
+        "remaining_tokens": state.remaining_tokens,
+        "requests_started": state.requests_started,
+        "requests_completed": state.requests_completed,
+        "admission_rejections": state.admission_rejections,
+        "stop_reason": state.stop_reason,
+    }
+
+
 def _record_terminal(
     recorder: TrajectoryRecorder | None,
     *,
@@ -522,13 +651,18 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
     idempotency: SQLiteToolIdempotencyStore | None = None
     recorder: TrajectoryRecorder | None = None
     failure: _UATFailure | None = None
+    cleanup_failure: _UATFailure | None = None
     agent_success = False
     final_output = ""
     stop_reason: str | None = None
     terminal_phase: str | None = None
     model_turns = 0
     prompt_tokens = 0
+    cache_hit_tokens = 0
+    total_prompt_tokens = 0
     completion_tokens = 0
+    prompt_builder: AtlasTaskPromptBuilder | None = None
+    budget_state: RunBudgetState | None = None
     tool_calls: list[dict[str, Any]] = []
     workspace_export: Path | None = None
     patch_digest: str | None = None
@@ -672,11 +806,28 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
                 "max_turns": options.max_turns,
             }
         )
-        engine = AtlasContextEngine(OrchestratorConfig(), tool_runtime=runtime)
-        team = engine.create_team("uat", TeamConfig(name="uat", agents=[agent_config]))
-        task = TaskSpec(
+        context_spec = AtlasTaskSpec(
+            task_id=task_id,
             title="UAT coding task",
             description=f"{environment_note} {options.task}",
+            assignee=worker.worker_name,
+        )
+        prompt_builder = _build_context_plane(
+            config=config,
+            spec=context_spec,
+            agent_config=agent_config,
+        )
+        budget_state = _build_run_budget(options)
+        engine = AtlasContextEngine(
+            OrchestratorConfig(),
+            tool_runtime=runtime,
+            prompt_builder=prompt_builder,
+            budget_state=budget_state,
+        )
+        team = engine.create_team("uat", TeamConfig(name="uat", agents=[agent_config]))
+        task = TaskSpec(
+            title=context_spec.title,
+            description=context_spec.description,
             assignee=worker.worker_name,
         )
         token = set_current_task_id(task_id)
@@ -694,8 +845,13 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
             terminal_phase = agent_result.terminal_phase
             model_turns = sum(1 for message in agent_result.messages if message.role == "assistant")
             usage = agent_result.token_usage
-            prompt_tokens = int(getattr(usage, "input_tokens", 0) or 0)
-            completion_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+            # ``input_tokens`` is the cache-miss side only (see integrations/deepseek.py); the
+            # total prompt is miss + cache reads. Both facts are kept, never conflated.
+            tokens = _token_evidence(usage)
+            prompt_tokens = tokens["prompt_tokens"]
+            total_prompt_tokens = tokens["total_prompt_tokens"]
+            cache_hit_tokens = tokens["cache_hit_tokens"]
+            completion_tokens = tokens["completion_tokens"]
         failure = failure or _classify_agent_outcome(
             agent_success=agent_success,
             stop_reason=stop_reason,
@@ -757,15 +913,20 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
                 try:
                     metrics.sandbox_destroyed = await manager.close(task_id)
                 except Exception as error:  # noqa: BLE001
-                    failure = failure or _failure_from_exception(error, "sandbox_cleanup")
+                    cleanup_failure = cleanup_failure or _failure_from_exception(
+                        error, "sandbox_cleanup"
+                    )
         elif manager is not None:
             metrics.sandbox_destroyed = manager.destroyed_count > 0
-        if not retained and failure is None and not metrics.sandbox_destroyed:
-            failure = _UATFailure(
+        if not retained and cleanup_failure is None and not metrics.sandbox_destroyed:
+            cleanup_failure = _UATFailure(
                 "SANDBOX_PROVIDER_FAILURE",
                 "sandbox_cleanup",
                 "sandbox was not confirmed destroyed",
             )
+        # A resource failure is the more severe fact: it becomes the primary class and the agent
+        # outcome is preserved as the secondary one instead of being silently dropped.
+        failure, failure_secondary = _merge_failures(failure, cleanup_failure)
 
         if manager is not None:
             metrics.commands_executed = manager.provision_commands + control_commands
@@ -805,7 +966,13 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
             "stop_reason": stop_reason,
             "terminal_phase": terminal_phase,
             "model_turns": model_turns,
+            # ``prompt_tokens`` keeps its historical meaning for existing consumers: the
+            # cache-miss input tokens reported by the loop. ``total_prompt_tokens`` is the value
+            # comparable with benchmark ``prompt_tokens`` (miss + cache reads).
             "prompt_tokens": prompt_tokens,
+            "total_prompt_tokens": total_prompt_tokens,
+            "cache_hit_tokens": cache_hit_tokens,
+            "cache_miss_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "final_output": final_output,
             "tool_calls": tool_calls,
@@ -814,6 +981,12 @@ async def run_coding_session(options: CodingRunOptions) -> tuple[dict[str, Any],
             "failure_class": failure.failure_class if failure else None,
             "failure_stage": failure.stage if failure else None,
             "failure_message": failure.message if failure else None,
+            "failure_secondary_class": (
+                failure_secondary.failure_class if failure_secondary else None
+            ),
+            "failure_secondary_message": (failure_secondary.message if failure_secondary else None),
+            "context": _context_evidence(prompt_builder, task_id),
+            "budget": _budget_evidence(budget_state),
             "sandbox": metrics.as_dict(),
         }
         (run_dir / "session.json").write_text(json.dumps(session, indent=2), encoding="utf-8")

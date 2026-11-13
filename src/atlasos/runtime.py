@@ -36,16 +36,13 @@ from atlasos.approvals.store import SQLiteApprovalStore
 from atlasos.config import AtlasConfig, load_config
 from atlasos.context import (
     ContextBlock,
-    ContextKind,
-    ContextRef,
     InMemoryContextStore,
     NaiveExecutionOrderRenderer,
     PromptRenderer,
     StablePromptRenderer,
     TaskScopedSelector,
-    context_layout_hash,
-    stable_block_key,
 )
+from atlasos.context.task_prompt import AtlasTaskPromptBuilder
 from atlasos.context.transform import (
     ContextPilotDedupTransform,
     ContextTransform,
@@ -296,6 +293,7 @@ class AtlasRuntime:
         self._selector: TaskScopedSelector | None = None
         self._renderer: PromptRenderer | None = None
         self._transform: ContextTransform | None = None
+        self._prompt_builder: AtlasTaskPromptBuilder | None = None
         self._render_info: dict[str, _RenderInfo] = {}
 
     @classmethod
@@ -574,6 +572,9 @@ class AtlasRuntime:
             # The critical ordering: durable outputs exist in Atlas's store before AnyCode
             # resumes the first unfinished task.
             self._store = rebuilt
+            # The builder captured the store created by _install_workflow; rebind it to the
+            # rebuilt one so the resumed render reads the durable blocks.
+            self._prompt_builder = self._create_prompt_builder()
 
         engine = self._create_engine(checkpoint_dir)
         team_result = await self._execute(engine, compiled, resume_from=checkpoint.id)
@@ -658,6 +659,30 @@ class AtlasRuntime:
         }
         self._agents_by_name = {agent.name: agent for agent in effective.agents}
         self._configure_context_mode(self._run_id)
+        self._prompt_builder = self._create_prompt_builder()
+
+    def _create_prompt_builder(self) -> AtlasTaskPromptBuilder | None:
+        """One shared task-prompt builder for this run, or ``None`` without a context mode."""
+
+        if (
+            self._store is None
+            or self._selector is None
+            or self._renderer is None
+            or self._transform is None
+        ):
+            return None
+        return AtlasTaskPromptBuilder(
+            store=self._store,
+            selector=self._selector,
+            renderer=self._renderer,
+            transform=self._transform,
+            specs_by_title={spec.title: spec for spec in self._effective_specs.values()},
+            agents_by_name={
+                name: (agent.system_prompt, agent.role)
+                for name, agent in self._agents_by_name.items()
+            },
+            recovered_task_ids=self._recovered_task_ids,
+        )
 
     def _build_manifest(
         self,
@@ -862,127 +887,39 @@ class AtlasRuntime:
             self._transform = None
 
     def _build_atlas_prompt(self, task: Task, queue: TaskQueue) -> str:
-        """Atlas-rendered prompt for one task (C1/C2 modes only)."""
+        """Atlas-rendered prompt for one task (C1/C2 modes only).
 
-        if self._store is None or self._selector is None or self._renderer is None:
+        Rendering itself lives in :class:`AtlasTaskPromptBuilder` so the coding compositions can
+        reuse exactly one implementation; this method keeps the workflow's evidence capture.
+        """
+
+        if self._prompt_builder is None:
             raise RuntimeError("Atlas prompt builder called without a context mode")
         if not task.assignee:
             raise RuntimeError(f"task {task.title!r} has no assignee")
 
         atlas_id = self._id_by_title[task.title]
-        spec = self._effective_specs[atlas_id]
-        agent = self._agents_by_name[task.assignee]
-
-        completed = [
-            candidate
-            for candidate in queue.list()
-            if candidate.status == "completed" and candidate.result is not None
-        ]
-        # Projection order is completion order; the renderer decides whether it matters.
-        completed.sort(key=lambda candidate: (candidate.updated_at, candidate.title))
-
-        dependencies = set(spec.depends_on)
-        refs: list[ContextRef] = []
-        direct_completion_order: list[str] = []
-
-        # Recovery invariant: durable dependency outputs must already be in the rebuilt store.
-        # This check runs before any live projection, so a resume that begins without rebuilding
-        # fails here instead of silently re-deriving recovered context from the restored queue.
-        if self._recovered_task_ids:
-            missing = [
-                task_id
-                for task_id in sorted(dependencies & self._recovered_task_ids)
-                if not self._store.contains(f"task-output:{task_id}")
-            ]
-            if missing:
-                raise RuntimeError(
-                    "resume context invariant violated: durable dependency output for "
-                    f"{missing} was not rebuilt into the ContextStore before task "
-                    f"{spec.task_id!r} was executed"
-                )
-            for task_id in sorted(self._recovered_task_ids):
-                recovered_block = self._store.get(f"task-output:{task_id}")
-                refs.append(
-                    ContextRef(
-                        block_id=recovered_block.block_id,
-                        version=recovered_block.version,
-                    )
-                )
-                if task_id in dependencies:
-                    direct_completion_order.append(task_id)
-
-        for done in completed:
-            done_id = self._id_by_title[done.title]
-            if done_id in self._recovered_task_ids:
-                # Recovered context comes from the checkpoint rebuild, never from re-projecting
-                # the restored queue, so resuming cannot create a duplicate logical block.
-                continue
-            block = ContextBlock(
-                block_id=f"task-output:{done_id}",
-                kind=ContextKind.DEPENDENCY_OUTPUT,
-                content=done.result or "",
-                version=1,
-                source=f"anycode_task:{done_id}",
-                task_id=done_id,
-                owner_agent_id=done.assignee,
+        prompt = self._prompt_builder(task, queue)
+        render = self._prompt_builder.last(atlas_id)
+        if render is not None:
+            self._render_info[atlas_id] = _RenderInfo(
+                context_layout_hash=render.context_layout_hash,
+                rendered_dependency_order=render.rendered_dependency_order,
+                dependency_completion_order=render.dependency_completion_order,
+                pre_transform_layout_hash=render.pre_transform_layout_hash,
+                post_transform_layout_hash=render.post_transform_layout_hash,
+                transform_name=render.transform_name,
+                deduplicated=render.deduplicated,
+                transform_latency_ms=render.transform_latency_ms,
+                original_block_count=render.original_block_count,
+                optimized_block_count=render.optimized_block_count,
+                original_context_chars=render.original_context_chars,
+                optimized_context_chars=render.optimized_context_chars,
+                stable_prefix_tokens=render.stable_prefix_tokens,
+                context_block_tokens=render.context_block_tokens,
+                dynamic_tail_tokens=render.dynamic_tail_tokens,
             )
-            self._store.put(block)
-            refs.append(ContextRef(block_id=block.block_id, version=block.version))
-            if done_id in dependencies:
-                direct_completion_order.append(done_id)
-
-        selected = self._selector.select(
-            task=spec,
-            agent_id=task.assignee,
-            store=self._store,
-            available_refs=refs,
-        )
-
-        # Deterministic layout before ContextPilot: the Stage 2 stable contract.
-        if isinstance(self._renderer, StablePromptRenderer):
-            pre_ordered = sorted(selected, key=stable_block_key)
-        else:
-            pre_ordered = list(selected)
-        pre_refs = tuple(
-            ContextRef(block_id=block.block_id, version=block.version) for block in pre_ordered
-        )
-        pre_optimizer_hash = context_layout_hash(pre_refs)
-
-        transform = self._transform
-        if transform is None:
-            raise RuntimeError("context transform is not configured")
-        transformed = transform.transform(blocks=pre_ordered, query=spec.description)
-
-        rendered = self._renderer.render(
-            stable_system_prefix=agent.system_prompt,
-            agent_role=agent.role,
-            task=spec,
-            context_blocks=transformed.blocks,
-        )
-
-        rendered_order = tuple(
-            ref.block_id.removeprefix("task-output:")
-            for ref in rendered.context_layout
-            if ref.block_id.startswith("task-output:")
-        )
-        self._render_info[atlas_id] = _RenderInfo(
-            context_layout_hash=rendered.context_layout_hash,
-            rendered_dependency_order=rendered_order,
-            dependency_completion_order=tuple(direct_completion_order),
-            pre_transform_layout_hash=pre_optimizer_hash,
-            post_transform_layout_hash=rendered.context_layout_hash,
-            transform_name=transformed.transform_name,
-            deduplicated=transformed.deduplicated,
-            transform_latency_ms=transformed.transform_latency_ms,
-            original_block_count=transformed.original_block_count,
-            optimized_block_count=transformed.optimized_block_count,
-            original_context_chars=transformed.original_context_chars,
-            optimized_context_chars=transformed.optimized_context_chars,
-            stable_prefix_tokens=rendered.stable_prefix_tokens,
-            context_block_tokens=rendered.context_block_tokens,
-            dynamic_tail_tokens=rendered.dynamic_tail_tokens,
-        )
-        return rendered.messages[-1]["content"]
+        return prompt
 
     def _register_providers(
         self,

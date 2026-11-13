@@ -86,6 +86,14 @@ from atlasos.actions import ActionCatalog, ActionPolicy, ActionRule
 from atlasos.actions.catalog import DEFAULT_MAPPINGS, ActionMapping
 from atlasos.budget import BUDGET_MODE_GUARDED, RunBudgetState
 from atlasos.config import AtlasConfig, Pricing, load_config
+from atlasos.context import (
+    InMemoryContextStore,
+    NaiveExecutionOrderRenderer,
+    StablePromptRenderer,
+    TaskScopedSelector,
+)
+from atlasos.context.task_prompt import AtlasTaskPromptBuilder
+from atlasos.context.transform import ContextPilotDedupTransform, IdentityContextTransform
 from atlasos.experiments import git_commit, git_dirty
 from atlasos.handoff import HANDOFF_READ_ACTION_MAPPING, HandoffNode, HandoffRuntime
 from atlasos.history_compaction import (
@@ -133,6 +141,7 @@ from atlasos.trajectory.payloads import (
 from atlasos.trajectory.recorder import TrajectoryRecorder
 from atlasos.workers import ScopedWorkerFactory, WorkerAssignment, WorkerCatalog, WorkerStore
 from atlasos.workers.routing import capabilities_from_catalog
+from atlasos.workflow import AtlasTaskSpec
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO_ROOT / "experiments" / "configs" / "eval-benchmark.yaml"
@@ -336,6 +345,59 @@ def _build_provider(config: AtlasConfig):
         ),
     )
     return provider
+
+
+def _context_prompt_builder(
+    *,
+    config: AtlasConfig,
+    task: Any,
+    title_by_id: dict[str, str],
+    task_texts: dict[str, str],
+    worker_by_task: dict[str, Any],
+) -> AtlasTaskPromptBuilder | None:
+    """Wire the existing Context Plane into a multi-worker coding DAG (opt-in via ``config``).
+
+    ``context.policy="upstream_default"`` returns ``None`` and the handoff prompt builder keeps
+    today's behaviour. Nothing here schedules, calls a model, or stores anything new.
+    """
+
+    if config.context.policy != "task_scoped":
+        return None
+    renderer = (
+        NaiveExecutionOrderRenderer()
+        if config.context.renderer == "naive_execution_order"
+        else StablePromptRenderer(preserve_input_order=True)
+    )
+    transform = (
+        IdentityContextTransform()
+        if config.context.transform.name == "identity"
+        else ContextPilotDedupTransform()
+    )
+    specs = {
+        title_by_id[step.task_id]: AtlasTaskSpec(
+            task_id=step.task_id,
+            title=title_by_id[step.task_id],
+            description=task_texts[step.task_id],
+            assignee=worker_by_task[step.task_id].worker_name,
+            depends_on=step.depends_on,
+        )
+        for step in task.workers
+    }
+    agents = {
+        worker_by_task[step.task_id].worker_name: (
+            worker_by_task[step.task_id].agent_config.system_prompt,
+            "coding_worker",
+        )
+        for step in task.workers
+    }
+    return AtlasTaskPromptBuilder(
+        store=InMemoryContextStore(),
+        selector=TaskScopedSelector(),
+        renderer=renderer,
+        transform=transform,
+        specs_by_title=specs,
+        agents_by_name=agents,
+    )
 
 
 def _project_config(config: AtlasConfig) -> SandboxProjectConfig:
@@ -1000,10 +1062,47 @@ async def run_sample(
             elif event.type == "task_complete":
                 set_current_task_id(None)
 
+        # Stage G3-3: only the worker's task turn changes. The assignment (system prompt), the
+        # tool list, the DAG and the budget are identical in both contract modes.
+        contract_mode = (
+            settings.worker_contract_mode
+            if settings.worker_contract_mode in WORKER_CONTRACT_MODES
+            else WORKER_CONTRACT_LEGACY
+        )
+        task_texts = {
+            step.task_id: worker_task_text(
+                step, steps=task.workers, sample_id=task.sample_id, mode=contract_mode
+            )
+            for step in task.workers
+        }
+        contract_overhead_chars = sum(
+            contract_overhead(step.prompt, task_texts[step.task_id]) for step in task.workers
+        )
+        task_specs = [
+            TaskSpec(
+                title=title_by_id[step.task_id],
+                description=task_texts[step.task_id],
+                assignee=worker_by_task[step.task_id].worker_name,
+                depends_on=[title_by_id[item] for item in step.depends_on],
+            )
+            for step in task.workers
+        ]
+        context_builder = _context_prompt_builder(
+            config=config,
+            task=task,
+            title_by_id=title_by_id,
+            task_texts=task_texts,
+            worker_by_task=worker_by_task,
+        )
+        if context_builder is not None and settings.handoff_mode == "dual":
+            raise EvaluationEnvironmentError(
+                "context.policy='task_scoped' and handoff_mode='dual' both project dependency "
+                "outputs into the task prompt; enable exactly one of them"
+            )
         engine = AtlasContextEngine(
             OrchestratorConfig(on_progress=on_progress),
             tool_runtime=runtime,
-            prompt_builder=handoff.build_prompt,
+            prompt_builder=context_builder or handoff.build_prompt,
             budget_state=budget_state,
             compaction=compaction,
         )
@@ -1042,15 +1141,6 @@ async def run_sample(
         contract_overhead_chars = sum(
             contract_overhead(step.prompt, task_texts[step.task_id]) for step in task.workers
         )
-        task_specs = [
-            TaskSpec(
-                title=title_by_id[step.task_id],
-                description=task_texts[step.task_id],
-                assignee=worker_by_task[step.task_id].worker_name,
-                depends_on=[title_by_id[item] for item in step.depends_on],
-            )
-            for step in task.workers
-        ]
         agent_started = time.perf_counter()
         result = await asyncio.wait_for(
             engine.run_tasks(team, task_specs),
