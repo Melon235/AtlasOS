@@ -40,6 +40,8 @@ results of the current branch unless the document says so.
 | [`final-2-evaluation-design-report.md`](final-2-evaluation-design-report.md) | Final-2: the evaluation design itself — coverage, integration, workloads, budgets, required changes |
 | [`final-3-integration-report.md`](final-3-integration-report.md) | Final-3: what was integrated (R-4/R-5/R-6/R-7), with the real call chain and the parity blocker |
 | [`final-3-module-acceptance-report.md`](final-3-module-acceptance-report.md) | Final-3: 59-module acceptance status, measured metrics, negative and blocked results |
+| [\inal-4-module-evidence-supplement.md\](final-4-module-evidence-supplement.md) | Final-4: evidence levels, D0-D3 dedup diagnosis, 64/128-tool retrieval, topology study |
+| [\inal-4-integration-and-router-pilot.md\](final-4-integration-and-router-pilot.md) | Final-4: neutral backend, frozen configs, and the honest NOT_RUN live matrix |
 | [`research-history.md`](research-history.md) | Which branch/SHA holds which historical stage |
 
 The Final-2 Recovery Pilot report (`docs/final-2-recovery-pilot.md`) lives on
