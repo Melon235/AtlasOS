@@ -46,11 +46,24 @@ requirement text (the file each worker is told to create). Nothing else changed:
 | `oracle.required_artifacts_present` | previously vacuous, now a real check |
 | `result.json → task` block, router evidence | records the declared deliverables |
 
-The one non-trivial effect is the oracle check, so it was re-evaluated against the *exported
-workspace* of all 14 runs that existed before the change: **14/14 would still pass**
-(`run_inventory.json → declared_artifacts_check.verdict_neutral = true`). The added check therefore
-changes no verdict on the existing matrix, and revision-2 results remain usable as comparable units.
-This is recorded, not assumed.
+The one non-trivial effect is the oracle check. **Correction (2026-11-14, G0 review):** the earlier
+wording here — "14/14 would still pass" — was wrong twice and is retracted.
+
+- The count was 22, not 14 (`run_inventory.json` covers every run then on disk, including the three
+  legacy ones).
+- What was re-evaluated is **one oracle sub-check, `required_artifacts_present`, over the exported
+  workspaces — a file-presence test, not the oracle.** `eval-c16d3b21a134` (legacy R1) has an empty
+  patch (`sha256 e3b0c442…`) and `hidden_tests_passed: false`, yet `required_artifacts_present: true`,
+  because the seed files are present with `NotImplementedError` inside. Its oracle verdict remains
+  **FAIL** and is not rewritten.
+- `run_inventory.json → declared_artifacts_check` now carries `check_kind: FILE_PRESENCE_ONLY` and
+  `can_establish_full_oracle_equivalence: false`.
+
+What can be argued without a re-run is narrower and directional: for a run whose **full oracle already
+passed**, adding a presence condition cannot turn it into a failure, because the functional checks
+import and execute the deliverables and therefore required the files to exist. The converse is not
+implied, and no FAIL became a PASS. Revision-2 results stay comparable on that basis — a logical
+argument, not a measurement.
 
 **Live decisions** (unchanged `r0.1.0`, no thresholds touched):
 
@@ -167,6 +180,18 @@ small `src/` change, which this stage does not authorise. Two options are laid o
 under a shared worker principal, `src/` change, real measurement).
 
 ## G. Architecture coverage update
+
+Two further corrections from the G0 review, both about claims rather than runs:
+
+- **N0 blocker.** The earlier text said "no lifecycle layer exists". The accurate statement is that
+  every *capability* exists (`SandboxProvider.create/execute/read_file/write_file/destroy`,
+  `export_workspace`, `GitProjectProvisioner`) and what is missing is a ~40-line **composition** that
+  calls them in order without using `ProjectSandboxManager`. See
+  `docs/final-4-evidence-handoff.md` §B for the call chain.
+- **Request evidence.** `REQUEST_CONTENT_VERIFIED` rests on re-computing `sha256` of the observed
+  first message and matching it to the builder's `task_prompt_sha256`; it does not prove that the
+  provider *accepted* the body, only that the observed request reached the adapter boundary with that
+  content. §C of the handoff document lists the exact predicate and its limits.
 
 `docs/final-4-architecture-coverage.md` is updated:
 

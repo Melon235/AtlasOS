@@ -126,6 +126,19 @@ def declared_artifacts_check(rows: list[dict[str, Any]]) -> dict[str, Any]:
     verdicts = [item["required_artifacts_present_if_declared"] for item in checked]
     return {
         "check": "oracle.required_artifacts_present re-evaluated over the exported workspaces",
+        "check_kind": "FILE_PRESENCE_ONLY",
+        "can_establish_full_oracle_equivalence": False,
+        "note": (
+            "This is one oracle sub-check, not the oracle. A run that violated the functional "
+            "checks still shows every declared path present: eval-c16d3b21a134 has an empty patch "
+            "(sha256 e3b0c442...) and failed hidden_tests_passed, yet required_artifacts_present is "
+            "true. Never read this result as '<n>/<n> runs still pass the oracle'."
+        ),
+        "pass_direction_only": (
+            "For a run whose full oracle already PASSED, adding a presence condition cannot flip it "
+            "to FAIL: the functional checks import and run the deliverables, so the files existed. "
+            "The reverse direction is not implied, and no FAIL becomes a PASS."
+        ),
         "runs_checked": len(checked),
         "export_missing": sum(1 for item in checked if not item["export_available"]),
         "would_pass": sum(1 for verdict in verdicts if verdict is True),

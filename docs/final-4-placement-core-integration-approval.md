@@ -52,12 +52,20 @@ worker breaks attribution.
    chooses instances, never profiles. No new type is needed; what is missing is a slot identity that
    is not derived from a task.
 
-4. **Do multiple tasks on one worker actually reuse the model session?** **No.** AnyCode runs each DAG
-   task as its own agent invocation with a fresh message list; conversation state is per invocation,
-   and `tool_conversations.json` is keyed by runtime instance, not by worker. Two tasks on one worker
-   therefore do **not** share transcript, prompt prefix or provider KV state.
+4. **Do multiple tasks on one worker actually reuse the model session?** **No, and the mechanism is
+   the opposite of what "reuse" suggests.** `AnyCode._resolve_task_agent`
+   (`anycode/core/orchestrator.py:829`) does `self._pool.get(assignee) or self._build_agent_for_team(...)`
+   — the `Agent` **instance is recycled** by assignee name. But `Agent.run()` (`anycode/core/agent.py:101`)
+   is documented and implemented as *"Execute prompt as a standalone conversation (history is
+   ignored)"*: it builds `messages = [LLMMessage(user, prompt)]` fresh every call, so `_history` never
+   grows. Net effect: same object, same adapter/runner, **no shared transcript, no shared prompt
+   prefix, no provider KV reuse**. See `docs/placement-coding-integration-design.md` §4.
 
-5. **If only identity is reused, what is gained?** Three things, none of them performance:
+5. **If only identity is reused, what is gained?** Three things, none of them performance — and one
+   *cost*: within a wave AnyCode runs tasks concurrently and stores results in
+   `agent_results[assignee]` (`orchestrator.py:533-541`), so two tasks sharing an assignee in one wave
+   collide on that map. Any pooling design must either serialise per worker or avoid same-wave
+   collisions. Beyond that:
    (a) ownership and ledger attribution become per-principal, which is what the `[worker → task]`
    mapping is for; (b) the *logical* handoff count that the planner optimises becomes the number of
    references that actually cross a principal boundary, so the planner's objective can be measured

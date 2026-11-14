@@ -1,7 +1,9 @@
 {
   "cost_basis": "deepseek pricing table in the config; estimated_cost_usd is the run's own figure",
   "declared_artifacts_check": {
+    "can_establish_full_oracle_equivalence": false,
     "check": "oracle.required_artifacts_present re-evaluated over the exported workspaces",
+    "check_kind": "FILE_PRESENCE_ONLY",
     "entries": [
       {
         "declared_artifacts": [
@@ -256,6 +258,8 @@
       }
     ],
     "export_missing": 0,
+    "note": "This is one oracle sub-check, not the oracle. A run that violated the functional checks still shows every declared path present: eval-c16d3b21a134 has an empty patch (sha256 e3b0c442...) and failed hidden_tests_passed, yet required_artifacts_present is true. Never read this result as '<n>/<n> runs still pass the oracle'.",
+    "pass_direction_only": "For a run whose full oracle already PASSED, adding a presence condition cannot flip it to FAIL: the functional checks import and run the deliverables, so the files existed. The reverse direction is not implied, and no FAIL becomes a PASS.",
     "runs_checked": 22,
     "verdict_neutral": true,
     "would_fail": 0,
@@ -1246,7 +1250,7 @@
       ]
     }
   ],
-  "generated_at": "2026-11-14T09:28:32.863998+00:00",
+  "generated_at": "2026-11-14T09:47:31.976122+00:00",
   "resources": {
     "containers_per_run": "1 shared workspace sandbox for all workers + 1 independent oracle sandbox",
     "containers_total": 44,

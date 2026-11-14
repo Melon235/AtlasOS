@@ -130,5 +130,10 @@ what `collect_v2` classifies on and what the report's §A/§B evidence supports.
 `BenchmarkTask.required_artifacts` was `()` in revisions 1–2, so `GATE_0` blocked every candidate with
 `UNCOVERED_GOAL` and the delegation mechanism never reached gate 1. Revision 3 declares the public
 deliverables; the router, its gates and its thresholds are unchanged. See
-`docs/final-4-evidence-closure-report.md` §B for the digest table and the verdict-neutrality proof of
-the one oracle check that the field feeds.
+`docs/final-4-evidence-closure-report.md` §B for the digest table.
+
+On comparability: the only oracle sub-check the field feeds is `required_artifacts_present`, and the
+re-evaluation over the exported workspaces is **file presence only**, not an oracle re-run
+(`run_inventory.json → check_kind: FILE_PRESENCE_ONLY`). It passes for all 22 runs, including the
+legacy R1 that failed the oracle with an empty patch — which is precisely why it must not be cited as
+"n/n runs still pass". Old verdicts are unchanged and no FAIL was rewritten.

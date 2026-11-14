@@ -49,6 +49,8 @@ results of the current branch unless the document says so.
 | [`final-4-context-restoration-report.md`](final-4-context-restoration-report.md) | Final-4: the corrected evaluation matrix, the X0/X1 context comparison, and the honest Track C `NOT_VALIDATED` result |
 | [`final-4-evidence-closure-report.md`](final-4-evidence-closure-report.md) | Final-4 closure: router metadata fix and the real delegate run, request-content-verified context delivery, blocked native arm, degenerate disclosure ablation |
 | [`final-4-placement-core-integration-approval.md`](final-4-placement-core-integration-approval.md) | `PLACEMENT_CORE_INTEGRATION_APPROVAL_REQUIRED` — what a real pooled-worker integration would change, and the two options |
+| [`final-4-evidence-handoff.md`](final-4-evidence-handoff.md) | Final-4 handoff for independent review, including the G0 corrections to three earlier evidence claims |
+| [`placement-coding-integration-design.md`](placement-coding-integration-design.md) | `DESIGN_PROPOSED` — placement A/B options, AnyCode seam, security impact matrix, G1–G5 boundaries |
 | [`research-history.md`](research-history.md) | Which branch/SHA holds which historical stage |
 
 The Final-2 Recovery Pilot report (`docs/final-2-recovery-pilot.md`) lives on
