@@ -1,0 +1,222 @@
+{
+  "cells": {
+    "validation-coupled": {
+      "N0": {
+        "budget_used_tokens": null,
+        "context_builder": null,
+        "context_invocations": null,
+        "cost_usd": null,
+        "oracle_pass": null,
+        "status": "NOT_RUN",
+        "worker_count": null
+      },
+      "R0": {
+        "budget_used_tokens": 35977,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.0050542,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 1
+      },
+      "R1": {
+        "budget_used_tokens": 55460,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00757475,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 2
+      },
+      "R2": {
+        "budget_used_tokens": 41275,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00396881,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 1
+      },
+      "X0": {
+        "budget_used_tokens": null,
+        "context_builder": null,
+        "context_invocations": null,
+        "cost_usd": null,
+        "oracle_pass": null,
+        "status": "NOT_RUN",
+        "worker_count": null
+      }
+    },
+    "validation-parallel": {
+      "N0": {
+        "budget_used_tokens": null,
+        "context_builder": null,
+        "context_invocations": null,
+        "cost_usd": null,
+        "oracle_pass": null,
+        "status": "NOT_RUN",
+        "worker_count": null
+      },
+      "R0": {
+        "budget_used_tokens": 33364,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00423301,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 1
+      },
+      "R1": {
+        "budget_used_tokens": 78761,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00852672,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 3
+      },
+      "R2": {
+        "budget_used_tokens": 38067,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00347285,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 1
+      },
+      "X0": {
+        "budget_used_tokens": null,
+        "context_builder": null,
+        "context_invocations": null,
+        "cost_usd": null,
+        "oracle_pass": null,
+        "status": "NOT_RUN",
+        "worker_count": null
+      }
+    },
+    "validation-serial": {
+      "N0": {
+        "budget_used_tokens": null,
+        "context_builder": null,
+        "context_invocations": null,
+        "cost_usd": null,
+        "oracle_pass": null,
+        "status": "NOT_RUN",
+        "worker_count": null
+      },
+      "R0": {
+        "budget_used_tokens": 13988,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00203404,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 1
+      },
+      "R1": {
+        "budget_used_tokens": 47057,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00478279,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 2
+      },
+      "R2": {
+        "budget_used_tokens": 14079,
+        "context_builder": "AtlasTaskPromptBuilder",
+        "context_invocations": null,
+        "cost_usd": 0.00152566,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 1
+      },
+      "X0": {
+        "budget_used_tokens": 46465,
+        "context_builder": null,
+        "context_invocations": null,
+        "cost_usd": 0.00578698,
+        "oracle_pass": true,
+        "status": "EXECUTED",
+        "worker_count": 2
+      }
+    }
+  },
+  "note": "X1 is the Atlas Context Plane cell of the same candidate DAG, i.e. <task>-R1. The live R2 worker count (1) shows the router took DIRECT in every cell; the reason codes come from the deterministic replay because the live routing block was not yet persisted on this batch.",
+  "route_mode": "selective",
+  "router_modified": false,
+  "router_policy_version": "r0.1.0",
+  "router_replay": {
+    "validation-coupled": {
+      "candidate_tasks": 2,
+      "executed_worker_count_if_live": 1,
+      "gates": [
+        {
+          "gate": "GATE_0_PROPOSAL_VALIDITY",
+          "reason_codes": [
+            "UNCOVERED_GOAL"
+          ],
+          "status": "block"
+        }
+      ],
+      "provenance": "DETERMINISTIC_REPLAY (pure function, same proposal and policy)",
+      "reason_codes": [
+        "UNCOVERED_GOAL"
+      ],
+      "route": "direct"
+    },
+    "validation-parallel": {
+      "candidate_tasks": 3,
+      "executed_worker_count_if_live": 1,
+      "gates": [
+        {
+          "gate": "GATE_0_PROPOSAL_VALIDITY",
+          "reason_codes": [
+            "UNCOVERED_GOAL"
+          ],
+          "status": "block"
+        }
+      ],
+      "provenance": "DETERMINISTIC_REPLAY (pure function, same proposal and policy)",
+      "reason_codes": [
+        "UNCOVERED_GOAL"
+      ],
+      "route": "direct"
+    },
+    "validation-serial": {
+      "candidate_tasks": 2,
+      "executed_worker_count_if_live": 1,
+      "gates": [
+        {
+          "gate": "GATE_0_PROPOSAL_VALIDITY",
+          "reason_codes": [
+            "UNCOVERED_GOAL"
+          ],
+          "status": "block"
+        }
+      ],
+      "provenance": "DETERMINISTIC_REPLAY (pure function, same proposal and policy)",
+      "reason_codes": [
+        "UNCOVERED_GOAL"
+      ],
+      "route": "direct"
+    }
+  },
+  "x0_vs_x1": [
+    {
+      "task_id": "validation-serial",
+      "x0": "EXECUTED",
+      "x1": "EXECUTED"
+    },
+    {
+      "task_id": "validation-parallel",
+      "x0": "NOT_RUN",
+      "x1": "EXECUTED"
+    },
+    {
+      "task_id": "validation-coupled",
+      "x0": "NOT_RUN",
+      "x1": "EXECUTED"
+    }
+  ]
+}

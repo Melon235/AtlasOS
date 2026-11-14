@@ -255,7 +255,9 @@ def preflight(configuration: str) -> dict[str, Any]:
     return resolved
 
 
-async def run_unit(task_id: str, configuration: str, *, runs_root: Path) -> dict[str, Any]:
+async def run_unit(
+    task_id: str, configuration: str, *, runs_root: Path, repetition_id: int = 0
+) -> dict[str, Any]:
     task = _task_by_id(task_id)
     settings = settings_for(configuration, runs_root=runs_root)
     resolved = preflight(configuration)
@@ -264,7 +266,7 @@ async def run_unit(task_id: str, configuration: str, *, runs_root: Path) -> dict
         from experiments.evaluation.baseline import run_baseline_sample
 
         result = await run_baseline_sample(
-            build_task(task, multi=False), settings=settings, repetition_id=0
+            build_task(task, multi=False), settings=settings, repetition_id=repetition_id
         )
         return {
             "unit": unit,
@@ -278,7 +280,7 @@ async def run_unit(task_id: str, configuration: str, *, runs_root: Path) -> dict
     result = await run_sample(
         build_task(task, multi=UNITS[configuration]["mode"] == "multi_worker"),
         settings=settings,
-        repetition_id=0,
+        repetition_id=repetition_id,
         config_path=Path(UNITS[configuration]["config"]),
     )
     context_evidence = result.metrics.extra.get("context", {})
@@ -337,6 +339,12 @@ def main() -> int:
     parser.add_argument("--units", help="comma separated units")
     parser.add_argument("--runs-root", default=str(RUNS_ROOT))
     parser.add_argument(
+        "--repetition",
+        type=int,
+        default=0,
+        help="repetition id; a replicated unit gets its own run directory",
+    )
+    parser.add_argument(
         "--preflight-only",
         action="store_true",
         help="resolve every requested unit's configuration and exit without calling a model",
@@ -362,7 +370,16 @@ def main() -> int:
             summary.append({"unit": unit, "resolved": preflight(configuration)})
             print(json.dumps(summary[-1], indent=2, sort_keys=True)[:800], flush=True)
             continue
-        summary.append(asyncio.run(run_unit(task_id, configuration, runs_root=runs_root)))
+        summary.append(
+            asyncio.run(
+                run_unit(
+                    task_id,
+                    configuration,
+                    runs_root=runs_root,
+                    repetition_id=args.repetition,
+                )
+            )
+        )
         print(json.dumps(summary[-1], indent=2, sort_keys=True)[:1200], flush=True)
     (runs_root / "unit_summary.json").write_text(
         json.dumps(

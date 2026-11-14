@@ -33,6 +33,8 @@ environment variables, historical run ids and Git history keep `atlasos` / `atla
 | Final-1.5 baseline (`BASE_SHA` of that stage) | `16251d05c34cff41d280396a1647214914e51a31` |
 | Final-1.6 ported fix | `1b4f6be` = cherry-pick of `18e523c` (coding-session outcome attribution, 2 files) |
 | Final-3 integrated runtime | `93cbd98` — Context Plane wired into the coding compositions (opt-in), shared budget in app coding, failure/token semantics fixed |
+| Architecture design contract | `37eba87` — `docs/architecture-design-contract.md`, AGENTS.md §2 and §10 |
+| Final-4 corrected evaluation baseline | `2a2af55` — Context Plane actually loaded (`experiments/configs/final4-context.yaml`), fail-closed configuration expectations, task set revision 2, per-run `context.json`; 10 corrected live units, all oracle PASS |
 | Worktree | `D:\Work\AtlasRuntime` (primary research worktree remains `D:\Work\AtlasOS`) |
 | Final-4 evaluation baseline | 28428e8 — neutral backend, 64/128-tool retrieval, D0–D3 dedup diagnosis, 59-row evidence levels; live cells NOT_RUN (no credentials) |
 | Recovery Pilot branch | `experiment/final-2-recovery-pilot` = `c5fce5cc5d3d96251968b264e8113685711ffc8e`, 3 commits on top of `16251d0` |
@@ -59,8 +61,10 @@ identical (`docs/runtime-entrypoints.md`).
   store deterministically on checkpoint resume (`durability/`).
 - Source: `runtime.py::_configure_context_mode` / `_build_atlas_prompt`; `context/renderer.py`.
 - Default state: **active** on the workflow path (`app/service.py` sets
-  `policy="task_scoped"`, `renderer="stable_deterministic"`); **not wired** on the application
-  coding path and the evaluation path, which render prompts upstream (see §4).
+  `policy="task_scoped"`, `renderer="stable_deterministic"`); **opt-in** on the application coding path
+  (`app/coding.py::_build_context_plane`) and the evaluation path
+  (`runner.py::_context_prompt_builder`), both switched by `context.policy="task_scoped"`. Final-4
+  drove the evaluation path end to end on 2026-11-14 (`docs/final-4-context-restoration-report.md`).
 - Evidence: stable layout removes completion-order dependence (S6 Table A); dedup reaches a 44.0 %
   prompt-token cut at ~50 % exact duplicates (S6 Table B) but **no matching cache-miss win**;
   context-locality placement cuts logical handoff 50–80 % (S6 Table C); E2 C1 == C0 on prompt
@@ -155,7 +159,7 @@ users would expect. `NOT_VALIDATED` = implemented, no live evidence.
 
 | Mechanism | Status | Where it is actually wired |
 |---|---|---|
-| Context selector + stable renderer | DEFAULT_ACTIVE / ACTIVE_OPTIONAL | workflow path always; coding paths only with `context.policy="task_scoped"` (Final-3) |
+| Context selector + stable renderer | DEFAULT_ACTIVE / ACTIVE_OPTIONAL | workflow path always; coding + evaluation paths only with `context.policy="task_scoped"` (Final-3); exercised live on 2026-11-14 (Final-4) |
 | ContextPilot dedup transform | OPTIONAL / RETAINED_RESEARCH | workflow path, requires `contextpilot` extra |
 | Context-locality placement | OPTIONAL / RETAINED_RESEARCH | workflow path, `placement.policy` |
 | Tool search + progressive disclosure | DEFAULT_ACTIVE / NOT_WIRED_IN_ALL_PATHS | coding + evaluation paths |
@@ -221,9 +225,13 @@ was re-measured after the Final-1.6 port: 891 passed / 6 skipped / 1 deselected
    `docs/evaluation/` (module matrix, Track B/C specs, integration contract, metrics contract, holdout
    design, environment protocol) and `docs/final-2-evaluation-design-report.md`.
 4. Complete module evaluation (Track A) — Final-3 offline, Final-4 supplement; live ablations blocked.
-5. Integrated runtime evaluation vs native AnyCode (Track B) — Final-4.
-6. Adaptive delegation pilot (Track C) — Final-4.
-7. Demo, release and public packaging (Final-6).
+5. Integrated runtime evaluation vs native AnyCode (Track B) — Final-4; the native arm is still
+   blocked, the Atlas arm has now run.
+6. Adaptive delegation pilot (Track C) — Final-4 corrected matrix ran, but every R2 cell collapsed to
+   DIRECT because the harness declares no `required_artifacts`, so Track C is `NOT_VALIDATED`.
+7. Architecture design contract and Context Plane restoration (Final-4 correction, `37eba87` /
+   `2a2af55`) — `docs/final-4-context-restoration-report.md`.
+8. Demo, release and public packaging (Final-6).
 
 Decisions owed by the project owner before Final-3 (from
 `docs/final-2-evaluation-design-report.md` §11): R-4/R-5 the minimal Context-Plane wiring plus

@@ -121,7 +121,7 @@ This stage creates no test set, no benchmark runner and no evaluation config.
 |---|---|---|
 | Final-2 | Evaluation protocol: module matrix, Track B/C specs, integration contract, metrics contract, holdout design, environment protocol | **designed** — see `docs/final-2-evaluation-design-report.md` and `docs/evaluation/`; awaiting owner approval |
 | Final-3 | Minimal integration + required coverage + Track A module acceptance | **done** (`93cbd98` / `97fa2d4`) — see `docs/final-3-*-report.md`; native parity blocked, live track blocked |
-| Final-4 | Integrated runtime and adaptive delegation pilot (Tracks B, C) on the validation set | **partially done** (28428e8): offline supplement + neutral adapter; live pilot NOT_RUN — no provider or sandbox credential |
+| Final-4 | Integrated runtime and adaptive delegation pilot (Tracks B, C) on the validation set | **partially done**: offline supplement + neutral adapter at `28428e8`; the 2026-11-14 three-run pilot is `EXPLORATORY_LEGACY_PILOT`; the corrected matrix (`2a2af55`) ran 10 Atlas units with the Context Plane loaded, all oracle PASS. Track B native arm still blocked; Track C `NOT_VALIDATED` (every R2 cell collapsed to DIRECT). See `docs/final-4-context-restoration-report.md` |
 | Final-5 | Frozen final evaluation on the holdout | Runtime, tasks, candidate plans, model, tools, budget, oracle and router frozen |
 | Final-6 | Demo, release, packaging | Final-5 results published |
 

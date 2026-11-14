@@ -1555,6 +1555,20 @@ async def run_sample(
                 "builder": None,
                 "builder_invocations": 0,
             }
+        # ``RunMetrics.as_dict`` does not serialise ``extra``, so the Context Plane evidence needs
+        # its own durable file next to ``result.json``. Writing it here keeps one artifact per run
+        # that a later reader can audit without re-deriving anything.
+        with contextlib.suppress(Exception):
+            _write_json(
+                run_dir / "context.json",
+                {
+                    "resolved": environment.get("context_resolved"),
+                    "evidence": metrics.extra.get("context"),
+                    "handoff": metrics.extra.get("handoff"),
+                    "routing": metrics.extra.get("routing"),
+                    "budget": metrics.extra.get("budget"),
+                },
+            )
         call_records = _provider_call_records(
             observations, run_id=run_id, model=model, pricing=config.pricing
         )

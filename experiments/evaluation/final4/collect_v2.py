@@ -36,6 +36,17 @@ def _load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _optional(path: Path) -> dict[str, Any]:
+    return _load(path) if path.is_file() else {}
+
+
+def _repetition(directory: str) -> int:
+    """Run directories are named ``r<repetition>-<run_id>``."""
+
+    head = directory.split("-", 1)[0]
+    return int(head[1:]) if head.startswith("r") and head[1:].isdigit() else 0
+
+
 def _configuration(data: dict[str, Any]) -> str:
     """Classify from recorded evidence only; ``LEGACY`` when the run recorded nothing to classify."""
 
@@ -55,16 +66,28 @@ def _configuration(data: dict[str, Any]) -> str:
     return "R2" if route_mode == "selective" else "R0"
 
 
-def _context_summary(data: dict[str, Any]) -> dict[str, Any]:
+def _context_summary(
+    data: dict[str, Any], record: dict[str, Any], run_environment: dict[str, Any]
+) -> dict[str, Any]:
     metrics = data.get("metrics") or {}
-    context = (metrics.get("extra") or {}).get("context") or {}
+    context = (metrics.get("extra") or {}).get("context") or (record.get("evidence") or {})
     environment = data.get("environment") or {}
-    resolved = environment.get("context_resolved") or {}
+    resolved = (
+        (environment.get("context_resolved") or {})
+        or (record.get("resolved") or {})
+        or (run_environment.get("context_resolved") or {})
+    )
     tasks = context.get("tasks") or []
     return {
-        "enabled": bool(context.get("enabled")),
-        "builder": context.get("builder"),
+        "enabled": bool(context.get("enabled")) or resolved.get("builder") is not None,
+        "builder": context.get("builder") or resolved.get("builder"),
         "builder_invocations": context.get("builder_invocations"),
+        "deep_evidence": (
+            "ARCHIVED (context.json)"
+            if record
+            else "MISSING: recorded before the runner persisted context.json; the run's own "
+            "run.json still proves which builder was resolved and invoked"
+        ),
         "prompt_builder_source": resolved.get("prompt_builder_source"),
         "policy": resolved.get("policy"),
         "renderer": resolved.get("renderer"),
@@ -104,8 +127,20 @@ def _context_summary(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _total_input(metrics: dict[str, Any]) -> int | None:
+    hit = metrics.get("cache_hit_tokens")
+    miss = metrics.get("cache_miss_tokens")
+    if hit is None or miss is None:
+        return None
+    return int(hit) + int(miss)
+
+
 def _summarise(result_path: Path) -> dict[str, Any]:
     data = _load(result_path)
+    # ``metrics.extra`` is not serialised into ``result.json``; the durable Context Plane artifact is
+    # ``context.json`` next to it (written by the runner since CORRECTED_EVAL_SHA).
+    record = _optional(result_path.parent / "context.json")
+    run_environment = (_optional(result_path.parent / "run.json") or {}).get("environment") or {}
     metrics = data.get("metrics") or {}
     oracle = data.get("oracle") or {}
     budget = metrics.get("budget") or {}
@@ -123,6 +158,7 @@ def _summarise(result_path: Path) -> dict[str, Any]:
         "classification": (
             "EXPLORATORY_LEGACY_PILOT" if configuration == "LEGACY" else "CORRECTED_EVAL"
         ),
+        "repetition": _repetition(result_path.parent.name),
         "mode": data.get("mode"),
         "runtime_sha": RUNTIME_SHA,
         "run_id": identity.get("run_id"),
@@ -138,7 +174,11 @@ def _summarise(result_path: Path) -> dict[str, Any]:
         "oracle_execution": oracle.get("execution_mode"),
         "worker_count": len(workers),
         "tool_calls": len(data.get("tool_calls") or []),
-        "prompt_tokens": metrics.get("cache_miss_tokens"),
+        # ``metrics.prompt_tokens`` is the provider's ``usage.prompt_tokens``. Its meaning is not
+        # stable across dates (it equals the miss count in the 2026-11-14 runs and hit+miss in the
+        # corrected runs), so the comparable fields are the hit/miss pair and their sum.
+        "prompt_tokens_uncached": metrics.get("prompt_tokens"),
+        "prompt_tokens_total": _total_input(metrics),
         "cache_hit_tokens": metrics.get("cache_hit_tokens"),
         "cache_miss_tokens": metrics.get("cache_miss_tokens"),
         "completion_tokens": metrics.get("completion_tokens"),
@@ -155,8 +195,47 @@ def _summarise(result_path: Path) -> dict[str, Any]:
         "config_digest": identity.get("config_digest"),
         "workspace_patch_digest": data.get("patch_digest"),
         "routing": (metrics.get("extra") or {}).get("routing"),
-        "context": _context_summary(data),
+        "context": _context_summary(data, record, run_environment),
     }
+
+
+def _router_replay() -> dict[str, Any]:
+    """Deterministic re-evaluation of the frozen router on the frozen proposal.
+
+    The router is a pure function of the proposal, the capability catalog and the policy, so the
+    decision can be reproduced exactly. This is labelled as a replay, not as a live record: the live
+    ``routing`` block was only persisted from CORRECTED_EVAL_SHA onwards.
+    """
+
+    from experiments.evaluation.final4 import runner_entry
+    from experiments.evaluation.stage_r0_routing import plan_route, routing_policy
+
+    from atlasos.workers import WorkerCatalog
+    from atlasos.workers.routing import capabilities_from_catalog
+
+    capabilities = capabilities_from_catalog(WorkerCatalog())
+    replay: dict[str, Any] = {}
+    for task_id in TASK_IDS:
+        task = next(task for task in runner_entry.VALIDATION_TASKS if task.task_id == task_id)
+        routed = plan_route(
+            runner_entry.build_task(task, multi=True), capabilities, routing_policy("r0.1.0")
+        )
+        replay[task_id] = {
+            "route": routed.decision.route.value,
+            "reason_codes": list(routed.decision.reason_codes),
+            "gates": [
+                {
+                    "gate": gate.gate,
+                    "status": gate.status.value,
+                    "reason_codes": list(gate.reason_codes),
+                }
+                for gate in routed.decision.gates
+            ],
+            "candidate_tasks": len(task.workers),
+            "executed_worker_count_if_live": 1 if routed.is_direct else len(task.workers),
+            "provenance": "DETERMINISTIC_REPLAY (pure function, same proposal and policy)",
+        }
+    return replay
 
 
 def main() -> int:
@@ -164,13 +243,19 @@ def main() -> int:
     rows = [_summarise(path) for path in sorted(RUNS_ROOT.rglob("result.json"))]
     corrected = [row for row in rows if row["classification"] == "CORRECTED_EVAL"]
     legacy = [row for row in rows if row["classification"] != "CORRECTED_EVAL"]
-    corrected.sort(key=lambda row: (str(row["task_id"]), str(row["configuration"])))
+    corrected.sort(
+        key=lambda row: (str(row["task_id"]), str(row["configuration"]), row["repetition"])
+    )
+    replications = [row for row in corrected if row["repetition"] > 0]
 
     planned: list[dict[str, Any]] = []
     for task_id in TASK_IDS:
         for configuration in CONFIGURATIONS:
             unit = f"{task_id}-{configuration}"
-            executed = next((row for row in corrected if row["unit"] == unit), None)
+            executed = next(
+                (row for row in corrected if row["unit"] == unit and row["repetition"] == 0),
+                None,
+            )
             if executed is not None:
                 planned.append(executed)
                 continue
@@ -200,9 +285,24 @@ def main() -> int:
         "dataset_version": "final4-validation-2",
         "config_file": "experiments/configs/final4-context.yaml",
         "x1_equivalence": "X1 == <task>-R1 (same unit, not a separate run)",
-        "executed": len(corrected),
+        "executed": len(planned) - sum(1 for row in planned if row["status"] != "EXECUTED"),
         "planned": len(planned),
+        "run_directories": len(corrected),
         "runs": planned,
+        "replications": [
+            {
+                "unit": row["unit"],
+                "repetition": row["repetition"],
+                "run_id": row["run_id"],
+                "oracle_pass": row["oracle_pass"],
+                "worker_count": row["worker_count"],
+                "budget_used_tokens": row["budget_used_tokens"],
+                "cost_usd": row["estimated_cost_usd"],
+                "context_builder": (row["context"] or {}).get("builder"),
+                "context_invocations": (row["context"] or {}).get("builder_invocations"),
+            }
+            for row in replications
+        ],
         "exploratory_legacy_pilot": [
             {
                 "unit": row["unit"],
@@ -242,9 +342,12 @@ def main() -> int:
             }
             for task_id in TASK_IDS
         ],
+        "router_replay": _router_replay(),
         "note": (
             "X1 is the Atlas Context Plane cell of the same candidate DAG, i.e. <task>-R1. "
-            "Router DIRECT/DELEGATE is reported from each R2 run's recorded routing block."
+            "The live R2 worker count (1) shows the router took DIRECT in every cell; the reason "
+            "codes come from the deterministic replay because the live routing block was not yet "
+            "persisted on this batch."
         ),
     }
     (OUT / "router_comparison_v2.json").write_text(

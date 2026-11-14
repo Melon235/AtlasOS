@@ -181,7 +181,7 @@ The three entry points are **not** the same composition, and a claim must name i
 
 | | Workflow (`atlas run --mode workflow`) | App coding (`--mode coding`) | Evaluation (`experiments.evaluation.cli`) |
 |---|---|---|---|
-| Context plane (selector + stable renderer) | **on** | not wired | not wired |
+| Context plane (selector + stable renderer) | **on** | opt-in (`context.policy="task_scoped"`) | opt-in (same switch); ran live 2026-11-14 |
 | Tool search + progressive disclosure | no tools at all | **on** | **on** |
 | Action gate + ledger | **off** | **on** | **on** |
 | Sandbox | none | **on** | **on** |
@@ -252,7 +252,7 @@ Five kinds of evidence, deliberately separated:
 | Historical microbenchmark | fixed tool catalog / context-scaling measurements, not end-to-end tasks | `experiments/results/` (M1, S6) |
 | Deterministic mechanism test | no model: control plane, ledger, suspension, sandbox, oracle isolation | `tests/`, `experiments/results/` |
 | Live model evaluation | real DeepSeek runs with an independent oracle | `docs/evaluation-summary.md` |
-| Current candidate regression | offline suite on this branch: 887 passed, 7 skipped, 1 deselected; ruff and pyright clean; 30 benchmark tasks load | `docs/final-1-5-repository-baseline.md` |
+| Current candidate regression | offline suite on this branch: 951 passed, 6 skipped; ruff, format and pyright clean; 30 benchmark tasks load | `docs/final-4-context-restoration-report.md` §G |
 | Final holdout evaluation | **pending** — not designed, not run | `docs/final-roadmap.md` |
 
 Selected historical results, each with its own conditions (never add these up — see
