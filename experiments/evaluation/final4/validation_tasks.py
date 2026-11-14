@@ -48,7 +48,11 @@ TASKS: tuple[Task, ...] = (
             "Two steps, strictly ordered. Step 1: implement `clean_rows` in `normalise.py` so that "
             "each row is stripped, lower-cased and empty rows are dropped. Step 2: implement "
             "`build_report` in `report.py`, which must consume `normalise.clean_rows` (do not "
-            "re-implement cleaning) and return `{row: count}` sorted by row name."
+            "re-implement cleaning) and return `{row: count}` sorted by row name. "
+            "Requirement: `report.py` must import `clean_rows` at module level as "
+            "`from normalise import clean_rows` and call that name, so that `report.clean_rows` can be "
+            "monkeypatched; a hidden test replaces `report.clean_rows` and expects `build_report` to "
+            "use the replacement."
         ),
         seed={
             "normalise.py": "def clean_rows(rows):\n    raise NotImplementedError\n",
