@@ -1,4 +1,11 @@
-# Placement Core Integration — Approval Request
+# Placement Core Integration — Approval Request (superseded)
+
+> **Superseded by the G0-R1 revision.** An independent review rejected Option A1 (reported-only) and
+> A2 (slot as agent), and required Option B to be redesigned. The design now under review is
+> **B′ — run-scoped slot + task-scoped execution instance**, in
+> `docs/placement-coding-integration-design.md`. This document is kept as the record of the first
+> proposal and its verified source findings; where it disagrees with the design document, the design
+> document governs.
 
 `PLACEMENT_CORE_INTEGRATION_APPROVAL_REQUIRED`
 

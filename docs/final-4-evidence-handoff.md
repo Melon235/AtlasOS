@@ -146,6 +146,23 @@ evaluator recomputes `sha256` of the observed `messages[0]` and compares the two
 unlinked. `task-output:w1` present at `call_index` 6–11, `count = 1` each, `duplicate = false`; the
 producer's calls (0–5) have no dependency probe because `w1` declares none.
 
+**Three qualifications the G0-R1 review added — the label is weaker than it reads:**
+
+1. `_request_linkage` returns `REQUEST_CONTENT_VERIFIED` if **any** request matches
+   (`runner.py:776`), so it cannot distinguish a fully linked run from a partially linked one. The
+   per-call table is the real evidence; the status string is not. A future revision must report
+   `matched / total` and refuse the label unless `matched == total` over the *consumer* requests.
+2. The dependency probe compares only the **first 120 characters** of a block
+   (`runner.py:309`), so "present" is evidence that the block's head reached the request, not that the
+   whole dependency content did. A block whose head is unique but whose tail is truncated would pass.
+3. The worker is identified by `sha256(system prompt)`, i.e. inferred from content, not from a trusted
+   execution identity. That is adequate today (one worker per task, distinct prompts) and inadequate
+   under slot sharing, where two tasks may share a profile and prompt.
+
+None of the three invalidates the recorded observation — the render digest matched 12/12 and the head
+of `task-output:w1` appeared exactly once in every consumer request — but the claim must be read as
+*"this render reached the adapter boundary and the dependency's head was in it, once"*.
+
 **What the 12/12 denominator is.** Requests, not runs: every adapter call of that single run, 6 from
 `w1` and 6 from `w2`.
 
@@ -159,6 +176,19 @@ task identity) is unchanged and is *not* used as a substitute.
 `environment.context_resolved` is used for them. Nothing was reconstructed.
 
 ---
+
+## 4b. Evidence debts (recorded, not fixed in G0-R1)
+
+| # | Debt | Consequence |
+|---|---|---|
+| D-1 | Early legacy token figures and the current inventory differ | the final report must reconcile per run id against the run's own `usage`, not against a summary line |
+| D-2 | `REQUEST_CONTENT_VERIFIED` fires on any match (`runner.py:776`) | partial linkage is indistinguishable from full; report the per-call table |
+| D-3 | Dependency probe uses the first 120 chars (`runner.py:309`) | not an independent proof of full dependency content |
+| D-4 | Worker inferred from prompt digest, not trusted execution identity | insufficient once two tasks share a slot profile/prompt |
+| D-5 | Native N0 still lacks the minimal neutral lifecycle composition (§3) | Track B stays blocked |
+
+None of these is a new research task in this round; they are recorded so they cannot be quietly
+upgraded into stronger claims later.
 
 ## 5. Still unverified
 
