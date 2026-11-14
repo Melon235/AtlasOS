@@ -48,13 +48,22 @@ def text_digest(text: str) -> str:
 
 @dataclass(frozen=True)
 class WorkerStep:
-    """One worker/task node in an evaluation workflow."""
+    """One worker/task node in an evaluation workflow.
+
+    ``prompt`` is the worker's own assignment and stays the router's input (``build_proposal`` reads
+    it for declared write paths). ``shared_context`` is the part of the public task statement every
+    worker of the sample receives identically: requirement, public interface contract, data
+    constraints and public acceptance. It is prepended to the model-visible task turn only, so a
+    multi-worker arm sees the same public facts as the single-worker arm without changing what the
+    router is given. Empty by default, which is byte-identical to the previous behaviour.
+    """
 
     task_id: str
     title: str
     prompt: str
     depends_on: tuple[str, ...] = ()
     max_turns: int | None = None
+    shared_context: str = ""
 
 
 @dataclass(frozen=True)

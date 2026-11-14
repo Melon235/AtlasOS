@@ -1,0 +1,60 @@
+# Final-4 corrected evaluation configuration.
+#
+# Identical to `eval-benchmark.yaml` for provider, pricing, sandbox and trajectory. The only
+# difference is the explicit `context:` block, which `eval-benchmark.yaml` does not have: without it
+# `AtlasConfig` resolves `context.policy="upstream_default"` and the evaluation runner builds no
+# Atlas task prompt builder at all.
+#
+# The block below is what `experiments/results/final4/pilot_manifest.json` *declared* for the
+# 2026-11-14 pilot. On that date the runner loaded `eval-benchmark.yaml`, so the declared value was
+# never the resolved value. See `docs/final-4-legacy-pilot-reclassification.md`.
+provider:
+  name: deepseek
+  model: deepseek-chat
+
+context:
+  # Selector + renderer are the shipped Stage-2 pair; the transform stays identity because the
+  # ContextPilot dedup transform produced no measurable cache-miss win (docs/evaluation-summary.md §7).
+  policy: task_scoped
+  renderer: stable_deterministic
+  transform:
+    name: identity
+
+# Frozen for the whole corrected matrix. Placement is analysed, not wired, on the evaluation path;
+# the key is written out so the resolved value is explicit rather than implied by a default.
+placement:
+  policy: bypass
+
+tools:
+  mode: progressive
+  search_backend: keyword
+  max_results: 5
+
+trajectory:
+  enabled: true
+  store_root: trajectory
+
+# DeepSeek Flash peak-rate snapshot (2026-11-06, USD per 1M tokens). The legacy model alias
+# `deepseek-chat` resolves to `deepseek-flash`. Off-peak rates are half; this is an upper bound.
+pricing:
+  provider: deepseek
+  cache_hit_input_per_million: 0.006
+  cache_miss_input_per_million: 0.3
+  output_per_million: 1.2
+  snapshot_date: 2026-11-06
+
+sandbox:
+  enabled: true
+  provider: opensandbox
+  endpoint: localhost:8080
+  protocol: http
+  image: atlas-uat-python:3.12
+  workspace_root: /workspace/project
+  network: none
+  max_bundle_bytes: 67108864
+  timeout_minutes: 20
+  ready_timeout_seconds: 240
+  cpu: "1"
+  memory: "1Gi"
+  use_server_proxy: true
+  retain_on_failure: false

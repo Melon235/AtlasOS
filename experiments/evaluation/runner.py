@@ -149,6 +149,17 @@ MCP_SERVER_DIR = REPO_ROOT / "experiments" / "evaluation" / "mcp_servers"
 #: Stage R1-2A verification modes. ``observe`` adds findings; it never feeds back into the run.
 VERIFICATION_MODES = ("off", "observe")
 
+#: Final-4: what a unit claims about the Atlas Context Plane. ``unspecified`` is the default so no
+#: existing caller changes behaviour; the other values are enforced before the first model call.
+CONTEXT_PLANE_UNSPECIFIED = "unspecified"
+CONTEXT_PLANE_TASK_SCOPED = "task_scoped"
+CONTEXT_PLANE_UPSTREAM = "upstream_default"
+CONTEXT_PLANE_EXPECTATIONS = (
+    CONTEXT_PLANE_UNSPECIFIED,
+    CONTEXT_PLANE_TASK_SCOPED,
+    CONTEXT_PLANE_UPSTREAM,
+)
+
 _SANDBOX_TOOLS = frozenset({"file_read", "file_write", "file_edit", "grep", "list_files", "bash"})
 _CONTROL_TOOLS = frozenset({"tool.search", "tool_search", "dispatch_action"})
 _EVAL_MCP_TOOLS = (
@@ -210,6 +221,10 @@ class RunnerSettings:
     delegation_route_mode: str = "off"
     #: Stage R0.5: which frozen routing policy the selective arm must use.
     delegation_policy_version: str = "r0.1.0"
+    #: Final-4: the Context Plane state this unit claims. The resolved configuration is compared to
+    #: the claim before any model request; a mismatch aborts the run instead of silently
+    #: falling back to ``upstream_default``.
+    context_plane_expectation: str = CONTEXT_PLANE_UNSPECIFIED
 
     def digest(self) -> str:
         return canonical_digest(
@@ -238,6 +253,7 @@ class RunnerSettings:
                 "oracle_mode": self.oracle_mode,
                 "delegation_route_mode": self.delegation_route_mode,
                 "delegation_policy_version": self.delegation_policy_version,
+                "context_plane_expectation": self.context_plane_expectation,
                 "config": _config_digest(self.config_path),
             }
         )
@@ -354,11 +370,13 @@ def _context_prompt_builder(
     title_by_id: dict[str, str],
     task_texts: dict[str, str],
     worker_by_task: dict[str, Any],
-) -> AtlasTaskPromptBuilder | None:
+) -> tuple[AtlasTaskPromptBuilder, InMemoryContextStore] | None:
     """Wire the existing Context Plane into a multi-worker coding DAG (opt-in via ``config``).
 
     ``context.policy="upstream_default"`` returns ``None`` and the handoff prompt builder keeps
-    today's behaviour. Nothing here schedules, calls a model, or stores anything new.
+    today's behaviour. Nothing here schedules, calls a model, or stores anything new. The store is
+    returned as well because it *is* the run's logical context: reading it afterwards is
+    observation, not a second implementation.
     """
 
     if config.context.policy != "task_scoped":
@@ -390,14 +408,201 @@ def _context_prompt_builder(
         )
         for step in task.workers
     }
-    return AtlasTaskPromptBuilder(
-        store=InMemoryContextStore(),
+    store = InMemoryContextStore()
+    builder = AtlasTaskPromptBuilder(
+        store=store,
         selector=TaskScopedSelector(),
         renderer=renderer,
         transform=transform,
         specs_by_title=specs,
         agents_by_name=agents,
     )
+    return builder, store
+
+
+def _task_turn(step: Any, *, steps: tuple[Any, ...], sample_id: str, mode: str) -> str:
+    """The model-visible task turn: shared public context, then the worker's own assignment."""
+
+    text = worker_task_text(step, steps=steps, sample_id=sample_id, mode=mode)
+    shared = getattr(step, "shared_context", "") or ""
+    return f"{shared}\n\n{text}" if shared else text
+
+
+def _contract_overhead_chars(step: Any, task_text: str) -> int:
+    """Characters the worker contract added, excluding the shared public context."""
+
+    shared = getattr(step, "shared_context", "") or ""
+    own_text = task_text[len(shared) :].lstrip("\n") if shared else task_text
+    return contract_overhead(step.prompt, own_text)
+
+
+def _normalized_expectation(value: str) -> str:
+    return value if value in CONTEXT_PLANE_EXPECTATIONS else CONTEXT_PLANE_UNSPECIFIED
+
+
+def _enforce_context_plane_config(
+    expectation: str, *, config: AtlasConfig, config_file: Path, handoff_mode: str
+) -> None:
+    """Pre-I/O guard: the resolved YAML already has to be able to satisfy the unit's claim.
+
+    Runs before a run directory, a sandbox or a provider exists, so a declared-but-unloaded Context
+    Plane can never again reach a model request.
+    """
+
+    if expectation == CONTEXT_PLANE_UNSPECIFIED:
+        return
+    problems: list[str] = []
+    if expectation == CONTEXT_PLANE_TASK_SCOPED:
+        if config.context.policy != CONTEXT_PLANE_TASK_SCOPED:
+            problems.append(f"context.policy={config.context.policy!r}")
+        if config.context.renderer != "stable_deterministic":
+            problems.append(f"context.renderer={config.context.renderer!r}")
+        if config.context.transform.name != "identity":
+            problems.append(f"context.transform={config.context.transform.name!r}")
+        if handoff_mode == "dual":
+            problems.append("handoff_mode='dual' (both project dependency outputs)")
+    elif config.context.policy != CONTEXT_PLANE_UPSTREAM:
+        problems.append(f"context.policy={config.context.policy!r}")
+    elif config.context.renderer != CONTEXT_PLANE_UPSTREAM:
+        problems.append(f"context.renderer={config.context.renderer!r}")
+    if problems:
+        raise EvaluationEnvironmentError(
+            "evaluation configuration error: this unit declares context plane "
+            f"{expectation!r} but {config_file.name} resolves {', '.join(problems)}. "
+            "Refusing to run: the declared mechanism would not execute."
+        )
+
+
+def _enforce_context_plane(expectation: str, resolved: dict[str, Any]) -> None:
+    """Fail closed when the resolved Context Plane contradicts the unit's claim.
+
+    This is an evaluation-entry constraint, not a change to the runtime default: a unit that
+    declares ``task_scoped`` must actually reach ``AtlasTaskPromptBuilder``, and a unit that
+    declares ``upstream_default`` must not. A silent fallback is exactly the defect this guards.
+    """
+
+    builder = resolved.get("builder")
+    policy = resolved.get("policy")
+    if expectation == CONTEXT_PLANE_TASK_SCOPED:
+        if builder is None or policy != CONTEXT_PLANE_TASK_SCOPED:
+            raise EvaluationEnvironmentError(
+                "evaluation configuration error: this unit declares "
+                f"context.policy={CONTEXT_PLANE_TASK_SCOPED!r} but resolved policy={policy!r} "
+                f"with builder={builder!r} from {resolved.get('config_path')!r}. "
+                "The Atlas Context Plane would not run; refusing to call the model."
+            )
+        if resolved.get("handoff_mode") != "legacy":
+            raise EvaluationEnvironmentError(
+                "evaluation configuration error: task_scoped context projection and "
+                f"handoff_mode={resolved.get('handoff_mode')!r} both project dependency outputs "
+                "into the task prompt; enable exactly one"
+            )
+    elif expectation == CONTEXT_PLANE_UPSTREAM and builder is not None:
+        raise EvaluationEnvironmentError(
+            "evaluation configuration error: this unit declares upstream_default context but "
+            f"resolved a {builder!r} builder from {resolved.get('config_path')!r}"
+        )
+
+
+def _context_evidence(
+    *,
+    builder: AtlasTaskPromptBuilder,
+    store: InMemoryContextStore,
+    task: Any,
+    task_texts: dict[str, str],
+    observations: list[InferenceObservation],
+) -> dict[str, Any]:
+    """Read-only evidence for every task-prompt render the run performed.
+
+    ``task_prompt_hash`` is the renderer's hash of the user turn it produced.
+    ``provider_request_hash`` is the adapter's hash of the messages it actually sent. They are
+    different functions over different objects and are never reported as one value.
+    """
+
+    blocks = {block.block_id: block for block in store.all_blocks()}
+    dependencies = {step.task_id: tuple(step.depends_on) for step in task.workers}
+    per_task: list[dict[str, Any]] = []
+    for task_id in sorted(builder.renders()):
+        render = builder.last(task_id)
+        if render is None:  # pragma: no cover - renders() and last() share one mapping
+            continue
+        declared = dependencies.get(task_id, ())
+        dependency_facts: list[dict[str, Any]] = []
+        for dependency in declared:
+            block = blocks.get(f"task-output:{dependency}")
+            content = block.content if block is not None else ""
+            occurrences = render.prompt.count(content) if content else 0
+            dependency_facts.append(
+                {
+                    "task_id": dependency,
+                    "store_block_id": block.block_id if block is not None else None,
+                    "block_version": block.version if block is not None else None,
+                    "block_chars": len(content),
+                    "in_rendered_prompt": occurrences > 0,
+                    "injection_count": occurrences,
+                    "duplicate_injection": occurrences > 1,
+                }
+            )
+        per_task.append(
+            {
+                "task_id": task_id,
+                "declared_dependencies": list(declared),
+                "builder_invoked": True,
+                "rendered_dependency_order": list(render.rendered_dependency_order),
+                "dependency_completion_order": list(render.dependency_completion_order),
+                "selected_block_ids": [
+                    f"task-output:{dependency}" for dependency in render.rendered_dependency_order
+                ],
+                "selected_block_versions": [
+                    blocks[f"task-output:{dependency}"].version
+                    for dependency in render.rendered_dependency_order
+                    if f"task-output:{dependency}" in blocks
+                ],
+                "store_block_count": len(blocks),
+                "transform_name": render.transform_name,
+                "deduplicated": render.deduplicated,
+                "context_layout_hash": render.context_layout_hash,
+                "pre_transform_layout_hash": render.pre_transform_layout_hash,
+                "stable_prefix_hash": render.stable_prefix_hash,
+                "task_prompt_hash": render.full_prompt_hash,
+                "task_prompt_chars": len(render.prompt),
+                "task_text_chars": len(task_texts.get(task_id, "")),
+                "dependencies": dependency_facts,
+            }
+        )
+    return {
+        "enabled": True,
+        "builder": type(builder).__name__,
+        "store": type(store).__name__,
+        "store_block_ids": sorted(blocks),
+        "builder_invocations": len(per_task),
+        "tasks": per_task,
+        "provider_requests": [
+            {
+                "request_index": index,
+                "full_prompt_hash": observation.full_prompt_hash,
+                "stable_prefix_hash": observation.stable_prefix_hash,
+                "prompt_tokens": observation.usage.prompt_tokens,
+                "cache_hit_tokens": observation.usage.cache_hit_tokens,
+                "cache_miss_tokens": observation.usage.cache_miss_tokens,
+                "completion_tokens": observation.usage.completion_tokens,
+            }
+            for index, observation in enumerate(observations)
+        ],
+        "correlation": {
+            "task_prompt_hash_vs_provider_request_hash": (
+                "DIFFERENT_FUNCTIONS; never compare or substitute one for the other"
+            ),
+            "per_request_task_attribution": (
+                "UNAVAILABLE: the provider adapter carries no task identity "
+                "(see _provider_call_records)"
+            ),
+            "dependency_delivery_basis": (
+                "the builder's return value is the AnyCode task prompt; dependency presence is "
+                "verified in that string, and the provider-side hash is recorded separately"
+            ),
+        },
+    }
 
 
 def _project_config(config: AtlasConfig) -> SandboxProjectConfig:
@@ -686,6 +891,14 @@ async def run_sample(
     load_dotenv(REPO_ROOT / ".env", override=False)
     config_file = Path(config_path or settings.config_path)
     config = load_config(config_file)
+    # Fail closed before any I/O: a unit that declares a Context Plane must load a configuration
+    # that actually enables it. This is an evaluation-entry constraint, not a runtime default.
+    _enforce_context_plane_config(
+        _normalized_expectation(settings.context_plane_expectation),
+        config=config,
+        config_file=config_file,
+        handoff_mode=settings.handoff_mode,
+    )
     model = settings.model_override or config.provider.model
     started_at = datetime.now(UTC)
     started = time.perf_counter()
@@ -781,6 +994,9 @@ async def run_sample(
     failure_class: FailureClass | None = None
     failure_reason: str | None = None
     task_texts: dict[str, str] = {}
+    #: Bound before the ``try`` so a failure before prompt construction still records evidence.
+    context_builder: AtlasTaskPromptBuilder | None = None
+    context_store: InMemoryContextStore | None = None
     contract_mode = WORKER_CONTRACT_LEGACY
     contract_overhead_chars = 0
     routing_record: dict[str, Any] | None = None
@@ -1070,13 +1286,13 @@ async def run_sample(
             else WORKER_CONTRACT_LEGACY
         )
         task_texts = {
-            step.task_id: worker_task_text(
+            step.task_id: _task_turn(
                 step, steps=task.workers, sample_id=task.sample_id, mode=contract_mode
             )
             for step in task.workers
         }
         contract_overhead_chars = sum(
-            contract_overhead(step.prompt, task_texts[step.task_id]) for step in task.workers
+            _contract_overhead_chars(step, task_texts[step.task_id]) for step in task.workers
         )
         task_specs = [
             TaskSpec(
@@ -1087,18 +1303,43 @@ async def run_sample(
             )
             for step in task.workers
         ]
-        context_builder = _context_prompt_builder(
+        context_plane = _context_prompt_builder(
             config=config,
             task=task,
             title_by_id=title_by_id,
             task_texts=task_texts,
             worker_by_task=worker_by_task,
         )
+        context_builder, context_store = (
+            context_plane if context_plane is not None else (None, None)
+        )
         if context_builder is not None and settings.handoff_mode == "dual":
             raise EvaluationEnvironmentError(
                 "context.policy='task_scoped' and handoff_mode='dual' both project dependency "
                 "outputs into the task prompt; enable exactly one of them"
             )
+        expectation = _normalized_expectation(settings.context_plane_expectation)
+        resolved_context = {
+            "config_path": str(config_file),
+            "policy": config.context.policy,
+            "renderer": config.context.renderer,
+            "transform": config.context.transform.name,
+            "placement_policy": config.placement.policy,
+            "handoff_mode": settings.handoff_mode,
+            "budget_mode": settings.budget_mode,
+            "token_budget": settings.token_budget,
+            "tool_error_mode": settings.tool_error_mode,
+            "worker_contract_mode": settings.worker_contract_mode,
+            "worker_count": len(task.workers),
+            "worker_ids": [worker_by_task[step.task_id].worker_name for step in task.workers],
+            "builder": None if context_builder is None else type(context_builder).__name__,
+            "prompt_builder_source": (
+                "atlas_context_plane" if context_builder is not None else "handoff_legacy"
+            ),
+            "expectation": expectation,
+        }
+        environment["context_resolved"] = resolved_context
+        _enforce_context_plane(expectation, resolved_context)
         engine = AtlasContextEngine(
             OrchestratorConfig(on_progress=on_progress),
             tool_runtime=runtime,
@@ -1133,13 +1374,13 @@ async def run_sample(
             else WORKER_CONTRACT_LEGACY
         )
         task_texts = {
-            step.task_id: worker_task_text(
+            step.task_id: _task_turn(
                 step, steps=task.workers, sample_id=task.sample_id, mode=contract_mode
             )
             for step in task.workers
         }
         contract_overhead_chars = sum(
-            contract_overhead(step.prompt, task_texts[step.task_id]) for step in task.workers
+            _contract_overhead_chars(step, task_texts[step.task_id]) for step in task.workers
         )
         agent_started = time.perf_counter()
         result = await asyncio.wait_for(
@@ -1290,13 +1531,30 @@ async def run_sample(
                 {
                     "task_id": step.task_id,
                     "task_text_chars": len(task_texts.get(step.task_id, step.prompt)),
-                    "overhead_chars": contract_overhead(
-                        step.prompt, task_texts.get(step.task_id, step.prompt)
+                    "shared_context_chars": len(getattr(step, "shared_context", "") or ""),
+                    "overhead_chars": _contract_overhead_chars(
+                        step, task_texts.get(step.task_id, step.prompt)
                     ),
                 }
                 for step in task.workers
             ],
         }
+        # Final-4: read-only evidence that the Context Plane really built each task prompt.
+        if context_builder is not None and context_store is not None:
+            metrics.extra["context"] = _context_evidence(
+                builder=context_builder,
+                store=context_store,
+                task=task,
+                task_texts=task_texts,
+                observations=observations,
+            )
+        else:
+            metrics.extra["context"] = {
+                "enabled": False,
+                "prompt_builder_source": "handoff_legacy",
+                "builder": None,
+                "builder_invocations": 0,
+            }
         call_records = _provider_call_records(
             observations, run_id=run_id, model=model, pricing=config.pricing
         )

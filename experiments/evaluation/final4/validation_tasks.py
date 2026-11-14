@@ -3,9 +3,26 @@
 
 Tasks are authored for this stage (not reused from the development benchmark, not from the holdout).
 Each has: an initial workspace, a public requirement, public tests, a hidden oracle, a candidate DAG,
-and computed digests. ``python -m experiments.evaluation.final4.validation_tasks`` writes
-``experiments/results/final4/validation_tasks.json`` and ``pilot_manifest.json`` after checking that
-every oracle fails on the seed and passes on the reference solution.
+and computed digests.
+
+Revision 2 (2026-11-14) adds the missing half of the task definition. In revision 1 each worker step
+carried one sentence ("implement clean_rows"), so a multi-worker arm knew strictly less than the
+single-worker arm that received the whole requirement. Revision 2 splits every task into:
+
+* ``shared_context`` — the public requirement, the public interface contract, the data constraints and
+  the public acceptance. Every worker of the sample receives it verbatim, including the single-worker
+  arm.
+* ``workers[i]["assignment"]`` — that worker's own objective, owned module and step-level definition
+  of done. It is the text the router reads for declared write paths, so it names only the files that
+  worker owns, and the write sets stay disjoint.
+* dependency outputs — never authored here. They are produced by the run and projected by whichever
+  prompt builder the arm configures (``handoff`` legacy, or the Atlas Context Plane).
+
+Revision 1 files (``validation_tasks.json`` / ``pilot_manifest.json``) are left untouched; revision 2
+writes ``validation_tasks_v2.json`` / ``pilot_manifest_v2.json`` and records the digests it supersedes.
+
+``python -m experiments.evaluation.final4.validation_tasks`` regenerates both revision-2 files after
+checking that every oracle fails on the seed and passes on the reference solution.
 """
 
 from __future__ import annotations
@@ -20,6 +37,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parents[2] / "results" / "final4"
+REVISION = 2
+TASK_SET_ID = "final4-validation"
+DATASET_VERSION = "final4-validation-2"
+
+SHARED_HEADER = "[SHARED TASK CONTEXT — identical for every worker on this task]"
+ASSIGNMENT_HEADER = "[YOUR ASSIGNMENT — worker {task_id}]"
 
 
 @dataclass(frozen=True)
@@ -33,6 +56,9 @@ class Task:
     oracle_tests: dict[str, str]
     workers: tuple[dict[str, object], ...] = field(default_factory=tuple)
     notes: str = ""
+    interface: str = ""
+    constraints: str = ""
+    shared_context: str = ""
 
 
 def _digest(files: dict[str, str]) -> str:
@@ -40,20 +66,112 @@ def _digest(files: dict[str, str]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _text_digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _shared(requirement: str, interface: str, constraints: str) -> str:
+    """Render the block every worker of a task receives, in one fixed shape."""
+
+    return "\n".join(
+        [
+            SHARED_HEADER,
+            "",
+            "PUBLIC REQUIREMENT",
+            requirement,
+            "",
+            "PUBLIC INTERFACE CONTRACT",
+            interface,
+            "",
+            "DATA CONSTRAINTS",
+            constraints,
+            "",
+            "PUBLIC ACCEPTANCE",
+            "- `test_public.py` is present in the project and must pass; run it with "
+            "`python -m pytest -q test_public.py`.",
+            "- Do not edit `test_public.py`. Hidden tests exist and are not visible; they check the "
+            "same contract more strictly.",
+            "",
+            "WORKSPACE RULES",
+            "- The project is at `/workspace/project`. Read any project file you need.",
+            "- Do not search hidden tests, scoring output, evaluation artifacts, Git history or any "
+            "other location for a reference implementation. They are not part of this task.",
+            "- Report the files you changed, the checks you ran, and their real result.",
+        ]
+    )
+
+
+SERIAL_REQUIREMENT = (
+    "Two steps, strictly ordered. Step 1: implement `clean_rows` in `normalise.py` so that each row "
+    "is stripped, lower-cased and empty rows are dropped. Step 2: implement `build_report` in "
+    "`report.py`, which must consume `normalise.clean_rows` (do not re-implement cleaning) and "
+    "return `{row: count}` sorted by row name. Requirement: `report.py` must import `clean_rows` at "
+    "module level as `from normalise import clean_rows` and call that name, so that "
+    "`report.clean_rows` can be monkeypatched; a hidden test replaces `report.clean_rows` and expects "
+    "`build_report` to use the replacement."
+)
+SERIAL_INTERFACE = (
+    "- `normalise.clean_rows(rows: list[str]) -> list[str]`\n"
+    "- `report.build_report(rows: list[str]) -> dict[str, int]`\n"
+    "- `report.clean_rows` is a module-level name bound by `from normalise import clean_rows`; "
+    "`build_report` must call that name, not `normalise.clean_rows`."
+)
+SERIAL_CONSTRAINTS = (
+    "- Rows are plain strings; input order matters for nothing except stability of the result.\n"
+    "- `clean_rows(['  X ', 'y'])` returns `['x', 'y']`; `clean_rows(['   ', ''])` returns `[]`.\n"
+    "- `build_report` returns counts sorted by row name: "
+    "`list(build_report(['b', 'A', 'a']).items()) == [('a', 2), ('b', 1)]`.\n"
+    "- Trimming and lower-casing are `clean_rows`' responsibility only."
+)
+SERIAL_SHARED = _shared(SERIAL_REQUIREMENT, SERIAL_INTERFACE, SERIAL_CONSTRAINTS)
+
+PARALLEL_REQUIREMENT = (
+    "Two independent modules and one integration step. `tokens.py` must provide "
+    "`tokenise(text) -> list[str]` (split on whitespace, lower-case, drop punctuation-only "
+    "tokens). `stats.py` must provide `count(tokens) -> dict[str, int]`. `app.py` must provide "
+    "`summarise(text)` combining both. The two modules have no dependency on each other."
+)
+PARALLEL_INTERFACE = (
+    "- `tokens.tokenise(text: str) -> list[str]`\n"
+    "- `stats.count(tokens: list[str]) -> dict[str, int]`\n"
+    "- `app.summarise(text: str) -> dict[str, int]`, equal to `count(tokenise(text))`"
+)
+PARALLEL_CONSTRAINTS = (
+    "- `tokenise('Hi, hi!')` returns `['hi', 'hi']`; punctuation-only tokens are dropped.\n"
+    "- `tokenise('... ok -- ok')` returns `['ok', 'ok']`.\n"
+    "- `count(['a', 'a'])` returns `{'a': 2}`; `summarise('')` returns `{}`.\n"
+    "- `tokens.py` and `stats.py` must not import each other."
+)
+PARALLEL_SHARED = _shared(PARALLEL_REQUIREMENT, PARALLEL_INTERFACE, PARALLEL_CONSTRAINTS)
+
+COUPLED_REQUIREMENT = (
+    "One shared state machine in `state.py` (`STATES`, `transition(state, event)`) used by "
+    "`approve.py` (`approve(state)`) and `ship.py` (`ship(state)`). Both callers must go through "
+    "`transition`; adding an event in one caller without extending `STATES` must fail. Changing "
+    "the machine and its two callers together is the whole task."
+)
+COUPLED_INTERFACE = (
+    "- `state.STATES: dict[str, dict[str, str]]` maps a state to its legal `{event: next_state}`\n"
+    "- `state.transition(state: str, event: str) -> str`, raising `ValueError` for an unknown "
+    "state or an illegal event\n"
+    "- `approve.approve(state: str) -> str` calls `transition(state, 'approve')`\n"
+    "- `ship.ship(state: str) -> str` calls `transition(state, 'ship')`"
+)
+COUPLED_CONSTRAINTS = (
+    "- Legal transitions: `draft --approve--> approved`, `approved --ship--> shipped`; `shipped` is "
+    "terminal.\n"
+    "- `approve('draft') == 'approved'`; `ship('approved') == 'shipped'`.\n"
+    "- `ship('draft')`, `approve('nowhere')` and `approve('shipped')` must all raise `ValueError`.\n"
+    "- Callers must not hard-code transitions that `STATES` does not contain."
+)
+COUPLED_SHARED = _shared(COUPLED_REQUIREMENT, COUPLED_INTERFACE, COUPLED_CONSTRAINTS)
+
 TASKS: tuple[Task, ...] = (
     Task(
         task_id="validation-serial",
         family="S",
-        prompt=(
-            "Two steps, strictly ordered. Step 1: implement `clean_rows` in `normalise.py` so that "
-            "each row is stripped, lower-cased and empty rows are dropped. Step 2: implement "
-            "`build_report` in `report.py`, which must consume `normalise.clean_rows` (do not "
-            "re-implement cleaning) and return `{row: count}` sorted by row name. "
-            "Requirement: `report.py` must import `clean_rows` at module level as "
-            "`from normalise import clean_rows` and call that name, so that `report.clean_rows` can be "
-            "monkeypatched; a hidden test replaces `report.clean_rows` and expects `build_report` to "
-            "use the replacement."
-        ),
+        prompt=SERIAL_REQUIREMENT,
+        shared_context=SERIAL_SHARED,
         seed={
             "normalise.py": "def clean_rows(rows):\n    raise NotImplementedError\n",
             "report.py": (
@@ -100,24 +218,57 @@ TASKS: tuple[Task, ...] = (
             )
         },
         workers=(
-            {"task_id": "w1", "depends_on": (), "objective": "implement clean_rows"},
+            {
+                "task_id": "w1",
+                "depends_on": (),
+                "objective": "implement clean_rows",
+                "owned_paths": ("normalise.py",),
+                "assignment": (
+                    "[YOUR ASSIGNMENT — worker w1]\n"
+                    "You own step 1 of 2: the row cleaning function.\n\n"
+                    "OBJECTIVE: Implement `clean_rows(rows)` in `normalise.py` so that each row is "
+                    "stripped, lower-cased, and rows that are empty after stripping are dropped.\n\n"
+                    "OWNED MODULE: `normalise.py` — you are the only worker who may create or modify "
+                    "it. `report.py` belongs to the other worker: read it if you need to, but do not "
+                    "edit it.\n\n"
+                    "DEPENDENCIES: none. Your output is the dependency of step 2.\n\n"
+                    "DEFINITION OF DONE: `normalise.clean_rows` is implemented (no "
+                    "`NotImplementedError` left), `python -m pytest -q test_public.py` passes for "
+                    "`test_clean`, and you report what you ran and what it printed."
+                ),
+            },
             {
                 "task_id": "w2",
                 "depends_on": ("w1",),
                 "objective": "implement build_report on top of it",
+                "owned_paths": ("report.py",),
+                "assignment": (
+                    "[YOUR ASSIGNMENT — worker w2]\n"
+                    "You own step 2 of 2: the report builder that consumes step 1.\n\n"
+                    "OBJECTIVE: Implement `build_report(rows)` in `report.py`. It must return "
+                    "`{row: count}` sorted by row name and must call the module-level name "
+                    "`clean_rows` (bound by `from normalise import clean_rows`) rather than "
+                    "re-implementing cleaning.\n\n"
+                    "OWNED MODULE: `report.py` — you are the only worker who may create or modify "
+                    "it. `normalise.py` belongs to the other worker: read it, do not edit it.\n\n"
+                    "DEPENDENCIES: step 1 (`w1`) writes `normalise.py`. Its actual result is provided "
+                    "to you in this prompt when available; if it is absent or still unimplemented, "
+                    "implement against the published interface and say so in your report.\n\n"
+                    "DEFINITION OF DONE: `build_report` is implemented (no `NotImplementedError` "
+                    "left), `python -m pytest -q test_public.py` passes for `test_report`, and the "
+                    "module-level `clean_rows` name is the one your function calls."
+                ),
             },
         ),
         notes="serial dependency: w2 needs w1's output",
+        interface=SERIAL_INTERFACE,
+        constraints=SERIAL_CONSTRAINTS,
     ),
     Task(
         task_id="validation-parallel",
         family="P",
-        prompt=(
-            "Two independent modules and one integration step. `tokens.py` must provide "
-            "`tokenise(text) -> list[str]` (split on whitespace, lower-case, drop punctuation-only "
-            "tokens). `stats.py` must provide `count(tokens) -> dict[str, int]`. `app.py` must provide "
-            "`summarise(text)` combining both. The two modules have no dependency on each other."
-        ),
+        prompt=PARALLEL_REQUIREMENT,
+        shared_context=PARALLEL_SHARED,
         seed={
             "tokens.py": "def tokenise(text):\n    raise NotImplementedError\n",
             "stats.py": "def count(tokens):\n    raise NotImplementedError\n",
@@ -169,21 +320,74 @@ TASKS: tuple[Task, ...] = (
             )
         },
         workers=(
-            {"task_id": "w1", "depends_on": (), "objective": "implement tokens.tokenise"},
-            {"task_id": "w2", "depends_on": (), "objective": "implement stats.count"},
-            {"task_id": "w3", "depends_on": ("w1", "w2"), "objective": "wire app.summarise"},
+            {
+                "task_id": "w1",
+                "depends_on": (),
+                "objective": "implement tokens.tokenise",
+                "owned_paths": ("tokens.py",),
+                "assignment": (
+                    "[YOUR ASSIGNMENT — worker w1]\n"
+                    "You own one of the two independent modules.\n\n"
+                    "OBJECTIVE: Implement `tokenise(text)` in `tokens.py`: split on whitespace, "
+                    "lower-case every token, and drop tokens that contain no alphanumeric character.\n\n"
+                    "OWNED MODULE: `tokens.py`. `stats.py` and `app.py` belong to the other workers: "
+                    "read them if you need to, do not edit them.\n\n"
+                    "DEPENDENCIES: none. Nothing you write blocks the other module; `app.py` "
+                    "integration depends on both.\n\n"
+                    "DEFINITION OF DONE: `tokenise` is implemented (no `NotImplementedError` left), "
+                    "`python -m pytest -q test_public.py` passes for `test_tokenise`, and you report "
+                    "what you ran and what it printed."
+                ),
+            },
+            {
+                "task_id": "w2",
+                "depends_on": (),
+                "objective": "implement stats.count",
+                "owned_paths": ("stats.py",),
+                "assignment": (
+                    "[YOUR ASSIGNMENT — worker w2]\n"
+                    "You own one of the two independent modules.\n\n"
+                    "OBJECTIVE: Implement `count(tokens)` in `stats.py`: return a dictionary mapping "
+                    "each token to its number of occurrences.\n\n"
+                    "OWNED MODULE: `stats.py`. `tokens.py` and `app.py` belong to the other workers: "
+                    "read them if you need to, do not edit them.\n\n"
+                    "DEPENDENCIES: none. Nothing you write blocks the other module; `app.py` "
+                    "integration depends on both.\n\n"
+                    "DEFINITION OF DONE: `count` is implemented (no `NotImplementedError` left), "
+                    "`python -m pytest -q test_public.py` passes for `test_count`, and you report "
+                    "what you ran and what it printed."
+                ),
+            },
+            {
+                "task_id": "w3",
+                "depends_on": ("w1", "w2"),
+                "objective": "wire app.summarise",
+                "owned_paths": ("app.py",),
+                "assignment": (
+                    "[YOUR ASSIGNMENT — worker w3]\n"
+                    "You own the integration step; the two modules are independent of each other.\n\n"
+                    "OBJECTIVE: Implement `summarise(text)` in `app.py` so that it returns "
+                    "`count(tokenise(text))`, using the names already imported at module level.\n\n"
+                    "OWNED MODULE: `app.py`. `tokens.py` and `stats.py` belong to the other workers: "
+                    "read them, do not edit them.\n\n"
+                    "DEPENDENCIES: steps `w1` and `w2`. Their actual results are provided to you in "
+                    "this prompt when available; if a module is still unimplemented, wire against "
+                    "the published interface and say so in your report.\n\n"
+                    "DEFINITION OF DONE: `summarise` is implemented (no `NotImplementedError` left), "
+                    "`python -m pytest -q test_public.py` passes for `test_summarise`, and you report "
+                    "what you ran and what it printed."
+                ),
+            },
         ),
         notes="naturally parallel: w1 and w2 are independent, w3 integrates",
+        interface=PARALLEL_INTERFACE,
+        constraints=PARALLEL_CONSTRAINTS,
     ),
     Task(
         task_id="validation-coupled",
         family="C",
-        prompt=(
-            "One shared state machine in `state.py` (`STATES`, `transition(state, event)`) used by "
-            "`approve.py` (`approve(state)`) and `ship.py` (`ship(state)`). Both callers must go "
-            "through `transition`; adding an event in one caller without extending `STATES` must fail. "
-            "Changing the machine and its two callers together is the whole task."
-        ),
+        prompt=COUPLED_REQUIREMENT,
+        shared_context=COUPLED_SHARED,
         seed={
             "state.py": (
                 "STATES = {}\n\n\ndef transition(state, event):\n    raise NotImplementedError\n"
@@ -232,14 +436,54 @@ TASKS: tuple[Task, ...] = (
             )
         },
         workers=(
-            {"task_id": "w1", "depends_on": (), "objective": "extend STATES + transition"},
+            {
+                "task_id": "w1",
+                "depends_on": (),
+                "objective": "extend STATES + transition",
+                "owned_paths": ("state.py",),
+                "assignment": (
+                    "[YOUR ASSIGNMENT — worker w1]\n"
+                    "You own the shared contract that both callers depend on.\n\n"
+                    "OBJECTIVE: Implement `STATES` in `state.py` so it encodes the three states and "
+                    "the two legal transitions, and implement `transition(state, event)` to return "
+                    "the next state and raise `ValueError` for an unknown state or an illegal "
+                    "event.\n\n"
+                    "OWNED MODULE: `state.py` — you are the only worker who may create or modify it. "
+                    "`approve.py` and `ship.py` belong to the other worker: read them, do not edit "
+                    "them.\n\n"
+                    "DEPENDENCIES: none. The other worker's callers are written against the contract "
+                    "you publish here, so keep the shapes exactly as the shared contract states.\n\n"
+                    "DEFINITION OF DONE: no `NotImplementedError` is left in `state.py`, every "
+                    "declared transition is reachable through `transition`, and you report what you "
+                    "ran and what it printed."
+                ),
+            },
             {
                 "task_id": "w2",
                 "depends_on": ("w1",),
                 "objective": "wire approve/ship to the machine",
+                "owned_paths": ("approve.py", "ship.py"),
+                "assignment": (
+                    "[YOUR ASSIGNMENT — worker w2]\n"
+                    "You own the two callers of the shared state machine.\n\n"
+                    "OBJECTIVE: Implement `approve(state)` in `approve.py` and `ship(state)` in "
+                    "`ship.py` so both delegate to `transition` with their own event name, and let "
+                    "`ValueError` propagate unchanged.\n\n"
+                    "OWNED MODULES: `approve.py` and `ship.py` — you are the only worker who may "
+                    "create or modify them. `state.py` belongs to the other worker: read it, do not "
+                    "edit it.\n\n"
+                    "DEPENDENCIES: step `w1` writes `state.py`. Its actual result is provided to you "
+                    "in this prompt when available; if `STATES` is still empty, implement against the "
+                    "published contract and say so in your report.\n\n"
+                    "DEFINITION OF DONE: no `NotImplementedError` is left in either caller, "
+                    "`python -m pytest -q test_public.py` passes, and no caller hard-codes a "
+                    "transition that `STATES` does not contain."
+                ),
             },
         ),
         notes="strongly coupled: both callers share one write surface (state.py contract)",
+        interface=COUPLED_INTERFACE,
+        constraints=COUPLED_CONSTRAINTS,
     ),
 )
 
@@ -285,21 +529,29 @@ def _oracle_feasibility(task: Task) -> dict[str, object]:
     }
 
 
-def _task_record(task: Task) -> dict[str, object]:
-    plan = [
+def _plan(task: Task) -> list[dict[str, object]]:
+    return [
         {
             "task_id": worker["task_id"],
             "depends_on": list(worker["depends_on"]),  # type: ignore[arg-type]
             "objective": worker["objective"],
+            "owned_paths": list(worker["owned_paths"]),  # type: ignore[arg-type]
+            "assignment_digest": _text_digest(str(worker["assignment"])),
         }
         for worker in task.workers
     ]
+
+
+def _task_record(task: Task) -> dict[str, object]:
+    plan = _plan(task)
     return {
         "task_id": task.task_id,
         "family": task.family,
         "source": "authored-for-final4",
         "prior_exposure": "none (not used in development, not a holdout task)",
         "prompt": task.prompt,
+        "shared_context": task.shared_context,
+        "shared_context_digest": _text_digest(task.shared_context),
         "initial_workspace_digest": _digest(task.seed),
         "oracle_digest": _digest(task.oracle_tests),
         "public_tests_digest": _digest(task.public_tests),
@@ -313,10 +565,42 @@ def _task_record(task: Task) -> dict[str, object]:
     }
 
 
-def _manifest(records: list[dict[str, object]]) -> dict[str, object]:
+def _previous_records() -> dict[str, dict[str, object]]:
+    """Revision-1 digests, so the corrected task set records what it supersedes."""
+
+    path = OUT / "validation_tasks.json"
+    if not path.is_file():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return {record["task_id"]: record for record in payload.get("tasks", [])}
+
+
+def _supersedes(records: list[dict[str, object]]) -> dict[str, object]:
+    previous = _previous_records()
+    entries: dict[str, object] = {}
+    for record in records:
+        old = previous.get(str(record["task_id"]))
+        if old is None:
+            continue
+        entries[str(record["task_id"])] = {
+            "file": "experiments/results/final4/validation_tasks.json",
+            "candidate_plan_digest": old.get("candidate_plan_digest"),
+            "initial_workspace_digest": old.get("initial_workspace_digest"),
+            "oracle_digest": old.get("oracle_digest"),
+            "public_tests_digest": old.get("public_tests_digest"),
+            "solution_digest": old.get("solution_digest"),
+        }
+    return entries
+
+
+def _manifest(records: list[dict[str, object]], supersedes: dict[str, object]) -> dict[str, object]:
     return {
         "generated_at": datetime.now(UTC).isoformat(),
+        "revision": REVISION,
+        "dataset_version": DATASET_VERSION,
         "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+        "classification": "CORRECTED_EVAL_TASK_SET",
+        "supersedes": supersedes,
         "model": {"provider": "deepseek", "requested": "deepseek-chat", "temperature": 0.0},
         "sandbox": {
             "provider": "opensandbox",
@@ -326,7 +610,14 @@ def _manifest(records: list[dict[str, object]]) -> dict[str, object]:
             "cpu": "1",
             "memory": "1Gi",
         },
-        "context_policy": "task_scoped + stable_deterministic + identity",
+        "context_policy": {
+            "X0": "upstream_default + legacy handoff",
+            "X1": "task_scoped + stable_deterministic + identity (identical to validation-serial-R1)",
+            "R0": "task_scoped + stable_deterministic + identity",
+            "R1": "task_scoped + stable_deterministic + identity",
+            "R2": "task_scoped + stable_deterministic + identity",
+        },
+        "context_config_file": "experiments/configs/final4-context.yaml",
         "handoff_mode": "legacy (dual is refused with task_scoped)",
         "search_backend": "keyword",
         "budget": {
@@ -336,11 +627,14 @@ def _manifest(records: list[dict[str, object]]) -> dict[str, object]:
             "wall_clock_seconds": 900,
             "run_level": "one shared budget per run",
         },
-        "oracle": "independent, sandboxed hidden tests",
+        "tool_error_mode": "corrected (identical in every arm; see docs/final-4-legacy-pilot-reclassification.md §2)",
+        "oracle": "independent, sandboxed hidden tests (unmodified)",
         "router": {"policy_version": "r0.1.0", "mode": "provided-proposal", "modified": False},
         "configurations": {
-            "N0": "native AnyCode 0.9.0 single, neutral sandbox backend",
-            "R0": "Atlas single: progressive tools, gate, ledger, binding, budget, trajectory",
+            "N0": "native AnyCode 0.9.0 single, neutral sandbox backend (still blocked)",
+            "X0": "Atlas multi over the candidate DAG with upstream_default context + legacy handoff",
+            "X1": "Atlas multi over the candidate DAG with the Atlas Context Plane (== validation-serial-R1)",
+            "R0": "Atlas single, Context Plane on: progressive tools, gate, ledger, binding, budget, trajectory",
             "R1": "Atlas multi: R0 core + frozen candidate DAG",
             "R2": "Atlas router: same core, DIRECT -> R0 path, else R1 DAG",
         },
@@ -353,13 +647,18 @@ def _manifest(records: list[dict[str, object]]) -> dict[str, object]:
                 "status": "PLANNED",
             }
             for record in records
-            for config in ("N0", "R0", "R1", "R2")
+            for config in ("N0", "X0", "R0", "R1", "R2")
         ],
-        "budget_envelope": {"max_task_runs": 24, "max_usd": 2.0, "spent_usd": 0.0},
+        "budget_envelope": {
+            "max_task_runs": 24,
+            "max_usd": 2.0,
+            "spent_before_this_stage_runs": 3,
+            "spent_usd_before_this_stage_runs": 0.00838488,
+        },
         "ablations": {
-            "X0": "upstream_default context",
-            "X1": "task_scoped + stable_deterministic + identity",
-            "tool_disclosure": "full exposure vs progressive",
+            "X0_vs_X1": "same tasks, same DAG, same assignment, same prompts; the only variable is which prompt builder projects the dependency output",
+            "tool_disclosure": "full exposure vs progressive (not run in this round)",
+            "placement": "P0 fixed assignment vs P1 context-locality assignment (not run: see docs/final-4-placement-integration-proposal.md)",
         },
     }
 
@@ -367,11 +666,22 @@ def _manifest(records: list[dict[str, object]]) -> dict[str, object]:
 def main() -> int:
     records = [_task_record(task) for task in TASKS]
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "validation_tasks.json").write_text(
-        json.dumps({"tasks": records}, indent=2, sort_keys=True), encoding="utf-8"
+    supersedes = _supersedes(records)
+    (OUT / "validation_tasks_v2.json").write_text(
+        json.dumps(
+            {
+                "revision": REVISION,
+                "dataset_version": DATASET_VERSION,
+                "supersedes": supersedes,
+                "tasks": records,
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
     )
-    manifest = _manifest(records)
-    (OUT / "pilot_manifest.json").write_text(
+    manifest = _manifest(records, supersedes)
+    (OUT / "pilot_manifest_v2.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
     for record in records:
@@ -384,6 +694,8 @@ def main() -> int:
             feasibility["oracle_passes_on_solution"],
             "public_passes=",
             feasibility["public_tests_pass_on_solution"],
+            "plan_digest=",
+            str(record["candidate_plan_digest"])[:16],
         )
     print("run_units", len(manifest["run_units"]))
     return 0

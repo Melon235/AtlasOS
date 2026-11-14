@@ -1,0 +1,149 @@
+{
+  "classification": "EXPLORATORY_LEGACY_PILOT",
+  "classified_at": "2026-11-14",
+  "classified_by_stage": "final-4-architecture-contract-and-context-restoration",
+  "does_not_supersede": "pilot_results.json / pilot_results.csv / router_comparison.json (left byte-identical; this file annotates them)",
+  "runtime": {
+    "frozen_runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+    "recorded_run_commit": "4ce227b8add3fc6b548ae57e8b7c630408db2fda",
+    "recorded_git_dirty": true,
+    "note": "src/ is identical between 93cbd98 and HEAD, so the runtime code is pinned; the dirty flag is a provenance caveat recorded by the runs themselves."
+  },
+  "defects": [
+    {
+      "id": "CONTEXT_CONFIGURATION_MISMATCH",
+      "summary": "The pilot manifest declared context_policy='task_scoped + stable_deterministic + identity', but every unit loaded experiments/configs/eval-benchmark.yaml, which contains no context: section. The resolved policy was therefore upstream_default and AtlasTaskPromptBuilder was never constructed.",
+      "evidence": [
+        "experiments/results/final4/pilot_manifest.json -> context_policy",
+        "experiments/configs/eval-benchmark.yaml -> no context key",
+        "experiments/evaluation/runner.py:350-400 (_context_prompt_builder returns None unless policy == task_scoped)",
+        "each run's result.json -> environment.config_path"
+      ],
+      "consequence": "All three runs used the upstream task prompt with legacy handoff. No ContextPlane block, selector, transform or renderer participated."
+    },
+    {
+      "id": "UNEQUAL_PUBLIC_TASK_INFORMATION",
+      "summary": "Multi-worker units gave each worker one sentence ('implement clean_rows', 'implement build_report on top of it') instead of the public requirement, the public interface contract and the public tests that the single-worker arm received in full.",
+      "evidence": [
+        "experiments/evaluation/final4/validation_tasks.py:102-109 (validation-serial workers)",
+        "experiments/evaluation/final4/runner_entry.py:57-67 (_worker_steps uses worker['objective'] as the whole prompt)"
+      ],
+      "consequence": "R1 and R2 measured a decomposition that knew less than the task; R0 and N0 received the whole goal."
+    },
+    {
+      "id": "WORKER_TERMINATED_BY_UNRELATED_TOOL_ERROR",
+      "summary": "Both R1 workers ended with stop_reason=side_effect_unknown after a read-only git command returned a non-zero exit code, under tool_error_mode='legacy'. Neither worker wrote any file, so the exported patch was empty (sha256 of the empty string).",
+      "evidence": [
+        "experiments/runs/final4/atlasos-final4-validation-v1/validation-serial/r0-eval-c16d3b21a134/result.json -> worker_results stop_reason",
+        "same run -> tool_calls: 'git cat-file -p <missing object>' / 'ls -la /tmp/project.bundle'",
+        "src/atlasos/sandbox/tools.py:26-35 (legacy leaves retry_safe unset)"
+      ],
+      "consequence": "The proximate cause of the R1 oracle failure is a worker-termination rule, not a context-handoff failure. This is the mechanism the phase-6 X0/X1 pair equalises, so that both arms differ only in context construction."
+    }
+  ],
+  "runs": [
+    {
+      "unit": "validation-serial-R0",
+      "run_id": "eval-aa9da0286142",
+      "run_dir": "experiments/runs/final4/atlasos-final4-validation-v1/validation-serial/r0-eval-aa9da0286142",
+      "configuration": "atlas single (mode=coding)",
+      "workers": 1,
+      "oracle_pass": true,
+      "runtime_success": true,
+      "prompt_tokens": 3458,
+      "cache_hit_tokens": 22016,
+      "cache_miss_tokens": 3458,
+      "completion_tokens": 1546,
+      "budget_used_tokens": 27020,
+      "tool_calls": 9,
+      "model_turns": 9,
+      "estimated_cost_usd": 0.0030247,
+      "latency_ms": 45825.144,
+      "sandbox_destroyed": true,
+      "context_plane": "NOT_ENGAGED",
+      "handoff": "legacy",
+      "reusable_as": [
+        "real end-to-end execution-chain smoke (sandbox, gate, ledger, oracle, cleanup)",
+        "reference for what a single-worker run costs on this task"
+      ],
+      "not_reusable_as": [
+        "an arm of the corrected context comparison (context plane absent)",
+        "a baseline for the Atlas context-aware runtime"
+      ]
+    },
+    {
+      "unit": "validation-serial-R1",
+      "run_id": "eval-c16d3b21a134",
+      "run_dir": "experiments/runs/final4/atlasos-final4-validation-v1/validation-serial/r0-eval-c16d3b21a134",
+      "configuration": "atlas multi (frozen candidate DAG, 2 workers)",
+      "workers": 2,
+      "oracle_pass": false,
+      "runtime_success": false,
+      "failure_class": "ORACLE_FAILURE",
+      "failure_attribution": "both workers stopped with side_effect_unknown on a failed read-only git command; empty patch; no worker output",
+      "prompt_tokens": 5477,
+      "cache_hit_tokens": 20224,
+      "cache_miss_tokens": 5477,
+      "completion_tokens": 1080,
+      "budget_used_tokens": 26781,
+      "tool_calls": 13,
+      "model_turns": 11,
+      "estimated_cost_usd": 0.00306044,
+      "latency_ms": 52073.76,
+      "sandbox_destroyed": true,
+      "context_plane": "NOT_ENGAGED",
+      "handoff": "legacy",
+      "reusable_as": [
+        "evidence that a real multi-worker DAG executes two workers in one sandbox",
+        "a documented case of worker termination caused by a tool-error classification rather than by delegation itself"
+      ],
+      "not_reusable_as": [
+        "evidence that multi-worker delegation degrades quality",
+        "evidence about context handoff (no handoff ran)",
+        "an arm of the corrected context comparison"
+      ]
+    },
+    {
+      "unit": "validation-serial-R2",
+      "run_id": "eval-90a1e4cc127f",
+      "run_dir": "experiments/runs/final4/atlasos-final4-validation-v1/validation-serial/r0-eval-90a1e4cc127f",
+      "configuration": "atlas router (selective) -> DIRECT",
+      "workers": 1,
+      "router_decision": "DIRECT",
+      "oracle_pass": true,
+      "runtime_success": true,
+      "prompt_tokens": 1749,
+      "cache_hit_tokens": 19840,
+      "cache_miss_tokens": 1749,
+      "completion_tokens": 1380,
+      "budget_used_tokens": 22969,
+      "tool_calls": 8,
+      "model_turns": 8,
+      "estimated_cost_usd": 0.00229974,
+      "latency_ms": 39960.598,
+      "sandbox_destroyed": true,
+      "context_plane": "NOT_ENGAGED",
+      "handoff": "legacy",
+      "reusable_as": [
+        "evidence that the shipped router actually branches to DIRECT on a real proposal and that the collapsed plan is graded as a single-worker run"
+      ],
+      "not_reusable_as": [
+        "evidence that the router avoids harmful delegation (the proposal it judged was built from the unequal worker prompts)",
+        "a fair strategy comparison against R0/R1 (different task-level prompt content per worker)",
+        "evidence of a Context Plane benefit"
+      ]
+    }
+  ],
+  "budget_accounting": {
+    "task_runs_consumed": 3,
+    "task_runs_envelope": 24,
+    "cost_usd_consumed": 0.00838488,
+    "cost_usd_envelope": 2.0,
+    "note": "Consumed runs and cost stay counted against the Final-4 envelope. They are not refunded by reclassification."
+  },
+  "reasons_for_reclassification": [
+    "the declared Context Plane configuration was not loaded, so the treatment variable was absent",
+    "multi-worker arms received strictly less public task information than the single-worker arm",
+    "a worker-termination rule unrelated to context or delegation decided the R1 outcome"
+  ]
+}
