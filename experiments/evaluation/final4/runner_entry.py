@@ -168,7 +168,9 @@ def build_task(task: Task, *, multi: bool) -> BenchmarkTask:
         hidden_files=dict(task.oracle_tests),
         workers=_worker_steps(task) if multi else _single_step(task),
         allowed_paths=tuple(task.seed),
-        required_artifacts=(),
+        # Revision 3: the public deliverables from the requirement text. Previously ``()``, which made
+        # the router's goal-coverage evidence unprovable and blocked every candidate at GATE_0.
+        required_artifacts=tuple(sorted(task.deliverables)),
         max_turns=MAX_TURN_PER_WORKER,
         tags=("final4", task.family),
         notes=task.notes,

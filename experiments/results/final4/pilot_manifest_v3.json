@@ -1,0 +1,244 @@
+{
+  "ablations": {
+    "X0_vs_X1": "same tasks, same DAG, same assignment, same prompts; the only variable is which prompt builder projects the dependency output",
+    "placement": "P0 fixed assignment vs P1 context-locality assignment (not run: see docs/final-4-placement-integration-proposal.md)",
+    "tool_disclosure": "full exposure vs progressive (Phase 4 of this round)"
+  },
+  "budget": {
+    "max_tool_calls": 40,
+    "run_level": "one shared budget per run",
+    "tokens_per_task": 120000,
+    "turns_per_worker": 14,
+    "wall_clock_seconds": 900
+  },
+  "budget_envelope": {
+    "max_task_runs": 24,
+    "max_usd": 2.0,
+    "spent_before_this_round_runs": 14,
+    "spent_usd_before_this_round": 0.05996018
+  },
+  "classification": "CORRECTED_EVAL_TASK_SET",
+  "configurations": {
+    "N0": "native AnyCode 0.9.0 single, neutral sandbox backend (still blocked)",
+    "R0": "Atlas single, Context Plane on: progressive tools, gate, ledger, binding, budget, trajectory",
+    "R1": "Atlas multi: R0 core + frozen candidate DAG",
+    "R2": "Atlas router: same core, DIRECT -> R0 path, else R1 DAG",
+    "X0": "Atlas multi over the candidate DAG with upstream_default context + legacy handoff",
+    "X1": "Atlas multi over the candidate DAG with the Atlas Context Plane (== validation-serial-R1)"
+  },
+  "context_config_file": "experiments/configs/final4-context.yaml",
+  "context_policy": {
+    "R0": "task_scoped + stable_deterministic + identity",
+    "R1": "task_scoped + stable_deterministic + identity",
+    "R2": "task_scoped + stable_deterministic + identity",
+    "X0": "upstream_default + legacy handoff",
+    "X1": "task_scoped + stable_deterministic + identity (identical to validation-serial-R1)"
+  },
+  "dataset_version": "final4-validation-3",
+  "generated_at": "2026-11-14T08:33:55.813146+00:00",
+  "handoff_mode": "legacy (dual is refused with task_scoped)",
+  "model": {
+    "provider": "deepseek",
+    "requested": "deepseek-chat",
+    "temperature": 0.0
+  },
+  "oracle": "independent, sandboxed hidden tests (unmodified)",
+  "revision": 3,
+  "router": {
+    "mode": "provided-proposal",
+    "modified": false,
+    "policy_version": "r0.1.0"
+  },
+  "run_units": [
+    {
+      "candidate_plan_digest": "d6f1fd39558742b8f6e0d7a902e77709dfa0b5ea7ac261bae2caa019b74fbddf",
+      "configuration": "N0",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-N0"
+    },
+    {
+      "candidate_plan_digest": "d6f1fd39558742b8f6e0d7a902e77709dfa0b5ea7ac261bae2caa019b74fbddf",
+      "configuration": "X0",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-X0"
+    },
+    {
+      "candidate_plan_digest": "d6f1fd39558742b8f6e0d7a902e77709dfa0b5ea7ac261bae2caa019b74fbddf",
+      "configuration": "R0",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-R0"
+    },
+    {
+      "candidate_plan_digest": "d6f1fd39558742b8f6e0d7a902e77709dfa0b5ea7ac261bae2caa019b74fbddf",
+      "configuration": "R1",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-R1"
+    },
+    {
+      "candidate_plan_digest": "d6f1fd39558742b8f6e0d7a902e77709dfa0b5ea7ac261bae2caa019b74fbddf",
+      "configuration": "R2",
+      "status": "PLANNED",
+      "task_id": "validation-serial",
+      "unit_id": "validation-serial-R2"
+    },
+    {
+      "candidate_plan_digest": "2dc6a00b77353ebb14ad7fc15e857c5ce89ba36b6e8c05785a936ae906aeb046",
+      "configuration": "N0",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-N0"
+    },
+    {
+      "candidate_plan_digest": "2dc6a00b77353ebb14ad7fc15e857c5ce89ba36b6e8c05785a936ae906aeb046",
+      "configuration": "X0",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-X0"
+    },
+    {
+      "candidate_plan_digest": "2dc6a00b77353ebb14ad7fc15e857c5ce89ba36b6e8c05785a936ae906aeb046",
+      "configuration": "R0",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-R0"
+    },
+    {
+      "candidate_plan_digest": "2dc6a00b77353ebb14ad7fc15e857c5ce89ba36b6e8c05785a936ae906aeb046",
+      "configuration": "R1",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-R1"
+    },
+    {
+      "candidate_plan_digest": "2dc6a00b77353ebb14ad7fc15e857c5ce89ba36b6e8c05785a936ae906aeb046",
+      "configuration": "R2",
+      "status": "PLANNED",
+      "task_id": "validation-parallel",
+      "unit_id": "validation-parallel-R2"
+    },
+    {
+      "candidate_plan_digest": "45066b5cfefb7298e26510d5017967ca0a7d276649b51d9916f69cab3750413d",
+      "configuration": "N0",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-N0"
+    },
+    {
+      "candidate_plan_digest": "45066b5cfefb7298e26510d5017967ca0a7d276649b51d9916f69cab3750413d",
+      "configuration": "X0",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-X0"
+    },
+    {
+      "candidate_plan_digest": "45066b5cfefb7298e26510d5017967ca0a7d276649b51d9916f69cab3750413d",
+      "configuration": "R0",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-R0"
+    },
+    {
+      "candidate_plan_digest": "45066b5cfefb7298e26510d5017967ca0a7d276649b51d9916f69cab3750413d",
+      "configuration": "R1",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-R1"
+    },
+    {
+      "candidate_plan_digest": "45066b5cfefb7298e26510d5017967ca0a7d276649b51d9916f69cab3750413d",
+      "configuration": "R2",
+      "status": "PLANNED",
+      "task_id": "validation-coupled",
+      "unit_id": "validation-coupled-R2"
+    }
+  ],
+  "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+  "sandbox": {
+    "cpu": "1",
+    "endpoint": "localhost:8080",
+    "image": "atlas-uat-python:3.12",
+    "memory": "1Gi",
+    "network": "none",
+    "provider": "opensandbox"
+  },
+  "search_backend": "keyword",
+  "supersedes": {
+    "validation-coupled": {
+      "validation_tasks.json": {
+        "candidate_plan_digest": "c9af42922e5a050918f6b7390f75c7711da761c47d8a40be56c1f83e6a8d8eb4",
+        "deliverables": [],
+        "file": "experiments/results/final4/validation_tasks.json",
+        "initial_workspace_digest": "3b4dc2e8e27f8e12a383dd4c5628802ca0e0a860631eafdb690d24a534e13615",
+        "oracle_digest": "6866b5a6509120db02ae8508818363fd698e816e253e181f1fdf2c52e31f462a",
+        "public_tests_digest": "acdb195cf85db7f5585e886d4bb53d5ed442f41cfcbc6b497ceee4734d540a89",
+        "revision": 1,
+        "shared_context_digest": null,
+        "solution_digest": "dc34c14032029d97d38a94d61be1c0f7f0ff9a320198e89e6c10833b32b01f02"
+      },
+      "validation_tasks_v2.json": {
+        "candidate_plan_digest": "45066b5cfefb7298e26510d5017967ca0a7d276649b51d9916f69cab3750413d",
+        "deliverables": [],
+        "file": "experiments/results/final4/validation_tasks_v2.json",
+        "initial_workspace_digest": "3b4dc2e8e27f8e12a383dd4c5628802ca0e0a860631eafdb690d24a534e13615",
+        "oracle_digest": "6866b5a6509120db02ae8508818363fd698e816e253e181f1fdf2c52e31f462a",
+        "public_tests_digest": "acdb195cf85db7f5585e886d4bb53d5ed442f41cfcbc6b497ceee4734d540a89",
+        "revision": 2,
+        "shared_context_digest": "b05840a829381d9a9a9864a3186ca78dd420ddeab324bdb05759a42b3ba34286",
+        "solution_digest": "dc34c14032029d97d38a94d61be1c0f7f0ff9a320198e89e6c10833b32b01f02"
+      }
+    },
+    "validation-parallel": {
+      "validation_tasks.json": {
+        "candidate_plan_digest": "5f0a7e32200463ad18de036bcbdc93efcadec43520cf01827eadc0826ace21b4",
+        "deliverables": [],
+        "file": "experiments/results/final4/validation_tasks.json",
+        "initial_workspace_digest": "fa9a91968e6e53f5226cdbdda3b927c49604ac7f1266a05ffd870681aefb2172",
+        "oracle_digest": "db49101278794bf3ba58a4ebba28850b065a1c3b9f2b563fa6ea6c484c353c8c",
+        "public_tests_digest": "71776bfe63c2cf024de5562b6cbb8ed8461322195a387866c117208b212d5caa",
+        "revision": 1,
+        "shared_context_digest": null,
+        "solution_digest": "14ac3a54b0fa5ef7d43f42b80b790dca48e0120ab63974947e5b119d1fc567c4"
+      },
+      "validation_tasks_v2.json": {
+        "candidate_plan_digest": "2dc6a00b77353ebb14ad7fc15e857c5ce89ba36b6e8c05785a936ae906aeb046",
+        "deliverables": [],
+        "file": "experiments/results/final4/validation_tasks_v2.json",
+        "initial_workspace_digest": "fa9a91968e6e53f5226cdbdda3b927c49604ac7f1266a05ffd870681aefb2172",
+        "oracle_digest": "db49101278794bf3ba58a4ebba28850b065a1c3b9f2b563fa6ea6c484c353c8c",
+        "public_tests_digest": "71776bfe63c2cf024de5562b6cbb8ed8461322195a387866c117208b212d5caa",
+        "revision": 2,
+        "shared_context_digest": "9c9a649feeb240a793996062105f67c016f5d8facc8880ae29186ab2e29eaeb3",
+        "solution_digest": "14ac3a54b0fa5ef7d43f42b80b790dca48e0120ab63974947e5b119d1fc567c4"
+      }
+    },
+    "validation-serial": {
+      "validation_tasks.json": {
+        "candidate_plan_digest": "b5f83450187b37481da638dca49b29d148acf49e2457b2c9e33b1ef09bada790",
+        "deliverables": [],
+        "file": "experiments/results/final4/validation_tasks.json",
+        "initial_workspace_digest": "a419402c9f62ecfb2f0936a3deb28384d2c2bb4bfdf3373c79f0cbcad362628a",
+        "oracle_digest": "37cdbfc913315e88c996a531f95e7b11b9a4ddd28eddf8d273512cf88f6073ba",
+        "public_tests_digest": "b884a412a7429c0b5e217cf11845f27246cd11013299aff8244703093d433502",
+        "revision": 1,
+        "shared_context_digest": null,
+        "solution_digest": "bbd7545ff0468ef751486a6be0681b93671d8535d13858e57bb4c551d2a3a5ba"
+      },
+      "validation_tasks_v2.json": {
+        "candidate_plan_digest": "d6f1fd39558742b8f6e0d7a902e77709dfa0b5ea7ac261bae2caa019b74fbddf",
+        "deliverables": [],
+        "file": "experiments/results/final4/validation_tasks_v2.json",
+        "initial_workspace_digest": "a419402c9f62ecfb2f0936a3deb28384d2c2bb4bfdf3373c79f0cbcad362628a",
+        "oracle_digest": "37cdbfc913315e88c996a531f95e7b11b9a4ddd28eddf8d273512cf88f6073ba",
+        "public_tests_digest": "b884a412a7429c0b5e217cf11845f27246cd11013299aff8244703093d433502",
+        "revision": 2,
+        "shared_context_digest": "6a8a2f09e8e0aab29052dc55722d2ae4fa37844d9ec22b7ec360cae4c2d1d750",
+        "solution_digest": "bbd7545ff0468ef751486a6be0681b93671d8535d13858e57bb4c551d2a3a5ba"
+      }
+    }
+  },
+  "tool_error_mode": "corrected (identical in every arm; see docs/final-4-legacy-pilot-reclassification.md \u00a72)"
+}

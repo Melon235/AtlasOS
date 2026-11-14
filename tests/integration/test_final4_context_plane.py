@@ -344,27 +344,58 @@ def test_the_router_cannot_see_the_shared_public_context() -> None:
 # -- digests ------------------------------------------------------------------------------------
 
 
-def test_task_set_revision_two_records_what_it_supersedes() -> None:
-    current = json.loads((RESULTS_ROOT / "validation_tasks_v2.json").read_text(encoding="utf-8"))
-    previous = json.loads((RESULTS_ROOT / "validation_tasks.json").read_text(encoding="utf-8"))
-    manifest = json.loads((RESULTS_ROOT / "pilot_manifest_v2.json").read_text(encoding="utf-8"))
+def test_task_set_revision_three_only_adds_the_public_deliverables() -> None:
+    current = json.loads((RESULTS_ROOT / "validation_tasks_v3.json").read_text(encoding="utf-8"))
+    previous = json.loads((RESULTS_ROOT / "validation_tasks_v2.json").read_text(encoding="utf-8"))
+    first = json.loads((RESULTS_ROOT / "validation_tasks.json").read_text(encoding="utf-8"))
+    manifest = json.loads((RESULTS_ROOT / "pilot_manifest_v3.json").read_text(encoding="utf-8"))
 
-    assert current["revision"] == 2
-    assert manifest["revision"] == 2
+    assert current["revision"] == 3
+    assert manifest["revision"] == 3
     assert manifest["context_config_file"] == "experiments/configs/final4-context.yaml"
     assert set(manifest["supersedes"]) == {task.task_id for task in VALIDATION_TASKS}
+    assert "required_artifacts" in current["change_from_revision_2"]
 
     old = {record["task_id"]: record for record in previous["tasks"]}
     new = {record["task_id"]: record for record in current["tasks"]}
+    oldest = {record["task_id"]: record for record in first["tasks"]}
     for task_id, record in new.items():
-        assert record["candidate_plan_digest"]
-        assert record["shared_context_digest"]
-        assert (
-            manifest["supersedes"][task_id]["candidate_plan_digest"]
-            == (old[task_id]["candidate_plan_digest"])
+        superseded = manifest["supersedes"][task_id]
+        assert set(superseded) == {"validation_tasks.json", "validation_tasks_v2.json"}
+        assert record["deliverables"] == sorted(
+            next(task.deliverables for task in VALIDATION_TASKS if task.task_id == task_id)
         )
-        # The oracle, the seed and the solution are unchanged by the correction.
+        # Revision 2 already fixed the inputs: plan, shared context and every task artifact are
+        # identical, so revision-2 runs stay comparable.
+        assert record["candidate_plan_digest"] == old[task_id]["candidate_plan_digest"]
+        assert record["shared_context_digest"] == old[task_id]["shared_context_digest"]
         assert record["oracle_digest"] == old[task_id]["oracle_digest"]
         assert record["solution_digest"] == old[task_id]["solution_digest"]
         assert record["initial_workspace_digest"] == old[task_id]["initial_workspace_digest"]
-        assert record["candidate_plan_digest"] != old[task_id]["candidate_plan_digest"]
+        # Revision 1 -> 2 did change the plan; that difference must stay visible.
+        assert old[task_id]["candidate_plan_digest"] != oldest[task_id]["candidate_plan_digest"]
+        # New in revision 3: metadata and router-proposal digests.
+        assert record["task_metadata_digest"]
+        assert record["router_proposal_digest"]
+        assert superseded["validation_tasks_v2.json"]["deliverables"] == []
+
+
+def test_router_input_now_proves_goal_coverage() -> None:
+    """The point of revision 3: GATE_0 becomes passable without touching the router."""
+
+    capabilities = capabilities_from_catalog(WorkerCatalog())
+    expected = {
+        "validation-serial": "direct",
+        "validation-parallel": "delegate_parallel",
+        "validation-coupled": "direct",
+    }
+    for task in VALIDATION_TASKS:
+        built = runner_entry.build_task(task, multi=True)
+        assert built.required_artifacts == tuple(sorted(task.deliverables))
+        assert "required_artifacts" not in built.prompt
+        routed = plan_route(built, capabilities, routing_policy("r0.1.0"))
+        assert routed.decision.route.value == expected[task.task_id], (
+            task.task_id,
+            routed.decision.reason_codes,
+        )
+        assert "UNCOVERED_GOAL" not in routed.decision.reason_codes

@@ -18,10 +18,16 @@ single-worker arm that received the whole requirement. Revision 2 splits every t
 * dependency outputs — never authored here. They are produced by the run and projected by whichever
   prompt builder the arm configures (``handoff`` legacy, or the Atlas Context Plane).
 
-Revision 1 files (``validation_tasks.json`` / ``pilot_manifest.json``) are left untouched; revision 2
-writes ``validation_tasks_v2.json`` / ``pilot_manifest_v2.json`` and records the digests it supersedes.
+Revision 3 populates ``BenchmarkTask.required_artifacts`` from the public requirement text. Before that
+the field was ``()``, so the router's goal-coverage evidence could never be proven and every candidate
+was blocked at ``GATE_0`` with ``UNCOVERED_GOAL``. Nothing else about a task changes: prompts, shared
+context, candidate plan, assignments, seed, oracle and solution all keep their revision-2 digests, and
+that equality is asserted by ``tests/integration/test_final4_context_plane.py``.
 
-``python -m experiments.evaluation.final4.validation_tasks`` regenerates both revision-2 files after
+Revision 1 and 2 files are left untouched. Each revision records, per task, every digest it
+supersedes, so the difference is auditable instead of implied.
+
+``python -m experiments.evaluation.final4.validation_tasks`` regenerates the revision-3 files after
 checking that every oracle fails on the seed and passes on the reference solution.
 """
 
@@ -37,9 +43,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parents[2] / "results" / "final4"
-REVISION = 2
+REVISION = 3
 TASK_SET_ID = "final4-validation"
-DATASET_VERSION = "final4-validation-2"
+DATASET_VERSION = "final4-validation-3"
 
 SHARED_HEADER = "[SHARED TASK CONTEXT — identical for every worker on this task]"
 ASSIGNMENT_HEADER = "[YOUR ASSIGNMENT — worker {task_id}]"
@@ -59,6 +65,8 @@ class Task:
     interface: str = ""
     constraints: str = ""
     shared_context: str = ""
+    #: Files the public requirement asks for. Fed to ``BenchmarkTask.required_artifacts``.
+    deliverables: tuple[str, ...] = ()
 
 
 def _digest(files: dict[str, str]) -> str:
@@ -172,6 +180,9 @@ TASKS: tuple[Task, ...] = (
         family="S",
         prompt=SERIAL_REQUIREMENT,
         shared_context=SERIAL_SHARED,
+        # Public deliverables, read straight off the public requirement ("Create normalise.py ...",
+        # "Create report.py ..."). Not derived from the solution, the oracle or any model output.
+        deliverables=("normalise.py", "report.py"),
         seed={
             "normalise.py": "def clean_rows(rows):\n    raise NotImplementedError\n",
             "report.py": (
@@ -269,6 +280,7 @@ TASKS: tuple[Task, ...] = (
         family="P",
         prompt=PARALLEL_REQUIREMENT,
         shared_context=PARALLEL_SHARED,
+        deliverables=("app.py", "stats.py", "tokens.py"),
         seed={
             "tokens.py": "def tokenise(text):\n    raise NotImplementedError\n",
             "stats.py": "def count(tokens):\n    raise NotImplementedError\n",
@@ -388,6 +400,7 @@ TASKS: tuple[Task, ...] = (
         family="C",
         prompt=COUPLED_REQUIREMENT,
         shared_context=COUPLED_SHARED,
+        deliverables=("approve.py", "ship.py", "state.py"),
         seed={
             "state.py": (
                 "STATES = {}\n\n\ndef transition(state, event):\n    raise NotImplementedError\n"
@@ -542,8 +555,24 @@ def _plan(task: Task) -> list[dict[str, object]]:
     ]
 
 
+def _proposal_view(task: Task) -> list[dict[str, object]]:
+    """Exactly what the router is given, in a stable form, so its input can be digested."""
+
+    return [
+        {
+            "task_id": worker["task_id"],
+            "depends_on": list(worker["depends_on"]),  # type: ignore[arg-type]
+            "prompt": str(worker["assignment"]),
+            "declared_write_paths": list(worker["owned_paths"]),  # type: ignore[arg-type]
+            "required_artifacts": list(task.deliverables),
+        }
+        for worker in task.workers
+    ]
+
+
 def _task_record(task: Task) -> dict[str, object]:
     plan = _plan(task)
+    proposal = _proposal_view(task)
     return {
         "task_id": task.task_id,
         "family": task.family,
@@ -556,6 +585,19 @@ def _task_record(task: Task) -> dict[str, object]:
         "oracle_digest": _digest(task.oracle_tests),
         "public_tests_digest": _digest(task.public_tests),
         "solution_digest": _digest(task.solution),
+        "deliverables": list(task.deliverables),
+        "task_metadata_digest": _text_digest(
+            json.dumps(
+                {
+                    "deliverables": list(task.deliverables),
+                    "allowed_paths_source": "task record",
+                    "sample_id": task.task_id,
+                },
+                sort_keys=True,
+            )
+        ),
+        "router_proposal": proposal,
+        "router_proposal_digest": _text_digest(json.dumps(proposal, sort_keys=True)),
         "candidate_plan": plan,
         "candidate_plan_digest": _digest(
             {item["task_id"]: json.dumps(item, sort_keys=True) for item in plan}
@@ -566,29 +608,40 @@ def _task_record(task: Task) -> dict[str, object]:
 
 
 def _previous_records() -> dict[str, dict[str, object]]:
-    """Revision-1 digests, so the corrected task set records what it supersedes."""
+    """Earlier revisions, so every revision records exactly what it supersedes."""
 
-    path = OUT / "validation_tasks.json"
-    if not path.is_file():
-        return {}
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return {record["task_id"]: record for record in payload.get("tasks", [])}
+    records: dict[str, dict[str, object]] = {}
+    for name in ("validation_tasks.json", "validation_tasks_v2.json"):
+        path = OUT / name
+        if not path.is_file():
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for record in payload.get("tasks", []):
+            entries = records.setdefault(str(record["task_id"]), {})
+            entries[name] = record
+    return records
 
 
 def _supersedes(records: list[dict[str, object]]) -> dict[str, object]:
     previous = _previous_records()
     entries: dict[str, object] = {}
     for record in records:
-        old = previous.get(str(record["task_id"]))
-        if old is None:
+        known = previous.get(str(record["task_id"]))
+        if not known:
             continue
         entries[str(record["task_id"])] = {
-            "file": "experiments/results/final4/validation_tasks.json",
-            "candidate_plan_digest": old.get("candidate_plan_digest"),
-            "initial_workspace_digest": old.get("initial_workspace_digest"),
-            "oracle_digest": old.get("oracle_digest"),
-            "public_tests_digest": old.get("public_tests_digest"),
-            "solution_digest": old.get("solution_digest"),
+            name: {
+                "file": f"experiments/results/final4/{name}",
+                "revision": 1 if name == "validation_tasks.json" else 2,
+                "candidate_plan_digest": old.get("candidate_plan_digest"),
+                "initial_workspace_digest": old.get("initial_workspace_digest"),
+                "oracle_digest": old.get("oracle_digest"),
+                "public_tests_digest": old.get("public_tests_digest"),
+                "solution_digest": old.get("solution_digest"),
+                "shared_context_digest": old.get("shared_context_digest"),
+                "deliverables": list(old.get("deliverables") or []),
+            }
+            for name, old in known.items()
         }
     return entries
 
@@ -652,12 +705,12 @@ def _manifest(records: list[dict[str, object]], supersedes: dict[str, object]) -
         "budget_envelope": {
             "max_task_runs": 24,
             "max_usd": 2.0,
-            "spent_before_this_stage_runs": 3,
-            "spent_usd_before_this_stage_runs": 0.00838488,
+            "spent_before_this_round_runs": 14,
+            "spent_usd_before_this_round": 0.05996018,
         },
         "ablations": {
             "X0_vs_X1": "same tasks, same DAG, same assignment, same prompts; the only variable is which prompt builder projects the dependency output",
-            "tool_disclosure": "full exposure vs progressive (not run in this round)",
+            "tool_disclosure": "full exposure vs progressive (Phase 4 of this round)",
             "placement": "P0 fixed assignment vs P1 context-locality assignment (not run: see docs/final-4-placement-integration-proposal.md)",
         },
     }
@@ -667,11 +720,16 @@ def main() -> int:
     records = [_task_record(task) for task in TASKS]
     OUT.mkdir(parents=True, exist_ok=True)
     supersedes = _supersedes(records)
-    (OUT / "validation_tasks_v2.json").write_text(
+    (OUT / "validation_tasks_v3.json").write_text(
         json.dumps(
             {
                 "revision": REVISION,
                 "dataset_version": DATASET_VERSION,
+                "change_from_revision_2": (
+                    "only BenchmarkTask.required_artifacts is populated, from the public "
+                    "requirement text; prompts, shared context, candidate plan, assignments, "
+                    "seed, oracle and solution are unchanged"
+                ),
                 "supersedes": supersedes,
                 "tasks": records,
             },
@@ -681,7 +739,7 @@ def main() -> int:
         encoding="utf-8",
     )
     manifest = _manifest(records, supersedes)
-    (OUT / "pilot_manifest_v2.json").write_text(
+    (OUT / "pilot_manifest_v3.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
     for record in records:
