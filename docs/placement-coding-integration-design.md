@@ -1,16 +1,17 @@
-# Placement → Coding Integration — Design for Independent Review (G0-R1)
+# Placement → Coding Integration — Design for Independent Review (G0-R1 + G1)
 
-Status: `AWAITING_INDEPENDENT_REVIEW`. Revision G0-R1, responding to review verdicts on
-`76a427541617c1ff4993ef3ad3947639f802b6d8`.
+Status: `AWAITING_INDEPENDENT_CODE_REVIEW`. B′ design approved at
+`a1b45bdc58a771e321569591030a6b3d262e6454`; **G1 is implemented** (§7b), G2–G5 are not.
 
-Every conclusion here is `DESIGN_PROPOSED`. Nothing is implemented; `src/` is unmodified.
+Everything in §1–§12 is `DESIGN_PROPOSED` except where §7b names code that exists. §3.5 was corrected
+after review: slot capacity is enforceable via a `_run_wave_task` subclass wrapper, not blocked.
 
 | Review item | Verdict | Consequence for this document |
 |---|---|---|
 | Option A1 (reported-only) | **REJECTED** | kept for the record only (§12) |
 | Option A2 (slot as agent) | **REJECTED** | kept for the record only (§12) |
 | Option B (shared `worker_id` + `WorkerStore.tasks`) | **NEEDS_REDESIGN** | replaced by **B′** (§3), and its three false source claims are corrected in §2 |
-| B′ (run-scoped slot + task-scoped execution instance) | adopted as the design to review | §3–§9 |
+| B′ (run-scoped slot + task-scoped execution instance) | **APPROVED** for G1 | §3–§9, implemented in §7b |
 
 Design contract reference: §2.E (placement is part of Context Engineering), §4 (placement ≠ router).
 The contract is not modified.
@@ -175,32 +176,35 @@ Prohibited by construction: creating a worker first and stamping `placement_slot
 
 ### 3.5 Slot admission — what is enforceable today, and what is not
 
-The reviewer's operational requirement is that B′ must not degrade into a report label. Three
-candidate enforcement points were inspected:
+**Reviewer decision (G0-R1 → G1): this is NOT a blocker.** The earlier conclusion in this section was
+wrong: it claimed that overriding `_run_wave_task` would mean copying AnyCode's main execution loop.
+AnyCode 0.9.0 (`orchestrator.py`, fixed at commit `ffdc7d28`) dispatches each task through
+`asyncio.create_task(self._run_wave_task(task, queue, team, …))`, i.e. a *single-task method* called
+from `_execute_tasks`. A subclass can therefore override that one method, add admission / completion /
+abort logic, and delegate with `await super()._run_wave_task(...)`. No loop body is copied, the
+installed package is not patched, and no scheduler is added.
 
-| Seam | Verdict |
-|---|---|
-| `AtlasContextEngine._build_task_prompt` override | synchronous, runs before the agent exists; cannot hold a slot |
-| `anycode.core.pool.AgentPool` | **global** semaphore only (`core/pool.py:29`); no per-agent or per-slot capacity |
-| `OrchestratorConfig` concurrency | global; setting it to 1 serialises every arm and destroys the width being measured |
-| override `_run_wave_task` | would copy the main execution loop — forbidden by the brief |
-| inject dependencies to force slot order | changes the DAG — forbidden by the brief |
+Enforcement model adopted for G3:
 
-Also relevant: the agent pool refuses duplicate names (`AgentPool.add` raises), which is another
-reason §3.1 keeps names unique.
+1. **Static plan legality** (implemented in G1, see §7b): the frozen assignment must not place two
+   tasks of the same wave on a slot whose capacity is 1.
+2. **Runtime admission check** (G3): the wrapper verifies the task's frozen assignment, the worker ↔
+   slot ↔ profile binding, and that the slot has no other active task; an illegal concurrent
+   placement fails closed instead of waiting.
+3. **No queue, no DAG edit, no global cap.** G3 must not introduce a dynamic wait queue, must not
+   serialise by injecting dependencies, and must not set global concurrency to 1 as a stand-in for
+   slot capacity.
+4. **Lifecycle**: G3 has to handle exception, cancellation, failure, suspension, `UNCERTAIN` and
+   unsettled side effects. A `finally` that drops a local lock is not evidence of execution safety,
+   and a new task must not start on a slot whose previous task is unresolved.
 
-**Conclusion — declared blocker, not a workaround:** `max_active_tasks = 1` is **not enforceable at
-any existing AnyCode seam**. B′ v1 must therefore either (a) declare capacity unenforced and drop it
-from every claim, (b) accept a global cap (distorts all arms, not recommended), or (c) request a
-minimal AnyCode change adding a pre-dispatch hook — a change to a **vendored dependency**, not to
-`src/atlasos`, and therefore a separate approval. This stage does none of them.
+G1 implements step 1 and nothing else: no wrapper, no admission, no engine change.
 
-**Second, sharper consequence.** With capacity unenforced *and* a homogeneous slot pool (every slot
-holding `coding_worker`), B′ produces **no runtime difference at all** — it becomes A1 plus correct
-bookkeeping. B′ has real runtime teeth only when the pool is heterogeneous (different profiles,
-scopes, `max_turns`, tool preferences) or when capacity is enforced. G2 must therefore begin by
-defining a heterogeneous slot pool; otherwise the honest outcome of the experiment is "no difference,
-as designed".
+**Consequence for the experiment.** Capacity is real but is enforced by *plan legality plus a runtime
+check*, not by a work queue. A homogeneous pool (`coding_worker` on every slot) then differs from a
+single-slot plan only in how many slots the DAG may fan out to; a heterogeneous pool additionally
+constrains which capability can execute a task. Both are legitimate, and they answer different
+questions — see §7b.4.
 
 ---
 
@@ -292,52 +296,100 @@ pool concurrency is global (`core/pool.py:29`).
 
 ---
 
-## 7. Minimal implementation interfaces (G1–G3, not implemented)
+## 7. Core code location (corrected in G1)
 
-```python
-# experiments/evaluation/final4/placement_slots.py   (new, evaluation layer only)
+The domain model lives in the core package, not in the evaluation layer:
 
-@dataclass(frozen=True)
-class PlacementSlot:
-    slot_id: str                      # f"{run_id}-slot{n}"
-    profile_id: str                   # must exist in WorkerCatalog
-    max_active_tasks: int = 1         # declared; enforcement per §3.5
-    capabilities: tuple[str, ...] = ()  # profile-derived eligibility hints only
-
-@dataclass(frozen=True)
-class FrozenAssignmentPlan:
-    slots: tuple[PlacementSlot, ...]
-    assignments: Mapping[str, str]    # task_id -> slot_id
-    policy: str
-    policy_version: str
-    plan_digest: str
-
-def build_slot_pool(*, run_id: str, catalog: WorkerCatalog,
-                    profile_ids: Sequence[str]) -> tuple[PlacementSlot, ...]: ...
-    # raises PlacementSlotError on unknown profile or duplicate slot profile config
-
-def freeze_plan(*, workflow: AtlasWorkflow, slots: Sequence[PlacementSlot],
-                policy: PlacementPolicy, weights: PlacementWeights) -> FrozenAssignmentPlan: ...
-    # calls placement.planner.plan_workflow; raises if any task lacks exactly one slot
-    # or if a task's required capability is absent from its slot's profile
-
-def bind_task(*, plan: FrozenAssignmentPlan, task_id: str, factory: ScopedWorkerFactory,
-              parent_context: ExecutionContext, assignment: WorkerAssignment) -> WorkerInstance: ...
-    # resolves slot, asserts slot.profile_id == assignment.profile_id, constructs the worker with
-    # worker_id=f"{run_id}-{task_id}", task_id=f"{run_id}-{task_id}", then re-asserts on the instance
-
-def verify_executed_assignment(*, plan: FrozenAssignmentPlan,
-                              executed: Mapping[str, str]) -> None: ...
-    # raises PlacementPlanMismatch before results are published
+```text
+src/atlasos/placement/slots.py     PlacementSlot, build_slot_pool, FrozenAssignmentPlan,
+                                   freeze_assignment, verify_plan, plan_from_payload, bind_task
 ```
 
-Callers: `runner.run_sample` (worker-construction loop, `runner.py:1418`), and the post-run evidence
-step next to `_collect_tool_calls` (`runner.py:1593`). `AtlasRuntime._place` and the planner are not
-modified.
+Reasons: it is a Context Engineering mechanism (contract §2.E), it must not be reachable only from
+one experiment runner, and the evaluation layer already imports from `atlasos.*` in the other
+direction. **Core never imports `experiments`.**
 
-Changed files at G1–G3 (all outside `src/`): `experiments/evaluation/final4/placement_slots.py` (new),
-`experiments/evaluation/runner.py` (worker loop + evidence), `experiments/evaluation/final4/runner_entry.py`
-(unit config + digest), plus tests.
+Planned evaluation wiring (G2/G3, not implemented): `runner.run_sample` builds the pool and plan,
+calls `bind_task` in the worker loop (`runner.py:1418`), and re-checks plan-versus-execution next to
+`_collect_tool_calls` (`runner.py:1593`). `AtlasRuntime._place` and `planner.policy` are not modified.
+
+## 7b. G1 delivered (this stage)
+
+### 7b.1 Interfaces actually implemented
+
+| Symbol | Signature (abridged) |
+|---|---|
+| `PlacementSlot` | `frozen dataclass(slots=True)`: `slot_id`, `profile_id`, `capabilities: frozenset[str]`, `max_active_tasks: int = 1` |
+| `build_slot_pool` | `(*, run_id: str, catalog: WorkerCatalog, profile_ids: Sequence[str]) -> tuple[PlacementSlot, ...]` |
+| `slot_capabilities` | `(profile) -> frozenset[str]`; the rule is `frozenset(profile.operating_scope)` |
+| `SlotProfile` | per-slot fingerprint of the trusted definition that will build the workers |
+| `AssignmentEntry` | `(task_id, slot_id)`, one per task |
+| `FrozenAssignmentPlan` | `schema_version`, `run_id`, `workflow_digest`, `slots`, `slot_profiles`, `assignments`, `wave_of_task`, `policy_name`, `policy_version`, `policy_config_digest`, `plan_digest` |
+| `freeze_assignment` | `(*, run_id, workflow, slots, assignments, catalog, policy_name, policy_version, policy_config=None) -> FrozenAssignmentPlan` |
+| `verify_plan` | `(plan) -> None`; recomputes the digest from the plan's own fields |
+| `plan_from_payload` / `plan_from_json` | envelope in, verified plan out |
+| `TaskExecutionBinding` | `run_id`, `logical_task_id`, `runtime_task_id`, `placement_slot_id`, `worker_id`, `agent_name`, `profile_id`, `plan_digest` |
+| `bind_task` | `(*, plan, logical_task_id, runtime_task_id, factory, parent_context, parent_agent, assignment, prior=None) -> tuple[TaskExecutionBinding, WorkerInstance]` |
+
+### 7b.2 Task identity mapping
+
+| Name | Example | Owner |
+|---|---|---|
+| `logical_task_id` | `w1` | the workflow (`AtlasTaskSpec.task_id`) |
+| `runtime_task_id` | `eval-abc123-w1` | the executor; here it is also the `worker_id` |
+| `worker_id` / `task_id` (factory) | `eval-abc123-w1` | `ScopedWorkerFactory.create`, unchanged semantics |
+| `agent_name` | `coding_worker:eval-abc123-w1` | `factory` → `AgentConfig.name` → AnyCode `assignee` |
+
+The plan only knows `logical_task_id`. `bind_task` requires the caller to supply `runtime_task_id`,
+because the mapping from a workflow task to a runtime task is a composition decision, not a plan fact.
+
+### 7b.3 Immutability and canonical form
+
+- Every collection in the plan is a `tuple`/`frozenset`; there is no `dict` field, so a caller cannot
+  mutate the plan through `.assignments`.
+- `freeze_assignment` copies everything it keeps: assignments are normalised into sorted
+  `AssignmentEntry` tuples, slots are re-read from the input sequence, and the policy configuration is
+  digested immediately rather than retained.
+- The digest covers: schema version, run id, workflow digest, slot definitions, **full trusted profile
+  definitions** (via per-slot `definition_digest` over role, instructions, `base_tools`,
+  `operating_scope`, `max_turns`, `can_delegate`), the assignment set, the wave map, and the policy
+  name/version/config digest. Map insertion order cannot affect it (sorted canonical JSON).
+- Serialised form is an **envelope**: `{"plan": <content>, "plan_digest": "sha256:…"}`. The stored
+  digest is compared with a recomputation over the content, so editing either side is rejected. A
+  digest never covers itself.
+- The digest is an integrity check, not a signature or an authorization token.
+
+### 7b.4 Homogeneous vs heterogeneous pools (experiment roles)
+
+| Pool | Question it answers | Must not be reported as |
+|---|---|---|
+| homogeneous (`coding_worker` × n) | does the assignment change how the DAG fans out, with capability held constant? | a context-locality benefit |
+| heterogeneous (`coding_worker` + `research_worker` + …) | does capability-constrained placement change what runs where? | a context-locality benefit either — the difference is capability, not locality |
+
+The existing catalog already provides `research_worker`, `coding_worker`, `data_worker`,
+`general_worker`. G2 adds **no** profile and changes **no** profile definition or gate rule.
+
+### 7b.5 What G1 verified against the real factory
+
+`tests/unit/test_placement_slots.py` builds two tasks on **one** slot through the real
+`ScopedWorkerFactory`, then asserts on the constructed objects and on `workers.json`:
+
+- distinct `worker_id`, distinct `AgentConfig.name`, correct per-task `task_id` in both the record and
+  `ExecutionContext.attributes`;
+- `principal` inherited unchanged from the parent context;
+- the profile actually used is the slot's profile;
+- both records persisted and independently readable, and the existing `resume(worker_id)` restores
+  each task record;
+- profile mismatch rejected **before** the factory persists anything (store still empty);
+- cross-run plan rejected; conflicting rebinding rejected without overwriting the first record.
+
+### 7b.6 Not done in G1
+
+Planner adapter (G2), `AssignmentOutcome` evaluator (G2), slot admission / `_run_wave_task` wrapper
+(G3), AnyCode execution consumption of a plan (G3), Context Plane integration (G4), real sandbox or
+model runs (G4/G5), placement recovery, plan persistence into `run_dir`, conversation reuse, and any
+performance claim. `WorkerStore` schema, `workers.json` format, `factory.py`, `models.py`, the gate,
+the ledger, ownership, approval, suspension and the sandbox binding are untouched.
 
 ---
 
@@ -382,9 +434,9 @@ only come from profile heterogeneity (§3.2) or enforced capacity (§3.5) — th
 
 | Gate | Scope | Exit criterion |
 |---|---|---|
-| **G1** | Minimal slot / frozen plan / task-execution binding model. `WorkerStore`, `worker_id` semantics and old `ExecutionContext` untouched | offline tests: plan determinism, one slot per task, `bind_task` rejects a profile mismatch, `WorkerStore` unchanged, existing runs still parse |
-| **G2** | Reuse the existing planner; legal-candidate constraints; heterogeneous slot pool; policy-independent `AssignmentOutcome` + the equal-assignment equality test | acceptance test of §5 passes; no planner algorithm change |
-| **G3** | Actual AnyCode execution consumes the frozen plan; slot admission (only if approved per §3.5); trusted profile binding; reliable-execution compatibility | plan == execution; ledger/ownership per task unchanged; failure path releases the slot |
+| **G1** | Minimal slot / frozen plan / task-execution binding model. `WorkerStore`, `worker_id` semantics and old `ExecutionContext` untouched | **implemented** (§7b); offline tests green; awaiting code review |
+| **G2** | Reuse the existing planner; legal-candidate constraints; homogeneous or heterogeneous slot pool as the experiment requires; policy-independent `AssignmentOutcome` + the equal-assignment equality test | acceptance test of §5 passes; no planner algorithm change |
+| **G3** | Actual AnyCode execution consumes the frozen plan; slot admission through the `_run_wave_task` wrapper (§3.5); trusted profile binding; reliable-execution compatibility | plan == execution; ledger/ownership per task unchanged; failure path releases the slot |
 | **G4** | Context Plane + real sandbox integration; different tasks on one slot keep correct context; real parallel evidence | dependency delivered once per consumer; request evidence bound to task execution identity |
 | **G5** | Full regression, support-scope update, freeze the new runtime SHA | reviewer sign-off |
 
