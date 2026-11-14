@@ -28,7 +28,6 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-
 from experiments.evaluation.final4.validation_tasks import TASKS as VALIDATION_TASKS
 from experiments.evaluation.final4.validation_tasks import Task
 from experiments.evaluation.models import BenchmarkTask, WorkerStep
