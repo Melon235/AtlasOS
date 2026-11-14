@@ -10,6 +10,7 @@ Nothing here calls DeepSeek or OpenSandbox. Live behaviour is a separate, budget
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -311,6 +312,68 @@ async def test_dependency_output_reaches_the_provider_request_exactly_once() -> 
         "DIFFERENT_FUNCTIONS"
         in evidence["correlation"]["task_prompt_hash_vs_provider_request_hash"]
     )
+
+
+def test_request_evidence_links_the_outgoing_request_to_the_render() -> None:
+    """The Phase-2 gap: prove the dependency reached the provider, not just two hashes."""
+
+    from experiments.evaluation.runner import _request_linkage, _RequestEvidence
+
+    from atlasos.context import InMemoryContextStore
+    from atlasos.context.models import ContextBlock, ContextKind
+
+    store = InMemoryContextStore()
+    evidence = _RequestEvidence()
+    evidence.bind_store(store)
+    prompt = 'TASK TURN\n\n<dependency task_id="w1">RESULT-OF-w1 tail</dependency>'
+    per_task = [
+        {
+            "task_id": "w2",
+            "task_prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        }
+    ]
+
+    # Before the producer output is in the store, no probe exists.
+    evidence.observe(
+        [SimpleNamespace(role="user", content=[SimpleNamespace(text=prompt)])],
+        SimpleNamespace(system_prompt="SYSTEM-w2", tools=()),
+    )
+    assert evidence.records[0]["dependency_probes"] == {}
+
+    store.put(
+        ContextBlock(
+            block_id="task-output:w1",
+            kind=ContextKind.DEPENDENCY_OUTPUT,
+            version=1,
+            content="RESULT-OF-w1 tail",
+            source="task",
+            owner_agent_id="w1",
+            task_id="w1",
+        )
+    )
+    evidence.observe(
+        [SimpleNamespace(role="user", content=[SimpleNamespace(text=prompt)])],
+        SimpleNamespace(system_prompt="SYSTEM-w2", tools=()),
+    )
+    probe = evidence.records[1]["dependency_probes"]["task-output:w1"]
+    assert probe["present"] is True
+    assert probe["count"] == 1
+
+    linkage = _request_linkage(
+        per_task,
+        evidence.records,
+        {"w2": SimpleNamespace(agent_config=SimpleNamespace(system_prompt="SYSTEM-w2"))},
+    )
+    assert linkage["status"] == "REQUEST_CONTENT_VERIFIED"
+    assert linkage["requests_linked_to_a_render"] == 2
+    assert linkage["requests"][1]["matched_task_id"] == "w2"
+    assert linkage["requests"][1]["matched_worker_task_id"] == "w2"
+    delivered = [item for item in linkage["dependency_delivery_in_request"] if item["present"]]
+    assert {(item["task_id"], item["block_id"]) for item in delivered} == {("w2", "task-output:w1")}
+    summary = evidence.as_dict()
+    assert summary["dependency_probe_hits"] == 1
+    assert summary["duplicate_dependency_injections"] == []
+    assert all(record["content_persisted"] is False for record in summary["requests"])
 
 
 # -- router -------------------------------------------------------------------------------------

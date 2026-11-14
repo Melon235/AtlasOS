@@ -225,6 +225,9 @@ class RunnerSettings:
     #: the claim before any model request; a mismatch aborts the run instead of silently
     #: falling back to ``upstream_default``.
     context_plane_expectation: str = CONTEXT_PLANE_UNSPECIFIED
+    #: Final-4 Phase 2: probe the outgoing request body for the selected dependency content. Pure
+    #: observation (digests and containment flags); no request byte is altered or persisted.
+    request_evidence: bool = True
 
     def digest(self) -> str:
         return canonical_digest(
@@ -259,18 +262,111 @@ class RunnerSettings:
         )
 
 
+class _RequestEvidence:
+    """Observation-only probe of the *outgoing* request body.
+
+    It answers one question that fingerprints cannot: did the dependency content that the Context
+    Plane selected actually appear in the message list the provider received, and how many times.
+    Only digests and booleans are kept — never the prompt, never a transcript, never a completion.
+    ``chat`` is a strict pass-through.
+    """
+
+    def __init__(self, store: Any = None) -> None:
+        self._store = store
+        self.records: list[dict[str, Any]] = []
+
+    def bind_store(self, store: Any) -> None:
+        self._store = store
+
+    def _blocks(self) -> list[Any]:
+        if self._store is None:
+            return []
+        return [
+            block for block in self._store.all_blocks() if block.block_id.startswith("task-output:")
+        ]
+
+    def observe(self, messages: Any, options: Any) -> None:
+        texts = [
+            "\n".join(str(getattr(block, "text", "")) for block in getattr(message, "content", ()))
+            for message in messages
+        ]
+        joined = "\n".join(texts)
+        probes: dict[str, Any] = {}
+        for block in self._blocks():
+            content = str(getattr(block, "content", ""))
+            # A head slice is enough to prove presence and stays distinctive for these outputs.
+            needle = content.strip()[:120]
+            if not needle:
+                continue
+            probes[block.block_id] = {
+                "present": needle in joined,
+                "count": joined.count(needle),
+                "block_version": block.version,
+                "block_chars": len(content),
+            }
+        self.records.append(
+            {
+                "call_index": len(self.records),
+                "system_prompt_digest": hashlib.sha256(
+                    str(getattr(options, "system_prompt", "") or "").encode("utf-8")
+                ).hexdigest(),
+                "first_message_digest": hashlib.sha256(texts[0].encode("utf-8")).hexdigest()
+                if texts
+                else None,
+                "message_count": len(texts),
+                "text_chars": len(joined),
+                "tool_count": len(getattr(options, "tools", ()) or ()),
+                "dependency_probes": probes,
+                "content_persisted": False,
+            }
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        probes = [
+            {
+                "block_id": block_id,
+                "call_index": record["call_index"],
+                "present": result["present"],
+                "count": result["count"],
+            }
+            for record in self.records
+            for block_id, result in (record.get("dependency_probes") or {}).items()
+        ]
+        return {
+            "enabled": True,
+            "method": (
+                "observed on the outgoing message list inside the provider wrapper; only digests, "
+                "character counts and containment flags are recorded"
+            ),
+            "requests_observed": len(self.records),
+            "requests_with_a_dependency_probe": len(
+                {record["call_index"] for record in self.records if record["dependency_probes"]}
+            ),
+            "dependency_probe_hits": sum(1 for probe in probes if probe["present"]),
+            "duplicate_dependency_injections": sorted(
+                {probe["block_id"] for probe in probes if probe["present"] and probe["count"] > 1}
+            ),
+            "requests": self.records,
+        }
+
+
 class ModelRecordingAdapter:
     """Observation-only wrapper recording the provider-resolved model name."""
 
-    def __init__(self, inner: DeepSeekAdapter, models: list[str]) -> None:
+    def __init__(
+        self, inner: DeepSeekAdapter, models: list[str], evidence: _RequestEvidence | None = None
+    ) -> None:
         self._inner = inner
         self._models = models
+        self._evidence = evidence
 
     @property
     def name(self) -> str:
         return self._inner.name
 
     async def chat(self, messages: Any, options: Any) -> Any:
+        if self._evidence is not None:
+            self._evidence.observe(messages, options)
         response = await self._inner.chat(messages, options)
         self._models.append(str(response.model))
         return response
@@ -511,6 +607,8 @@ def _context_evidence(
     task: Any,
     task_texts: dict[str, str],
     observations: list[InferenceObservation],
+    request_records: list[dict[str, Any]] | None = None,
+    workers: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read-only evidence for every task-prompt render the run performed.
 
@@ -565,6 +663,9 @@ def _context_evidence(
                 "pre_transform_layout_hash": render.pre_transform_layout_hash,
                 "stable_prefix_hash": render.stable_prefix_hash,
                 "task_prompt_hash": render.full_prompt_hash,
+                # Content identity of the exact user turn handed back to AnyCode. A provider request
+                # whose first message digests to this value provably carried this render.
+                "task_prompt_sha256": hashlib.sha256(render.prompt.encode("utf-8")).hexdigest(),
                 "task_prompt_chars": len(render.prompt),
                 "task_text_chars": len(task_texts.get(task_id, "")),
                 "dependencies": dependency_facts,
@@ -602,6 +703,79 @@ def _context_evidence(
                 "verified in that string, and the provider-side hash is recorded separately"
             ),
         },
+        "request_linkage": _request_linkage(per_task, request_records, workers),
+    }
+
+
+def _request_linkage(
+    per_task: list[dict[str, Any]],
+    request_records: list[dict[str, Any]] | None,
+    workers: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Tie an observed provider request to a task and a worker by re-computing known digests.
+
+    This is content evidence, not two unrelated hashes: the first message of the request is hashed
+    and compared with the hash of the exact string the builder returned, so a match proves that
+    render reached the provider. The worker is identified the same way, from its system prompt.
+    """
+
+    if not request_records:
+        return {
+            "status": "REQUEST_CONTENT_NOT_VERIFIED",
+            "reason": (
+                "no request-level observation was recorded for this run (request_evidence disabled "
+                "or the run predates it)"
+            ),
+        }
+    prompt_by_digest = {
+        item["task_prompt_sha256"]: item["task_id"]
+        for item in per_task
+        if item.get("task_prompt_sha256")
+    }
+    worker_by_system = {}
+    for task_id, worker in (workers or {}).items():
+        agent_config = getattr(worker, "agent_config", None)
+        system_prompt = str(getattr(agent_config, "system_prompt", "") or "")
+        worker_by_system[hashlib.sha256(system_prompt.encode("utf-8")).hexdigest()] = task_id
+    linked: list[dict[str, Any]] = []
+    for record in request_records:
+        task_id = prompt_by_digest.get(str(record.get("first_message_digest")))
+        linked.append(
+            {
+                "call_index": record["call_index"],
+                "matched_task_id": task_id,
+                "matched_worker_task_id": worker_by_system.get(
+                    str(record.get("system_prompt_digest"))
+                ),
+                "task_prompt_hash_match": task_id is not None,
+                "dependency_probes": record.get("dependency_probes") or {},
+                "message_count": record["message_count"],
+                "text_chars": record["text_chars"],
+                "content_persisted": record.get("content_persisted", False),
+            }
+        )
+    matched = sum(1 for item in linked if item["task_prompt_hash_match"])
+    return {
+        "status": "REQUEST_CONTENT_VERIFIED" if matched else "REQUEST_CONTENT_NOT_VERIFIED",
+        "requests_observed": len(linked),
+        "requests_linked_to_a_render": matched,
+        "requests_unlinked": len(linked) - matched,
+        "linkage_basis": (
+            "sha256(first message) == task_prompt_sha256 of the render; worker by "
+            "sha256(system prompt)"
+        ),
+        "dependency_delivery_in_request": [
+            {
+                "call_index": item["call_index"],
+                "task_id": item["matched_task_id"],
+                "block_id": block_id,
+                "present": probe["present"],
+                "count": probe["count"],
+            }
+            for item in linked
+            for block_id, probe in item["dependency_probes"].items()
+        ],
+        "requests": linked,
     }
 
 
@@ -937,6 +1111,8 @@ async def run_sample(
 
     observations: list[InferenceObservation] = []
     resolved_models: list[str] = []
+    #: Bound to the run's context store once it exists. Observes requests, never edits them.
+    request_evidence = _RequestEvidence()
     metrics = RuntimeMetrics()
     failure_class: FailureClass | None = None
     failure_reason: str | None = None
@@ -1024,7 +1200,11 @@ async def run_sample(
 
         async def factory(**_: Any) -> ModelRecordingAdapter:
             inner = build_deepseek_adapter(model, observations.append)
-            return ModelRecordingAdapter(inner, resolved_models)
+            return ModelRecordingAdapter(
+                inner,
+                resolved_models,
+                request_evidence if settings.request_evidence else None,
+            )
 
         register_provider_factory(provider_name, factory)
 
@@ -1313,6 +1493,8 @@ async def run_sample(
         context_builder, context_store = (
             context_plane if context_plane is not None else (None, None)
         )
+        if context_store is not None:
+            request_evidence.bind_store(context_store)
         if context_builder is not None and settings.handoff_mode == "dual":
             raise EvaluationEnvironmentError(
                 "context.policy='task_scoped' and handoff_mode='dual' both project dependency "
@@ -1339,6 +1521,7 @@ async def run_sample(
             "expectation": expectation,
         }
         environment["context_resolved"] = resolved_context
+        environment["request_evidence"] = bool(settings.request_evidence)
         _enforce_context_plane(expectation, resolved_context)
         engine = AtlasContextEngine(
             OrchestratorConfig(on_progress=on_progress),
@@ -1547,6 +1730,8 @@ async def run_sample(
                 task=task,
                 task_texts=task_texts,
                 observations=observations,
+                request_records=request_evidence.records if settings.request_evidence else None,
+                workers=worker_by_task,
             )
         else:
             metrics.extra["context"] = {
@@ -1555,6 +1740,11 @@ async def run_sample(
                 "builder": None,
                 "builder_invocations": 0,
             }
+        metrics.extra["request_evidence"] = (
+            request_evidence.as_dict()
+            if settings.request_evidence
+            else {"enabled": False, "reason": "request_evidence disabled for this unit"}
+        )
         # ``RunMetrics.as_dict`` does not serialise ``extra``, so the Context Plane evidence needs
         # its own durable file next to ``result.json``. Writing it here keeps one artifact per run
         # that a later reader can audit without re-deriving anything.
@@ -1567,6 +1757,7 @@ async def run_sample(
                     "handoff": metrics.extra.get("handoff"),
                     "routing": metrics.extra.get("routing"),
                     "budget": metrics.extra.get("budget"),
+                    "request_evidence": metrics.extra.get("request_evidence"),
                 },
             )
         call_records = _provider_call_records(
