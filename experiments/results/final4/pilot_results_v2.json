@@ -1,7 +1,7 @@
 {
   "config_file": "experiments/configs/final4-context.yaml",
-  "dataset_version": "final4-validation-2",
-  "executed": 10,
+  "dataset_version": "final4-validation-3",
+  "executed": 11,
   "exploratory_legacy_pilot": [
     {
       "note": "see docs/final-4-legacy-pilot-reclassification.md",
@@ -25,9 +25,31 @@
       "worker_count": 2
     }
   ],
-  "generated_at": "2026-11-14T08:06:32.312914+00:00",
-  "planned": 15,
+  "generated_at": "2026-11-14T09:28:31.700931+00:00",
+  "planned": 16,
   "replications": [
+    {
+      "budget_used_tokens": 49411,
+      "context_builder": "AtlasTaskPromptBuilder",
+      "context_invocations": 2,
+      "cost_usd": 0.00445032,
+      "oracle_pass": true,
+      "repetition": 2,
+      "run_id": "eval-32fbbff36188",
+      "unit": "validation-serial-R1",
+      "worker_count": 2
+    },
+    {
+      "budget_used_tokens": 43891,
+      "context_builder": "AtlasTaskPromptBuilder",
+      "context_invocations": 2,
+      "cost_usd": 0.00402634,
+      "oracle_pass": true,
+      "repetition": 3,
+      "run_id": "eval-db81850a884c",
+      "unit": "validation-serial-R1",
+      "worker_count": 2
+    },
     {
       "budget_used_tokens": 53097,
       "context_builder": "AtlasTaskPromptBuilder",
@@ -40,13 +62,14 @@
       "worker_count": 2
     }
   ],
-  "run_directories": 11,
+  "run_directories": 19,
   "runs": [
     {
-      "blocked_reason": "NOT_RUN: the native arm still runs on the host; neutral sandbox wiring for baseline.py is not complete, so N0 is reported as blocked rather than downgraded",
+      "blocked_reason": "NOT_RUN / BASELINE_PARITY_BLOCKED: the native arm still runs on the host. The neutral tool adapter exists (final4/neutral_adapter.py) but no neutral sandbox lifecycle layer does, and ProjectSandboxManager may not be injected into the baseline arm. 2 of 24 task runs were left unused rather than spend them on an unvalidated adapter",
       "classification": "CORRECTED_EVAL",
       "configuration": "N0",
       "oracle_pass": null,
+      "samples": [],
       "status": "NOT_RUN",
       "task_id": "validation-serial",
       "unit": "validation-serial-N0"
@@ -56,19 +79,19 @@
       "budget_limit_tokens": 120000,
       "budget_rejections": 0,
       "budget_requests": 13,
-      "budget_used_tokens": 46465,
-      "cache_hit_tokens": 36096,
+      "budget_used_tokens": 45960,
+      "cache_hit_tokens": 40576,
       "cache_metrics_complete": null,
-      "cache_miss_tokens": 7636,
+      "cache_miss_tokens": 2884,
       "classification": "CORRECTED_EVAL",
-      "completion_tokens": 2733,
-      "config_digest": "82512c9c6a777cec4c1a3cf2b452ca667cf42699077d4f43bc0f7ad2a05b42f7",
+      "completion_tokens": 2500,
+      "config_digest": "98d4d6c12f5e19a51b1edd886967cdd43b8116c80bcba7089fa2200d423afdd8",
       "configuration": "X0",
       "context": {
         "builder": null,
-        "builder_invocations": null,
+        "builder_invocations": 0,
         "config_path": "D:\\Work\\AtlasRuntime\\experiments\\configs\\eval-benchmark.yaml",
-        "deep_evidence": "MISSING: recorded before the runner persisted context.json; the run's own run.json still proves which builder was resolved and invoked",
+        "deep_evidence": "ARCHIVED (context.json)",
         "dependencies": [],
         "enabled": false,
         "handoff_mode": "legacy",
@@ -81,10 +104,12 @@
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
-      "estimated_cost_usd": 0.00578698,
+      "dataset_version": "final4-validation-3",
+      "estimated_cost_usd": 0.00410866,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
-      "latency_ms": 56231.5,
+      "git_commit": "97a7d35b3700d50b209141c4d0323cf2173c2a71",
+      "latency_ms": 50787.867,
       "mode": "multi_worker",
       "oracle_checks": {
         "all_workers_produced_output": true,
@@ -96,17 +121,45 @@
         "required_artifacts_present": true
       },
       "oracle_execution": "sandbox",
-      "oracle_ms": 5068.84,
+      "oracle_ms": 5060.025,
       "oracle_pass": true,
       "oracle_status": "HIDDEN_TESTS_PASSED",
-      "prompt_tokens_total": 43732,
-      "prompt_tokens_uncached": 43732,
+      "prompt_tokens_total": 43460,
+      "prompt_tokens_uncached": 43460,
       "repetition": 0,
       "routing": null,
-      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-serial\\r0-eval-324092b7c6e7",
-      "run_id": "eval-324092b7c6e7",
+      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-serial\\r0-eval-5a4e958c9c9f",
+      "run_id": "eval-5a4e958c9c9f",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
-      "sandbox_cleanup_ms": 862.871,
+      "samples": [
+        {
+          "cache_hit_tokens": 40576,
+          "cache_miss_tokens": 2884,
+          "completion_tokens": 2500,
+          "context_invocations": 0,
+          "cost_usd": 0.00410866,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 50787.867,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-5a4e958c9c9f",
+          "worker_count": 2
+        },
+        {
+          "cache_hit_tokens": 36096,
+          "cache_miss_tokens": 7636,
+          "completion_tokens": 2733,
+          "context_invocations": null,
+          "cost_usd": 0.00578698,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 56231.5,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-324092b7c6e7",
+          "worker_count": 2
+        }
+      ],
+      "sandbox_cleanup_ms": 951.762,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
       "success": true,
@@ -114,7 +167,7 @@
       "tool_calls": 11,
       "unit": "validation-serial-X0",
       "worker_count": 2,
-      "workspace_patch_digest": "sha256:5e0317f868e942d117fce1e0a762595183c94cbfb3e52c99bf1d58166fa0cd56"
+      "workspace_patch_digest": "sha256:ccfd83d52ef02bf132c8aea9c6ad119bbfe234c31ce1398a5c19241099fd305c"
     },
     {
       "agent_success": true,
@@ -146,9 +199,11 @@
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
+      "dataset_version": "final4-validation-2",
       "estimated_cost_usd": 0.00203404,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
+      "git_commit": "2a2af55ad08c74723df3fa56c4b8c80acbc57a58",
       "latency_ms": 34730.158,
       "mode": "coding",
       "oracle_checks": {
@@ -169,6 +224,21 @@
       "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-serial\\r0-eval-988f23e87d5e",
       "run_id": "eval-988f23e87d5e",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+      "samples": [
+        {
+          "cache_hit_tokens": 9856,
+          "cache_miss_tokens": 3315,
+          "completion_tokens": 817,
+          "context_invocations": null,
+          "cost_usd": 0.00203404,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 34730.158,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-988f23e87d5e",
+          "worker_count": 1
+        }
+      ],
       "sandbox_cleanup_ms": 871.375,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
@@ -183,36 +253,89 @@
       "agent_success": true,
       "budget_limit_tokens": 120000,
       "budget_rejections": 0,
-      "budget_requests": 12,
-      "budget_used_tokens": 47057,
-      "cache_hit_tokens": 40832,
+      "budget_requests": 14,
+      "budget_used_tokens": 52603,
+      "cache_hit_tokens": 46464,
       "cache_metrics_complete": null,
-      "cache_miss_tokens": 3258,
+      "cache_miss_tokens": 3286,
       "classification": "CORRECTED_EVAL",
-      "completion_tokens": 2967,
-      "config_digest": "25583d0da849e94ff2957d375ae8fd3a22072b91ab4fe09673376dc0b4ada401",
+      "completion_tokens": 2853,
+      "config_digest": "6e588edd24cb2b6992a7128026dd693ba4566c7c62e7268ca044d99882729a6e",
       "configuration": "R1",
       "context": {
         "builder": "AtlasTaskPromptBuilder",
-        "builder_invocations": null,
+        "builder_invocations": 2,
         "config_path": "D:\\Work\\AtlasRuntime\\experiments\\configs\\final4-context.yaml",
-        "deep_evidence": "MISSING: recorded before the runner persisted context.json; the run's own run.json still proves which builder was resolved and invoked",
-        "dependencies": [],
+        "deep_evidence": "ARCHIVED (context.json)",
+        "dependencies": [
+          {
+            "dependency": "w1",
+            "duplicate_injection": false,
+            "in_rendered_prompt": true,
+            "injection_count": 1,
+            "task_id": "w2"
+          }
+        ],
         "enabled": true,
         "handoff_mode": "legacy",
         "policy": "task_scoped",
         "prompt_builder_source": "atlas_context_plane",
-        "provider_request_evidence": "NONE",
+        "provider_request_evidence": "HASH_ONLY (provider_calls.jsonl)",
         "renderer": "stable_deterministic",
-        "store_block_ids": null,
-        "tasks": [],
+        "store_block_ids": [
+          "task-output:w1"
+        ],
+        "tasks": [
+          {
+            "context_layout_hash": "fb8fe4bf5818e4cd126cf36f05b093471240e7bbab9429f7943b08360f774d0d",
+            "declared_dependencies": [],
+            "dependencies": [],
+            "rendered_dependency_order": [],
+            "selected_block_ids": [],
+            "selected_block_versions": [],
+            "task_id": "w1",
+            "task_prompt_hash": "6b4e129090197a66964141ed2bd2f5b125d6c763974f7aa54087a4ed4c256beb",
+            "transform_name": "identity"
+          },
+          {
+            "context_layout_hash": "dfb1984ad68beed84ee7665d673b379f8c5952178395f0fedf50eeeea63db99d",
+            "declared_dependencies": [
+              "w1"
+            ],
+            "dependencies": [
+              {
+                "block_chars": 1779,
+                "block_version": 1,
+                "duplicate_injection": false,
+                "in_rendered_prompt": true,
+                "injection_count": 1,
+                "store_block_id": "task-output:w1",
+                "task_id": "w1"
+              }
+            ],
+            "rendered_dependency_order": [
+              "w1"
+            ],
+            "selected_block_ids": [
+              "task-output:w1"
+            ],
+            "selected_block_versions": [
+              1
+            ],
+            "task_id": "w2",
+            "task_prompt_hash": "1cd1cd5711e0c18bcbb01fe06ccdf2c4f190ce0242f74cac4585fedd83fbd812",
+            "transform_name": "identity"
+          }
+        ],
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
-      "estimated_cost_usd": 0.00478279,
+      "dataset_version": "final4-validation-3",
+      "estimated_cost_usd": 0.00468818,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
-      "latency_ms": 58213.672,
+      "git_commit": "97a7d35b3700d50b209141c4d0323cf2173c2a71",
+      "latency_ms": 59189.578,
       "mode": "multi_worker",
       "oracle_checks": {
         "all_workers_produced_output": true,
@@ -224,17 +347,84 @@
         "required_artifacts_present": true
       },
       "oracle_execution": "sandbox",
-      "oracle_ms": 5215.341,
+      "oracle_ms": 5312.172,
       "oracle_pass": true,
       "oracle_status": "HIDDEN_TESTS_PASSED",
-      "prompt_tokens_total": 44090,
-      "prompt_tokens_uncached": 44090,
+      "prompt_tokens_total": 49750,
+      "prompt_tokens_uncached": 49750,
       "repetition": 0,
       "routing": null,
-      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-serial\\r0-eval-3826f621c3f5",
-      "run_id": "eval-3826f621c3f5",
+      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-serial\\r0-eval-63e864171276",
+      "run_id": "eval-63e864171276",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
-      "sandbox_cleanup_ms": 867.493,
+      "samples": [
+        {
+          "cache_hit_tokens": 46464,
+          "cache_miss_tokens": 3286,
+          "completion_tokens": 2853,
+          "context_invocations": 2,
+          "cost_usd": 0.00468818,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 59189.578,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-63e864171276",
+          "worker_count": 2
+        },
+        {
+          "cache_hit_tokens": 43520,
+          "cache_miss_tokens": 3200,
+          "completion_tokens": 2691,
+          "context_invocations": 2,
+          "cost_usd": 0.00445032,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 61353.056,
+          "oracle_pass": true,
+          "repetition": 2,
+          "run_id": "eval-32fbbff36188",
+          "worker_count": 2
+        },
+        {
+          "cache_hit_tokens": 38656,
+          "cache_miss_tokens": 2764,
+          "completion_tokens": 2471,
+          "context_invocations": 2,
+          "cost_usd": 0.00402634,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 57787.047,
+          "oracle_pass": true,
+          "repetition": 3,
+          "run_id": "eval-db81850a884c",
+          "worker_count": 2
+        },
+        {
+          "cache_hit_tokens": 40832,
+          "cache_miss_tokens": 3258,
+          "completion_tokens": 2967,
+          "context_invocations": null,
+          "cost_usd": 0.00478279,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 58213.672,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-3826f621c3f5",
+          "worker_count": 2
+        },
+        {
+          "cache_hit_tokens": 46848,
+          "cache_miss_tokens": 3516,
+          "completion_tokens": 2733,
+          "context_invocations": 2,
+          "cost_usd": 0.00461549,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 61184.388,
+          "oracle_pass": true,
+          "repetition": 1,
+          "run_id": "eval-dad0796bd863",
+          "worker_count": 2
+        }
+      ],
+      "sandbox_cleanup_ms": 964.239,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
       "success": true,
@@ -242,42 +432,56 @@
       "tool_calls": 14,
       "unit": "validation-serial-R1",
       "worker_count": 2,
-      "workspace_patch_digest": "sha256:ffdddf09daa1f1d26eddfd1b7afe276565ad24d829b4c891d1607d600aae367a"
+      "workspace_patch_digest": "sha256:a0faa7d8973ea95f4b5419bb526994778622cf8e52865745f7c7b87f30ae3efc"
     },
     {
       "agent_success": true,
       "budget_limit_tokens": 120000,
       "budget_rejections": 0,
-      "budget_requests": 4,
-      "budget_used_tokens": 14079,
-      "cache_hit_tokens": 11776,
+      "budget_requests": 7,
+      "budget_used_tokens": 26961,
+      "cache_hit_tokens": 24320,
       "cache_metrics_complete": null,
-      "cache_miss_tokens": 1454,
+      "cache_miss_tokens": 1433,
       "classification": "CORRECTED_EVAL",
-      "completion_tokens": 849,
-      "config_digest": "af9c9982219e5c7dfee975986f1506912896741d56ad1e3b98e12952c950c74a",
+      "completion_tokens": 1208,
+      "config_digest": "c48203343d4ba7cc4546b95f104c2015d35ad774d656c92db575a4cfd123341e",
       "configuration": "R2",
       "context": {
         "builder": "AtlasTaskPromptBuilder",
-        "builder_invocations": null,
+        "builder_invocations": 1,
         "config_path": "D:\\Work\\AtlasRuntime\\experiments\\configs\\final4-context.yaml",
-        "deep_evidence": "MISSING: recorded before the runner persisted context.json; the run's own run.json still proves which builder was resolved and invoked",
+        "deep_evidence": "ARCHIVED (context.json)",
         "dependencies": [],
         "enabled": true,
         "handoff_mode": "legacy",
         "policy": "task_scoped",
         "prompt_builder_source": "atlas_context_plane",
-        "provider_request_evidence": "NONE",
+        "provider_request_evidence": "HASH_ONLY (provider_calls.jsonl)",
         "renderer": "stable_deterministic",
-        "store_block_ids": null,
-        "tasks": [],
+        "store_block_ids": [],
+        "tasks": [
+          {
+            "context_layout_hash": "72cdf2183a6c519d70843fc688c63985a8bde31cf47b4fd0cffafdd5da4cdd33",
+            "declared_dependencies": [],
+            "dependencies": [],
+            "rendered_dependency_order": [],
+            "selected_block_ids": [],
+            "selected_block_versions": [],
+            "task_id": "solo",
+            "task_prompt_hash": "94cbf5259d4391c7fd056b836804f6a93ad29b24e65f8cb749cba56db3cea13c",
+            "transform_name": "identity"
+          }
+        ],
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
-      "estimated_cost_usd": 0.00152566,
+      "dataset_version": "final4-validation-3",
+      "estimated_cost_usd": 0.00202542,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
-      "latency_ms": 31874.143,
+      "git_commit": "97a7d35b3700d50b209141c4d0323cf2173c2a71",
+      "latency_ms": 42879.332,
       "mode": "coding",
       "oracle_checks": {
         "forbidden_paths_unchanged": true,
@@ -287,31 +491,60 @@
         "required_artifacts_present": true
       },
       "oracle_execution": "sandbox",
-      "oracle_ms": 5104.31,
+      "oracle_ms": 5176.356,
       "oracle_pass": true,
       "oracle_status": "HIDDEN_TESTS_PASSED",
-      "prompt_tokens_total": 13230,
-      "prompt_tokens_uncached": 13230,
+      "prompt_tokens_total": 25753,
+      "prompt_tokens_uncached": 25753,
       "repetition": 0,
       "routing": null,
-      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-serial\\r0-eval-e2a103452683",
-      "run_id": "eval-e2a103452683",
+      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-serial\\r0-eval-04fea0852a8d",
+      "run_id": "eval-04fea0852a8d",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
-      "sandbox_cleanup_ms": 879.484,
+      "samples": [
+        {
+          "cache_hit_tokens": 24320,
+          "cache_miss_tokens": 1433,
+          "completion_tokens": 1208,
+          "context_invocations": 1,
+          "cost_usd": 0.00202542,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 42879.332,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-04fea0852a8d",
+          "worker_count": 1
+        },
+        {
+          "cache_hit_tokens": 11776,
+          "cache_miss_tokens": 1454,
+          "completion_tokens": 849,
+          "context_invocations": null,
+          "cost_usd": 0.00152566,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 31874.143,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-e2a103452683",
+          "worker_count": 1
+        }
+      ],
+      "sandbox_cleanup_ms": 831.06,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
       "success": true,
       "task_id": "validation-serial",
-      "tool_calls": 3,
+      "tool_calls": 7,
       "unit": "validation-serial-R2",
       "worker_count": 1,
-      "workspace_patch_digest": "sha256:b61daaf0ee5854d0fa31f7d432ae1e59cf6675403c5eaeddfc0c0176cd65e19c"
+      "workspace_patch_digest": "sha256:c510645c6db15a4e39157ce8f2dc708e99a2f47f2f7d4cea0a4ea2fd20d98635"
     },
     {
-      "blocked_reason": "NOT_RUN: the native arm still runs on the host; neutral sandbox wiring for baseline.py is not complete, so N0 is reported as blocked rather than downgraded",
+      "blocked_reason": "NOT_RUN / BASELINE_PARITY_BLOCKED: the native arm still runs on the host. The neutral tool adapter exists (final4/neutral_adapter.py) but no neutral sandbox lifecycle layer does, and ProjectSandboxManager may not be injected into the baseline arm. 2 of 24 task runs were left unused rather than spend them on an unvalidated adapter",
       "classification": "CORRECTED_EVAL",
       "configuration": "N0",
       "oracle_pass": null,
+      "samples": [],
       "status": "NOT_RUN",
       "task_id": "validation-parallel",
       "unit": "validation-parallel-N0"
@@ -321,6 +554,7 @@
       "classification": "CORRECTED_EVAL",
       "configuration": "X0",
       "oracle_pass": null,
+      "samples": [],
       "status": "NOT_RUN",
       "task_id": "validation-parallel",
       "unit": "validation-parallel-X0"
@@ -355,9 +589,11 @@
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
+      "dataset_version": "final4-validation-2",
       "estimated_cost_usd": 0.00423301,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
+      "git_commit": "2a2af55ad08c74723df3fa56c4b8c80acbc57a58",
       "latency_ms": 43013.028,
       "mode": "coding",
       "oracle_checks": {
@@ -378,6 +614,21 @@
       "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-parallel\\r0-eval-06d7aa923b1c",
       "run_id": "eval-06d7aa923b1c",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+      "samples": [
+        {
+          "cache_hit_tokens": 26752,
+          "cache_miss_tokens": 4291,
+          "completion_tokens": 2321,
+          "context_invocations": null,
+          "cost_usd": 0.00423301,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 43013.028,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-06d7aa923b1c",
+          "worker_count": 1
+        }
+      ],
       "sandbox_cleanup_ms": 794.122,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
@@ -418,9 +669,11 @@
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
+      "dataset_version": "final4-validation-2",
       "estimated_cost_usd": 0.00852672,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
+      "git_commit": "2a2af55ad08c74723df3fa56c4b8c80acbc57a58",
       "latency_ms": 68990.803,
       "mode": "multi_worker",
       "oracle_checks": {
@@ -443,6 +696,21 @@
       "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-parallel\\r0-eval-e005a3b199d0",
       "run_id": "eval-e005a3b199d0",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+      "samples": [
+        {
+          "cache_hit_tokens": 62720,
+          "cache_miss_tokens": 12332,
+          "completion_tokens": 3709,
+          "context_invocations": null,
+          "cost_usd": 0.00852672,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 68990.803,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-e005a3b199d0",
+          "worker_count": 3
+        }
+      ],
       "sandbox_cleanup_ms": 1083.324,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
@@ -457,36 +725,228 @@
       "agent_success": true,
       "budget_limit_tokens": 120000,
       "budget_rejections": 0,
-      "budget_requests": 9,
-      "budget_used_tokens": 38067,
-      "cache_hit_tokens": 33408,
+      "budget_requests": 25,
+      "budget_used_tokens": 108955,
+      "cache_hit_tokens": 96512,
       "cache_metrics_complete": null,
-      "cache_miss_tokens": 2576,
+      "cache_miss_tokens": 6857,
       "classification": "CORRECTED_EVAL",
-      "completion_tokens": 2083,
-      "config_digest": "af9c9982219e5c7dfee975986f1506912896741d56ad1e3b98e12952c950c74a",
+      "completion_tokens": 5586,
+      "config_digest": "c48203343d4ba7cc4546b95f104c2015d35ad774d656c92db575a4cfd123341e",
       "configuration": "R2",
       "context": {
         "builder": "AtlasTaskPromptBuilder",
-        "builder_invocations": null,
+        "builder_invocations": 3,
         "config_path": "D:\\Work\\AtlasRuntime\\experiments\\configs\\final4-context.yaml",
-        "deep_evidence": "MISSING: recorded before the runner persisted context.json; the run's own run.json still proves which builder was resolved and invoked",
+        "deep_evidence": "ARCHIVED (context.json)",
+        "dependencies": [
+          {
+            "dependency": "w1",
+            "duplicate_injection": false,
+            "in_rendered_prompt": true,
+            "injection_count": 1,
+            "task_id": "w3"
+          },
+          {
+            "dependency": "w2",
+            "duplicate_injection": false,
+            "in_rendered_prompt": true,
+            "injection_count": 1,
+            "task_id": "w3"
+          }
+        ],
+        "enabled": true,
+        "handoff_mode": "legacy",
+        "policy": "task_scoped",
+        "prompt_builder_source": "atlas_context_plane",
+        "provider_request_evidence": "HASH_ONLY (provider_calls.jsonl)",
+        "renderer": "stable_deterministic",
+        "store_block_ids": [
+          "task-output:w1",
+          "task-output:w2"
+        ],
+        "tasks": [
+          {
+            "context_layout_hash": "fb8fe4bf5818e4cd126cf36f05b093471240e7bbab9429f7943b08360f774d0d",
+            "declared_dependencies": [],
+            "dependencies": [],
+            "rendered_dependency_order": [],
+            "selected_block_ids": [],
+            "selected_block_versions": [],
+            "task_id": "w1",
+            "task_prompt_hash": "7c08b8028be3b40c38d4ee52f71c7c49407a25d5530287d39e160cef9ab2b6e5",
+            "transform_name": "identity"
+          },
+          {
+            "context_layout_hash": "33b30eb97cffe7bad205c86abef935101144435a3bcf9207780e9ef431ac0ec8",
+            "declared_dependencies": [],
+            "dependencies": [],
+            "rendered_dependency_order": [],
+            "selected_block_ids": [],
+            "selected_block_versions": [],
+            "task_id": "w2",
+            "task_prompt_hash": "a61f32b3aa8d0f74c75103cd287427001f249fd1bb5a284a89c35773c288d430",
+            "transform_name": "identity"
+          },
+          {
+            "context_layout_hash": "ada1d3a05f3686fcc987d535e54ae3c27c1c5db555fb83381c37b783cfc844d6",
+            "declared_dependencies": [
+              "w1",
+              "w2"
+            ],
+            "dependencies": [
+              {
+                "block_chars": 2246,
+                "block_version": 1,
+                "duplicate_injection": false,
+                "in_rendered_prompt": true,
+                "injection_count": 1,
+                "store_block_id": "task-output:w1",
+                "task_id": "w1"
+              },
+              {
+                "block_chars": 1078,
+                "block_version": 1,
+                "duplicate_injection": false,
+                "in_rendered_prompt": true,
+                "injection_count": 1,
+                "store_block_id": "task-output:w2",
+                "task_id": "w2"
+              }
+            ],
+            "rendered_dependency_order": [
+              "w1",
+              "w2"
+            ],
+            "selected_block_ids": [
+              "task-output:w1",
+              "task-output:w2"
+            ],
+            "selected_block_versions": [
+              1,
+              1
+            ],
+            "task_id": "w3",
+            "task_prompt_hash": "47bd3989b9d34f3b009e7c70fc9edef524950e78f59ba98c2b897349974b323e",
+            "transform_name": "identity"
+          }
+        ],
+        "tool_error_mode": "corrected",
+        "transform": "identity"
+      },
+      "dataset_version": "final4-validation-3",
+      "estimated_cost_usd": 0.00933937,
+      "failure_class": "TASK_SUCCESS",
+      "failure_reason": null,
+      "git_commit": "97a7d35b3700d50b209141c4d0323cf2173c2a71",
+      "latency_ms": 78907.854,
+      "mode": "multi_worker",
+      "oracle_checks": {
+        "all_workers_produced_output": true,
+        "distinct_workers_executed": true,
+        "forbidden_paths_unchanged": true,
+        "hidden_tests_passed": true,
+        "host_fixture_unchanged": true,
+        "only_allowed_paths_changed": true,
+        "required_artifacts_present": true
+      },
+      "oracle_execution": "sandbox",
+      "oracle_ms": 5302.811,
+      "oracle_pass": true,
+      "oracle_status": "HIDDEN_TESTS_PASSED",
+      "prompt_tokens_total": 103369,
+      "prompt_tokens_uncached": 103369,
+      "repetition": 0,
+      "routing": null,
+      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-parallel\\r0-eval-ffc739e09fa6",
+      "run_id": "eval-ffc739e09fa6",
+      "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+      "samples": [
+        {
+          "cache_hit_tokens": 96512,
+          "cache_miss_tokens": 6857,
+          "completion_tokens": 5586,
+          "context_invocations": 3,
+          "cost_usd": 0.00933937,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 78907.854,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-ffc739e09fa6",
+          "worker_count": 3
+        },
+        {
+          "cache_hit_tokens": 33408,
+          "cache_miss_tokens": 2576,
+          "completion_tokens": 2083,
+          "context_invocations": null,
+          "cost_usd": 0.00347285,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 43961.016,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-f921f254d5a4",
+          "worker_count": 1
+        }
+      ],
+      "sandbox_cleanup_ms": 1045.63,
+      "sandbox_destroyed": true,
+      "status": "EXECUTED",
+      "success": true,
+      "task_id": "validation-parallel",
+      "tool_calls": 25,
+      "unit": "validation-parallel-R2",
+      "worker_count": 3,
+      "workspace_patch_digest": "sha256:a14519692995841d3e9b6c5d4ad9036e771cca0e8293c06851072c431796ea25"
+    },
+    {
+      "agent_success": true,
+      "budget_limit_tokens": 120000,
+      "budget_rejections": 0,
+      "budget_requests": 7,
+      "budget_used_tokens": 28297,
+      "cache_hit_tokens": 23040,
+      "cache_metrics_complete": null,
+      "cache_miss_tokens": 2789,
+      "classification": "CORRECTED_EVAL",
+      "completion_tokens": 2468,
+      "config_digest": "c44215243ed0bf15e1339787370b479f71aca682909fab7d8f969dfe07cf4afe",
+      "configuration": "D0",
+      "context": {
+        "builder": "AtlasTaskPromptBuilder",
+        "builder_invocations": 1,
+        "config_path": "D:\\Work\\AtlasRuntime\\experiments\\configs\\final4-context.yaml",
+        "deep_evidence": "ARCHIVED (context.json)",
         "dependencies": [],
         "enabled": true,
         "handoff_mode": "legacy",
         "policy": "task_scoped",
         "prompt_builder_source": "atlas_context_plane",
-        "provider_request_evidence": "NONE",
+        "provider_request_evidence": "HASH_ONLY (provider_calls.jsonl)",
         "renderer": "stable_deterministic",
-        "store_block_ids": null,
-        "tasks": [],
+        "store_block_ids": [],
+        "tasks": [
+          {
+            "context_layout_hash": "d8029c76baf8f8c2a12dacf52033cebe1dd1a5b33b316db8dd828dae0788b81e",
+            "declared_dependencies": [],
+            "dependencies": [],
+            "rendered_dependency_order": [],
+            "selected_block_ids": [],
+            "selected_block_versions": [],
+            "task_id": "main",
+            "task_prompt_hash": "209c2d063bbe614b975ba9d874892d65ae5559ff243ce0d2ba49c98835534172",
+            "transform_name": "identity"
+          }
+        ],
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
-      "estimated_cost_usd": 0.00347285,
+      "dataset_version": "final4-validation-3",
+      "estimated_cost_usd": 0.00393654,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
-      "latency_ms": 43961.016,
+      "git_commit": "410446c8dae5b8a807c942399f71c1ec8d553672",
+      "latency_ms": 48339.186,
       "mode": "coding",
       "oracle_checks": {
         "forbidden_paths_unchanged": true,
@@ -496,31 +956,47 @@
         "required_artifacts_present": true
       },
       "oracle_execution": "sandbox",
-      "oracle_ms": 5127.825,
+      "oracle_ms": 5227.313,
       "oracle_pass": true,
       "oracle_status": "HIDDEN_TESTS_PASSED",
-      "prompt_tokens_total": 35984,
-      "prompt_tokens_uncached": 35984,
+      "prompt_tokens_total": 25829,
+      "prompt_tokens_uncached": 25829,
       "repetition": 0,
       "routing": null,
-      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-parallel\\r0-eval-f921f254d5a4",
-      "run_id": "eval-f921f254d5a4",
+      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-parallel\\r0-eval-72a4ced3cc5e",
+      "run_id": "eval-72a4ced3cc5e",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
-      "sandbox_cleanup_ms": 856.976,
+      "samples": [
+        {
+          "cache_hit_tokens": 23040,
+          "cache_miss_tokens": 2789,
+          "completion_tokens": 2468,
+          "context_invocations": 1,
+          "cost_usd": 0.00393654,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 48339.186,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-72a4ced3cc5e",
+          "worker_count": 1
+        }
+      ],
+      "sandbox_cleanup_ms": 873.637,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
       "success": true,
       "task_id": "validation-parallel",
-      "tool_calls": 9,
-      "unit": "validation-parallel-R2",
+      "tool_calls": 10,
+      "unit": "validation-parallel-D0",
       "worker_count": 1,
-      "workspace_patch_digest": "sha256:aca223da39be49e50f99be739326bf6ce459d134d018b19a2d28b2d3a5896c67"
+      "workspace_patch_digest": "sha256:855695cae0e136952a2f2f301a426ef01d8c4ac0039382b0248f444d5848ec76"
     },
     {
-      "blocked_reason": "NOT_RUN: the native arm still runs on the host; neutral sandbox wiring for baseline.py is not complete, so N0 is reported as blocked rather than downgraded",
+      "blocked_reason": "NOT_RUN / BASELINE_PARITY_BLOCKED: the native arm still runs on the host. The neutral tool adapter exists (final4/neutral_adapter.py) but no neutral sandbox lifecycle layer does, and ProjectSandboxManager may not be injected into the baseline arm. 2 of 24 task runs were left unused rather than spend them on an unvalidated adapter",
       "classification": "CORRECTED_EVAL",
       "configuration": "N0",
       "oracle_pass": null,
+      "samples": [],
       "status": "NOT_RUN",
       "task_id": "validation-coupled",
       "unit": "validation-coupled-N0"
@@ -530,6 +1006,7 @@
       "classification": "CORRECTED_EVAL",
       "configuration": "X0",
       "oracle_pass": null,
+      "samples": [],
       "status": "NOT_RUN",
       "task_id": "validation-coupled",
       "unit": "validation-coupled-X0"
@@ -564,9 +1041,11 @@
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
+      "dataset_version": "final4-validation-2",
       "estimated_cost_usd": 0.0050542,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
+      "git_commit": "2a2af55ad08c74723df3fa56c4b8c80acbc57a58",
       "latency_ms": 47755.511,
       "mode": "coding",
       "oracle_checks": {
@@ -587,6 +1066,21 @@
       "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-coupled\\r0-eval-e56fb933c797",
       "run_id": "eval-e56fb933c797",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+      "samples": [
+        {
+          "cache_hit_tokens": 28416,
+          "cache_miss_tokens": 4655,
+          "completion_tokens": 2906,
+          "context_invocations": null,
+          "cost_usd": 0.0050542,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 47755.511,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-e56fb933c797",
+          "worker_count": 1
+        }
+      ],
       "sandbox_cleanup_ms": 929.197,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
@@ -627,9 +1121,11 @@
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
+      "dataset_version": "final4-validation-2",
       "estimated_cost_usd": 0.00757475,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
+      "git_commit": "2a2af55ad08c74723df3fa56c4b8c80acbc57a58",
       "latency_ms": 62921.119,
       "mode": "multi_worker",
       "oracle_checks": {
@@ -652,6 +1148,21 @@
       "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-coupled\\r0-eval-b3d2da57bfec",
       "run_id": "eval-b3d2da57bfec",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
+      "samples": [
+        {
+          "cache_hit_tokens": 43008,
+          "cache_miss_tokens": 8473,
+          "completion_tokens": 3979,
+          "context_invocations": null,
+          "cost_usd": 0.00757475,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 62921.119,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-b3d2da57bfec",
+          "worker_count": 2
+        }
+      ],
       "sandbox_cleanup_ms": 859.102,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
@@ -666,36 +1177,50 @@
       "agent_success": true,
       "budget_limit_tokens": 120000,
       "budget_rejections": 0,
-      "budget_requests": 9,
-      "budget_used_tokens": 41275,
-      "cache_hit_tokens": 35968,
+      "budget_requests": 10,
+      "budget_used_tokens": 43900,
+      "cache_hit_tokens": 39424,
       "cache_metrics_complete": null,
-      "cache_miss_tokens": 2906,
+      "cache_miss_tokens": 2007,
       "classification": "CORRECTED_EVAL",
-      "completion_tokens": 2401,
-      "config_digest": "af9c9982219e5c7dfee975986f1506912896741d56ad1e3b98e12952c950c74a",
+      "completion_tokens": 2469,
+      "config_digest": "c48203343d4ba7cc4546b95f104c2015d35ad774d656c92db575a4cfd123341e",
       "configuration": "R2",
       "context": {
         "builder": "AtlasTaskPromptBuilder",
-        "builder_invocations": null,
+        "builder_invocations": 1,
         "config_path": "D:\\Work\\AtlasRuntime\\experiments\\configs\\final4-context.yaml",
-        "deep_evidence": "MISSING: recorded before the runner persisted context.json; the run's own run.json still proves which builder was resolved and invoked",
+        "deep_evidence": "ARCHIVED (context.json)",
         "dependencies": [],
         "enabled": true,
         "handoff_mode": "legacy",
         "policy": "task_scoped",
         "prompt_builder_source": "atlas_context_plane",
-        "provider_request_evidence": "NONE",
+        "provider_request_evidence": "HASH_ONLY (provider_calls.jsonl)",
         "renderer": "stable_deterministic",
-        "store_block_ids": null,
-        "tasks": [],
+        "store_block_ids": [],
+        "tasks": [
+          {
+            "context_layout_hash": "72cdf2183a6c519d70843fc688c63985a8bde31cf47b4fd0cffafdd5da4cdd33",
+            "declared_dependencies": [],
+            "dependencies": [],
+            "rendered_dependency_order": [],
+            "selected_block_ids": [],
+            "selected_block_versions": [],
+            "task_id": "solo",
+            "task_prompt_hash": "1036fb5a59ef4483b714e58e9f2b128d8dfeb7048bda0ca7fb56a288da81f52c",
+            "transform_name": "identity"
+          }
+        ],
         "tool_error_mode": "corrected",
         "transform": "identity"
       },
-      "estimated_cost_usd": 0.00396881,
+      "dataset_version": "final4-validation-3",
+      "estimated_cost_usd": 0.00380144,
       "failure_class": "TASK_SUCCESS",
       "failure_reason": null,
-      "latency_ms": 45996.284,
+      "git_commit": "97a7d35b3700d50b209141c4d0323cf2173c2a71",
+      "latency_ms": 47862.066,
       "mode": "coding",
       "oracle_checks": {
         "forbidden_paths_unchanged": true,
@@ -705,28 +1230,56 @@
         "required_artifacts_present": true
       },
       "oracle_execution": "sandbox",
-      "oracle_ms": 4973.852,
+      "oracle_ms": 5336.995,
       "oracle_pass": true,
       "oracle_status": "HIDDEN_TESTS_PASSED",
-      "prompt_tokens_total": 38874,
-      "prompt_tokens_uncached": 38874,
+      "prompt_tokens_total": 41431,
+      "prompt_tokens_uncached": 41431,
       "repetition": 0,
       "routing": null,
-      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-coupled\\r0-eval-9866c45920ed",
-      "run_id": "eval-9866c45920ed",
+      "run_dir": "D:\\Work\\AtlasRuntime\\experiments\\runs\\final4\\atlasos-final4-validation-v2\\validation-coupled\\r0-eval-8b6fead25320",
+      "run_id": "eval-8b6fead25320",
       "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
-      "sandbox_cleanup_ms": 807.032,
+      "samples": [
+        {
+          "cache_hit_tokens": 39424,
+          "cache_miss_tokens": 2007,
+          "completion_tokens": 2469,
+          "context_invocations": 1,
+          "cost_usd": 0.00380144,
+          "dataset_version": "final4-validation-3",
+          "latency_ms": 47862.066,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-8b6fead25320",
+          "worker_count": 1
+        },
+        {
+          "cache_hit_tokens": 35968,
+          "cache_miss_tokens": 2906,
+          "completion_tokens": 2401,
+          "context_invocations": null,
+          "cost_usd": 0.00396881,
+          "dataset_version": "final4-validation-2",
+          "latency_ms": 45996.284,
+          "oracle_pass": true,
+          "repetition": 0,
+          "run_id": "eval-9866c45920ed",
+          "worker_count": 1
+        }
+      ],
+      "sandbox_cleanup_ms": 971.182,
       "sandbox_destroyed": true,
       "status": "EXECUTED",
       "success": true,
       "task_id": "validation-coupled",
-      "tool_calls": 10,
+      "tool_calls": 11,
       "unit": "validation-coupled-R2",
       "worker_count": 1,
-      "workspace_patch_digest": "sha256:53ef1ad606cb76050febd0b826a60a699f309ed783d46a75724ac92d1648d83f"
+      "workspace_patch_digest": "sha256:fccaaf9ac60a53636b5b97201c982243cdf17299277be1c42fa6592c60d5504e"
     }
   ],
   "runtime_sha": "93cbd98f9407e7358e997878238520dcac15827a",
-  "task_set_revision": 2,
+  "task_set_revision": 3,
   "x1_equivalence": "X1 == <task>-R1 (same unit, not a separate run)"
 }

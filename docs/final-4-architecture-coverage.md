@@ -87,7 +87,7 @@ distinguishes "wired" from "triggered", because that distinction is exactly what
 | Sandbox binding | `IMPLEMENTED_AND_ACTIVE` | `ProjectSandboxManager`, real provider required (`runner.py:792`) |
 | Approval / durable suspension | `IMPLEMENTED_BUT_NOT_WIRED` | neither store is passed and `_coding_policy()` contains no `require_human` rule, so `REQUIRE_HUMAN` is unreachable |
 | Shared run budget | `IMPLEMENTED_OPT_IN` | `runner.py:774` when `budget_mode="guarded"` (the pilot used it) |
-| Adaptive Delegation (router) | `IMPLEMENTED_OPT_IN` | `runner.py:895-924`, `delegation_route_mode`; `off` by default. Live: DIRECT only (R2, 2026-11-14) |
+| Adaptive Delegation (router) | `IMPLEMENTED_OPT_IN` | `runner.py:895-924`, `delegation_route_mode`; `off` by default. Live: `DELEGATE_PARALLEL` on `validation-parallel-R2` (`eval-ffc739e09fa6`, 3 workers), `DIRECT` on the other two cells |
 | Trajectory | `IMPLEMENTED_AND_ACTIVE` | `TrajectoryRecorder` |
 | Oracle | `IMPLEMENTED_AND_ACTIVE` | `evaluate_oracle_isolated`, sandboxed hidden tests |
 | Deliverable verification | `IMPLEMENTED_OPT_IN` | `verification_mode="observe"`; observation only |
@@ -96,13 +96,14 @@ distinguishes "wired" from "triggered", because that distinction is exactly what
 
 | Core | Implemented | Active by default somewhere | Actually executed on a real model run |
 |---|---|---|---|
-| **Context Engineering** — end to end through a provider request | yes | workflow path only | **no** — the only runs that declared it did not load it |
+| **Context Engineering** — end to end through a provider request | yes | workflow path only | **yes, in evaluation** — 7 corrected runs; `eval-db81850a884c` is verified at request-content level (`REQUEST_CONTENT_VERIFIED`, dependency present once in 6 of 6 consumer requests) |
 | **Reliable Execution** — gate, ledger, sandbox, suspension, budget | yes | coding + evaluation | **partially** — gate/ledger/sandbox/budget ran; suspension never triggered (no `REQUIRE_HUMAN` produced) |
-| **Adaptive Delegation** — router | yes | no (evaluation-only, off by default) | **yes, DIRECT only** — 1 admission attempt, 0 `DELEGATE_PARALLEL` |
+| **Adaptive Delegation** — router | yes | no (evaluation-only, off by default) | **yes** — `validation-parallel-R2` (`eval-ffc739e09fa6`) took `DELEGATE_PARALLEL` and ran 3 workers; the other cells took `DIRECT` |
 
-The single most important line in this table is the Context Engineering row: the plane is implemented
-in all three compositions and has **never** been exercised inside a live provider request from the
-coding or evaluation path. That is the gap Phase 4–6 of this stage exists to close.
+The Context Engineering row was the most important line in this table and is now closed for the
+evaluation path (see `docs/final-4-evidence-closure-report.md` §C). The remaining rows that are still
+open are placement (`IMPLEMENTED_BUT_NOT_WIRED`, approval requested) and the native neutral baseline
+(`BASELINE_PARITY_BLOCKED`, no lifecycle layer).
 
 ## 3. Functional gaps found by this audit
 
@@ -115,5 +116,19 @@ coding or evaluation path. That is the gap Phase 4–6 of this stage exists to c
 | G-5 | Resume-time context equivalence is proven by test, not asserted at runtime: `AtlasRuntime.resume` checks policy/renderer/transform compatibility and rebuilds the store, but does not compare the new render against the pre-crash render hash. | `durability/manifest.py::verify_compatible`, `tests/integration/test_resume.py:288` |
 | G-6 | The evaluation path's `config_digest` differs between R0/R1 and R2 by construction (`delegation_route_mode` is part of `RunnerSettings.digest()`), so "same core" cannot be checked by digest equality alone. | `runner.py:214-243` |
 
-G-1..G-3 are corrected in this stage. G-4 is analysed and left for owner approval
-(`docs/final-4-placement-integration-proposal.md`). G-5 and G-6 are recorded, not fixed.
+G-1..G-3 are corrected. G-4 is analysed and left for owner approval
+(`docs/final-4-placement-core-integration-approval.md`). G-5 is recorded, not fixed.
+
+G-6, corrected: `config_digest` is a *unit identity*, not a comparability marker. Measured on the
+executed runs it does **not** include `mode`, so R0 and R1 share `6e588edd24cb` while running different
+topologies, and it changes across metadata-only revisions (`2a2af55` → `97a7d35`). Comparability has to
+be established from `(git_commit, config_path, dataset_version, treatment fields, src SHA)`, which is
+what `collect_v2` classifies on and what the report's §A/§B evidence supports. No digest was rewritten.
+
+## 4. Revision-3 update
+
+`BenchmarkTask.required_artifacts` was `()` in revisions 1–2, so `GATE_0` blocked every candidate with
+`UNCOVERED_GOAL` and the delegation mechanism never reached gate 1. Revision 3 declares the public
+deliverables; the router, its gates and its thresholds are unchanged. See
+`docs/final-4-evidence-closure-report.md` §B for the digest table and the verdict-neutrality proof of
+the one oracle check that the field feeds.

@@ -98,6 +98,17 @@ UNITS: dict[str, dict[str, Any]] = {
         "config": CONTEXT_CONFIG,
         "expectation": CONTEXT_PLANE_TASK_SCOPED,
     },
+    # Ablation pair with R0: identical in every field except that every tool schema is exposed up
+    # front. Same catalog, same action policy, same permissions; only disclosure differs.
+    "D0": {
+        "runner": "atlas",
+        "mode": "coding",
+        "route": "off",
+        "config": CONTEXT_CONFIG,
+        "expectation": CONTEXT_PLANE_TASK_SCOPED,
+        "progressive_tools": False,
+        "label": "full tool exposure",
+    },
 }
 
 #: ``X1`` is not a separate unit: it is the Atlas Context Plane cell of the same DAG, i.e. ``R1``.
@@ -199,7 +210,7 @@ def settings_for(configuration: str, *, runs_root: Path) -> RunnerSettings:
         token_budget=TOKEN_BUDGET,
         budget_mode="guarded",
         max_tool_calls=MAX_TOOL_CALLS,
-        progressive_tools=True,
+        progressive_tools=bool(unit.get("progressive_tools", True)),
         handoff_mode="legacy",
         # Measurement hygiene, identical in every arm: under `legacy` a worker is terminated with
         # `side_effect_unknown` when a read-only command exits non-zero, which is what killed both
@@ -310,13 +321,16 @@ async def run_unit(
             ]
         ),
         "resolved": resolved,
+        "progressive_tools": settings.progressive_tools,
         "context": {
             "enabled": context_evidence.get("enabled"),
             "builder": context_evidence.get("builder"),
             "builder_invocations": context_evidence.get("builder_invocations"),
             "store_block_ids": context_evidence.get("store_block_ids"),
             "tasks": context_evidence.get("tasks"),
+            "request_linkage": context_evidence.get("request_linkage"),
         },
+        "request_evidence": result.metrics.extra.get("request_evidence"),
         "routing": result.metrics.extra.get("routing"),
         "worker_count": len(result.worker_results),
         "budget": result.metrics.extra.get("budget"),

@@ -35,6 +35,7 @@ environment variables, historical run ids and Git history keep `atlasos` / `atla
 | Final-3 integrated runtime | `93cbd98` — Context Plane wired into the coding compositions (opt-in), shared budget in app coding, failure/token semantics fixed |
 | Architecture design contract | `37eba87` — `docs/architecture-design-contract.md`, AGENTS.md §2 and §10 |
 | Final-4 corrected evaluation baseline | `2a2af55` — Context Plane actually loaded (`experiments/configs/final4-context.yaml`), fail-closed configuration expectations, task set revision 2, per-run `context.json`; 10 corrected live units, all oracle PASS |
+| Final-4 evidence closure | `97a7d35` + request-evidence commit — task set revision 3 (`required_artifacts` from the public requirement), Router delegate path executed once (`validation-parallel-R2`, 3 workers), request-content-verified dependency delivery, Native arm `BASELINE_PARITY_BLOCKED` |
 | Worktree | `D:\Work\AtlasRuntime` (primary research worktree remains `D:\Work\AtlasOS`) |
 | Final-4 evaluation baseline | 28428e8 — neutral backend, 64/128-tool retrieval, D0–D3 dedup diagnosis, 59-row evidence levels; live cells NOT_RUN (no credentials) |
 | Recovery Pilot branch | `experiment/final-2-recovery-pilot` = `c5fce5cc5d3d96251968b264e8113685711ffc8e`, 3 commits on top of `16251d0` |
@@ -227,8 +228,9 @@ was re-measured after the Final-1.6 port: 891 passed / 6 skipped / 1 deselected
 4. Complete module evaluation (Track A) — Final-3 offline, Final-4 supplement; live ablations blocked.
 5. Integrated runtime evaluation vs native AnyCode (Track B) — Final-4; the native arm is still
    blocked, the Atlas arm has now run.
-6. Adaptive delegation pilot (Track C) — Final-4 corrected matrix ran, but every R2 cell collapsed to
-   DIRECT because the harness declares no `required_artifacts`, so Track C is `NOT_VALIDATED`.
+6. Adaptive delegation pilot (Track C) — Final-4 closure round: `required_artifacts` declared, so the
+   frozen router admitted `DELEGATE_PARALLEL` on the parallel task and the delegate branch really ran
+   (3 workers, oracle PASS). The other two cells took `DIRECT`, which is the correct decision there.
 7. Architecture design contract and Context Plane restoration (Final-4 correction, `37eba87` /
    `2a2af55`) — `docs/final-4-context-restoration-report.md`.
 8. Demo, release and public packaging (Final-6).

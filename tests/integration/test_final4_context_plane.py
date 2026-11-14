@@ -14,7 +14,7 @@ import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from anycode import OrchestratorConfig, TaskSpec
@@ -374,6 +374,41 @@ def test_request_evidence_links_the_outgoing_request_to_the_render() -> None:
     assert summary["dependency_probe_hits"] == 1
     assert summary["duplicate_dependency_injections"] == []
     assert all(record["content_persisted"] is False for record in summary["requests"])
+
+
+@pytest.mark.asyncio
+async def test_request_evidence_covers_the_streaming_path() -> None:
+    """AnyCode streams; the wrapper must observe there or the evidence is silently empty."""
+
+    from experiments.evaluation.runner import ModelRecordingAdapter, _RequestEvidence
+
+    class _StreamingInner(FakeAdapter):
+        def __init__(self) -> None:
+            super().__init__(responses=[FakeResponse(text="ok")])
+
+        async def chat(self, messages: list[LLMMessage], options: LLMChatOptions):  # type: ignore[override]
+            raise AssertionError("the agent loop streams; chat must not be the only observed path")
+
+        def stream(self, messages: list[LLMMessage], options: LLMChatOptions):  # type: ignore[override]
+            async def _generate():
+                yield SimpleNamespace(type="done", data=FakeResponse(text="ok"))
+
+            return _generate()
+
+    evidence = _RequestEvidence()
+    adapter = ModelRecordingAdapter(cast("Any", _StreamingInner()), [], evidence)
+    stream = adapter.stream(
+        [SimpleNamespace(role="user", content=[SimpleNamespace(text="hello")])],
+        SimpleNamespace(system_prompt="SYSTEM", tools=()),
+    )
+    # Observed eagerly, before the first token is pulled, so a stream that is abandoned mid-flight
+    # is still counted as a request that reached the provider.
+    assert len(evidence.records) == 1
+    async for _ in stream:
+        pass
+    assert len(evidence.records) == 1
+    assert evidence.records[0]["message_count"] == 1
+    assert evidence.records[0]["content_persisted"] is False
 
 
 # -- router -------------------------------------------------------------------------------------

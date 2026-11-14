@@ -47,6 +47,8 @@ results of the current branch unless the document says so.
 | [`final-4-legacy-pilot-reclassification.md`](final-4-legacy-pilot-reclassification.md) | Final-4: the three 2026-11-14 runs reclassified as `EXPLORATORY_LEGACY_PILOT`, and what they may no longer be used for |
 | [`final-4-placement-integration-proposal.md`](final-4-placement-integration-proposal.md) | Final-4: context-locality placement support boundary and the minimal integration proposal awaiting approval |
 | [`final-4-context-restoration-report.md`](final-4-context-restoration-report.md) | Final-4: the corrected evaluation matrix, the X0/X1 context comparison, and the honest Track C `NOT_VALIDATED` result |
+| [`final-4-evidence-closure-report.md`](final-4-evidence-closure-report.md) | Final-4 closure: router metadata fix and the real delegate run, request-content-verified context delivery, blocked native arm, degenerate disclosure ablation |
+| [`final-4-placement-core-integration-approval.md`](final-4-placement-core-integration-approval.md) | `PLACEMENT_CORE_INTEGRATION_APPROVAL_REQUIRED` — what a real pooled-worker integration would change, and the two options |
 | [`research-history.md`](research-history.md) | Which branch/SHA holds which historical stage |
 
 The Final-2 Recovery Pilot report (`docs/final-2-recovery-pilot.md`) lives on

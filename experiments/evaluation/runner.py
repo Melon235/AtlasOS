@@ -285,7 +285,18 @@ class _RequestEvidence:
             block for block in self._store.all_blocks() if block.block_id.startswith("task-output:")
         ]
 
+    @staticmethod
+    def _tool_schema_chars(tools: Any) -> int:
+        if not tools:
+            return 0
+        payload = [
+            tool.model_dump(mode="json") if hasattr(tool, "model_dump") else str(tool)
+            for tool in tools
+        ]
+        return len(json.dumps(payload, sort_keys=True))
+
     def observe(self, messages: Any, options: Any) -> None:
+        tools = tuple(getattr(options, "tools", ()) or ())
         texts = [
             "\n".join(str(getattr(block, "text", "")) for block in getattr(message, "content", ()))
             for message in messages
@@ -315,7 +326,8 @@ class _RequestEvidence:
                 else None,
                 "message_count": len(texts),
                 "text_chars": len(joined),
-                "tool_count": len(getattr(options, "tools", ()) or ()),
+                "tool_count": len(tools),
+                "tool_schema_chars": self._tool_schema_chars(tools),
                 "dependency_probes": probes,
                 "content_persisted": False,
             }
@@ -372,6 +384,11 @@ class ModelRecordingAdapter:
         return response
 
     def stream(self, messages: Any, options: Any) -> Any:
+        # AnyCode's agent loop streams. Observing here (eagerly, before the generator body runs) is
+        # what makes the request evidence cover the requests that actually reach the provider.
+        if self._evidence is not None:
+            self._evidence.observe(messages, options)
+
         async def _generate() -> Any:
             async for event in self._inner.stream(messages, options):
                 if getattr(event, "type", None) == "done":

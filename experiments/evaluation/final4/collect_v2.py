@@ -29,6 +29,8 @@ OUT = REPO_ROOT / "experiments" / "results" / "final4"
 TASK_IDS = ("validation-serial", "validation-parallel", "validation-coupled")
 #: The corrected matrix. ``X1`` is not listed: it is ``<task>-R1`` by definition.
 CONFIGURATIONS = ("N0", "X0", "R0", "R1", "R2")
+#: Cells that exist only for specific tasks: the disclosure ablation ran on the parallel task only.
+EXTRA_CELLS = {"validation-parallel": ("D0",)}
 RUNTIME_SHA = "93cbd98f9407e7358e997878238520dcac15827a"
 
 
@@ -47,8 +49,19 @@ def _repetition(directory: str) -> int:
     return int(head[1:]) if head.startswith("r") and head[1:].isdigit() else 0
 
 
+def _revision(dataset_version: Any) -> int:
+    """``final4-validation-3`` -> 3; a run without a revision counts as the oldest."""
+
+    tail = str(dataset_version or "").rsplit("-", 1)[-1]
+    return int(tail) if tail.isdigit() else 0
+
+
 def _configuration(data: dict[str, Any]) -> str:
-    """Classify from recorded evidence only; ``LEGACY`` when the run recorded nothing to classify."""
+    """Classify from recorded evidence only; ``LEGACY`` when the run recorded nothing to classify.
+
+    ``config_digest`` is deliberately not used: it does not include ``mode``, so R0 and R1 share a
+    digest, and it changes with metadata-only revisions (see the G-6 note in the report).
+    """
 
     environment = data.get("environment") or {}
     resolved = environment.get("context_resolved")
@@ -61,9 +74,15 @@ def _configuration(data: dict[str, Any]) -> str:
         or resolved.get("policy") == "upstream_default"
     ):
         return "X0" if len(workers) > 1 else "R0"
+    # The router unit is identified by its route mode, not by how it happened to decide: a
+    # DELEGATE verdict produces a multi-worker run, and it is still R2.
+    if route_mode == "selective":
+        return "R2"
     if len(workers) > 1:
         return "R1"
-    return "R2" if route_mode == "selective" else "R0"
+    # ``D0`` is the full-exposure half of the disclosure ablation: everything equals R0 except that
+    # no tool schema is withheld at the start.
+    return "R0" if environment.get("progressive_tools", True) else "D0"
 
 
 def _context_summary(
@@ -154,6 +173,8 @@ def _summarise(result_path: Path) -> dict[str, Any]:
     return {
         "unit": f"{data.get('sample_id')}-{configuration}",
         "task_id": data.get("sample_id"),
+        "dataset_version": identity.get("dataset_version"),
+        "git_commit": identity.get("git_commit"),
         "configuration": configuration,
         "classification": (
             "EXPLORATORY_LEGACY_PILOT" if configuration == "LEGACY" else "CORRECTED_EVAL"
@@ -243,14 +264,21 @@ def main() -> int:
     rows = [_summarise(path) for path in sorted(RUNS_ROOT.rglob("result.json"))]
     corrected = [row for row in rows if row["classification"] == "CORRECTED_EVAL"]
     legacy = [row for row in rows if row["classification"] != "CORRECTED_EVAL"]
+    # Highest task-set revision first, then the primary repetition: a unit that was re-run under a
+    # corrected revision must not be shadowed by its earlier, metadata-incomplete run.
     corrected.sort(
-        key=lambda row: (str(row["task_id"]), str(row["configuration"]), row["repetition"])
+        key=lambda row: (
+            str(row["task_id"]),
+            str(row["configuration"]),
+            -_revision(row.get("dataset_version")),
+            row["repetition"],
+        )
     )
     replications = [row for row in corrected if row["repetition"] > 0]
 
     planned: list[dict[str, Any]] = []
     for task_id in TASK_IDS:
-        for configuration in CONFIGURATIONS:
+        for configuration in (*CONFIGURATIONS, *EXTRA_CELLS.get(task_id, ())):
             unit = f"{task_id}-{configuration}"
             executed = next(
                 (row for row in corrected if row["unit"] == unit and row["repetition"] == 0),
@@ -261,8 +289,11 @@ def main() -> int:
                 continue
             if configuration == "N0":
                 reason = (
-                    "NOT_RUN: the native arm still runs on the host; neutral sandbox wiring for "
-                    "baseline.py is not complete, so N0 is reported as blocked rather than downgraded"
+                    "NOT_RUN / BASELINE_PARITY_BLOCKED: the native arm still runs on the host. "
+                    "The neutral tool adapter exists (final4/neutral_adapter.py) but no neutral "
+                    "sandbox lifecycle layer does, and ProjectSandboxManager may not be injected "
+                    "into the baseline arm. 2 of 24 task runs were left unused rather than spend "
+                    "them on an unvalidated adapter"
                 )
             else:
                 reason = "NOT_RUN: no corrected run directory for this unit"
@@ -278,11 +309,32 @@ def main() -> int:
                 }
             )
 
+    # Every executed run of a unit, including superseded revisions and replications: the published
+    # cell shows the newest primary run, but the older samples stay visible instead of disappearing.
+    for row in planned:
+        row["samples"] = [
+            {
+                "run_id": sample["run_id"],
+                "dataset_version": sample["dataset_version"],
+                "repetition": sample["repetition"],
+                "worker_count": sample["worker_count"],
+                "oracle_pass": sample["oracle_pass"],
+                "cache_hit_tokens": sample["cache_hit_tokens"],
+                "cache_miss_tokens": sample["cache_miss_tokens"],
+                "completion_tokens": sample["completion_tokens"],
+                "cost_usd": sample["estimated_cost_usd"],
+                "latency_ms": sample["latency_ms"],
+                "context_invocations": (sample["context"] or {}).get("builder_invocations"),
+            }
+            for sample in corrected
+            if sample["unit"] == row["unit"]
+        ]
+
     payload = {
         "generated_at": datetime.now(UTC).isoformat(),
         "runtime_sha": RUNTIME_SHA,
-        "task_set_revision": 2,
-        "dataset_version": "final4-validation-2",
+        "task_set_revision": 3,
+        "dataset_version": "final4-validation-3",
         "config_file": "experiments/configs/final4-context.yaml",
         "x1_equivalence": "X1 == <task>-R1 (same unit, not a separate run)",
         "executed": len(planned) - sum(1 for row in planned if row["status"] != "EXECUTED"),
