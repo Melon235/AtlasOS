@@ -5,13 +5,14 @@ purpose. Project history is not restated here.
 
 ## 1. Project Identity
 
-- Public name: **AtlasRuntime** — a context-aware, tool-aware agent execution runtime with trusted
-  execution, resource governance, persistence and evaluation. Built on **AnyCode 0.9.0**.
+- Public name: **AtlasRuntime** — *Context-aware and Reliable Agent Runtime*. Built on **AnyCode
+  0.9.0**. The authoritative positioning, the two cores and the extension are defined once, in
+  [`docs/architecture-design-contract.md`](docs/architecture-design-contract.md).
 - Repository: `https://github.com/Melon235/AtlasRuntime` (default branch `master`).
 - Python distribution and import package: `atlasos`. CLI: `atlas`. Environment variables: `ATLASOS_*`.
   These are frozen compatibility identifiers — never rename them as a "cleanup".
 - Application domain: software engineering workflows.
-- Five technical pillars, all of them part of the project:
+- Module groups (code layout; the contract, not this list, ranks what is core):
   1. **Context Engineering** — `context/`, `context/transform.py`, `placement/`, `durability/`.
   2. **Tool Engineering** — `tools/`, `tools/search.py`, `tools/dispatch.py`, MCP integration.
   3. **Multi-Agent Coordination** — `workers/`, `workflow.py`, `handoff.py`, `budget.py`,
@@ -24,7 +25,41 @@ purpose. Project history is not restated here.
 Do not describe the project as a recovery runtime only, and do not describe optional mechanisms as
 default behaviour.
 
-## 2. Current Development Objective
+## 2. Architecture Identity and Design Contract
+
+**AtlasRuntime is a Context-aware and Reliable Agent Runtime.** The owner-confirmed design baseline
+is [`docs/architecture-design-contract.md`](docs/architecture-design-contract.md). Read it before
+starting any task that touches architecture, an execution path, an evaluation design or a project
+description.
+
+The hierarchy is fixed:
+
+1. **Context Engineering** — core. Logical context model (`ContextBlock` / `ContextRef` /
+   `ContextStore` / versioning), task-scoped selection, deterministic rendering with a stable prefix
+   and layout/prompt hashes, context transform (identity / optional ContextPilot exact-duplicate
+   dedup), context-locality placement, context-aware recovery.
+2. **Reliable Execution** — core, equal standing. Tool engineering and progressive disclosure,
+   scoped workers and trusted identity, `ActionSafetyGate`, durable action ledger and uncertain-side-
+   effect classification, sandbox binding and trusted local OpenSandbox, approval / durable
+   suspension / trusted recovery, shared run budget.
+3. **Adaptive Delegation** — an **extension only**. The router decides whether to accept a candidate
+   decomposition; placement decides assignment; the Context Plane decides what a task receives.
+   Three separate mechanisms, three separate layers.
+4. **Evaluation and Observability** — verification of the above, not a substitute for them.
+
+Rules that follow from this contract:
+
+- A stage task may narrow scope; it must never overwrite the long-term design. Do not delete,
+  downgrade or replace a core mechanism without the project owner's explicit approval.
+- Implemented ≠ enabled. Declared in a manifest or a YAML file ≠ executed. Report both facts
+  separately, with the entry point named.
+- Never present a mechanism that is not wired into the path as if the real runtime used it, and never
+  present a configuration-only declaration as an executed mechanism.
+- Never re-interpret the original design from the current implementation. The implementation is
+  audited against the contract; the contract is not rewritten to match the implementation.
+- Naming is frozen: `atlasos` / `atlas` / `ATLASOS_*` / historical run ids stay as they are.
+
+## 3. Current Development Objective
 
 Current objective: **final integration and evaluation**. The scope-expansion era is closed.
 
@@ -36,7 +71,7 @@ Current objective: **final integration and evaluation**. The scope-expansion era
   generic business completion gates, unbounded multi-worker optimisation, evidence-free context-pack
   rewrites.
 
-## 3. Architecture Boundaries
+## 4. Architecture Boundaries
 
 AnyCode 0.9.0 owns the agent loop, `AgentRunner`, task queue, DAG scheduler, wave execution,
 `AgentPool`, `ToolRegistry`, `ToolExecutor`, checkpoints, native resume, idempotency
@@ -62,10 +97,11 @@ Further invariants that must not be broken:
 - Every research mechanism must be switchable off via configuration so its baseline stays
   reproducible.
 
-## 4. Source of Truth
+## 5. Source of Truth
 
 Active documents (read these, in this order, before changing anything):
 
+- `docs/architecture-design-contract.md` — the owner-confirmed design baseline (layer 1).
 - `docs/project-status.md` — current baseline, architecture status, mechanism status.
 - `docs/architecture.md` — layers, execution paths, persisted state.
 - `docs/anycode-delta.md` — upstream vs AtlasRuntime responsibility.
@@ -79,7 +115,7 @@ Archived documents (`docs/stages/`, `docs/stage-*.md`, historical experiment rep
 for traceability. They carry no current implementation instruction. Keep them; do not rewrite their
 recorded results.
 
-## 5. Development Rules
+## 6. Development Rules
 
 - Reuse existing modules first; read the call chain before adding an abstraction.
 - Evidence before action: reproduce or cite the defect, then make the smallest coherent change.
@@ -91,7 +127,7 @@ recorded results.
 - Every optimisation must remain ablation-switchable through `config.py` / YAML.
 - If a problem is out of the current stage's scope: write it down, do not fix it.
 
-## 6. Evaluation Rules
+## 7. Evaluation Rules
 
 Final evaluation has exactly three tracks (details: `docs/final-roadmap.md`):
 
@@ -107,7 +143,7 @@ outcomes. Runtime success is not oracle success — report the oracle verdict se
 
 Do not disable a legitimate native AnyCode capability to manufacture an advantage.
 
-## 7. Git Rules
+## 8. Git Rules
 
 - Never modify `master` history; never force-push; never rebase shared branches; never delete
   branches; never merge or cherry-pick automatically.
@@ -119,7 +155,7 @@ Do not disable a legitimate native AnyCode capability to manufacture an advantag
   it by rewriting history.
 - All pushes, PRs and CI-affecting changes require the project owner's approval.
 
-## 8. Verification
+## 9. Verification
 
 Run from the repository root in a Python 3.12 `.venv` created inside the workspace:
 
@@ -142,7 +178,23 @@ DeepSeek or OpenSandbox run is opt-in, budget-bounded and never part of the defa
 
 Report results honestly: failed, skipped and not-run checks are recorded as such.
 
-## 9. Read Next
+## 10. Context Handoff
+
+At the start of every new long-running task, and after any context compaction or session switch,
+restore state in this order before writing anything:
+
+1. `docs/architecture-design-contract.md` — what the project is (layer 1).
+2. The currently frozen runtime SHA and the current branch/HEAD.
+3. The current active task and the instruction that authorised it.
+4. The current implementation and actual execution state of the mechanisms that task touches
+   (`docs/project-status.md`, `docs/runtime-entrypoints.md`, and the latest integration report).
+5. The approved modification scope for that task.
+6. What is still unfinished, blocked or owed to the project owner.
+
+Do not infer the project's design positioning from the most recent stage report. A stage report
+describes one increment; the contract describes the project.
+
+## 11. Read Next
 
 Read only the documents the current task needs: `docs/README.md` for the index,
 `docs/project-status.md` for the baseline, `docs/runtime-entrypoints.md` before touching an entry

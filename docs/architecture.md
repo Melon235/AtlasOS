@@ -1,10 +1,17 @@
 # AtlasRuntime Architecture
 
-**Reliable execution runtime for long-horizon agent workflows.**
+**Context-aware and Reliable Agent Runtime.**
 
-This document describes the system that exists in the repository, verified against the source.
-It replaces the earlier V1 context-runtime architecture document; the V1 research track is now a
-retained subsystem (see §9) and its history is indexed in `docs/research-history.md`.
+This document describes the system that **exists in the repository**, verified against the source. It
+is the *implementation-status* layer; the design baseline is
+[`architecture-design-contract.md`](architecture-design-contract.md) and it outranks this file. Where
+the two differ, this file is describing a gap, not amending the contract.
+
+Two cores — Context Engineering (§9) and Reliable Execution (§5–§7) — plus the Adaptive Delegation
+extension (§4, §10) and the evaluation layer (§8). The V1 research track is not a "retained
+subsystem whose claim does not survive": logical context, task-scoped selection, deterministic
+rendering, the transform seam and context-locality placement are part of the design. Its history is
+indexed in `docs/research-history.md`.
 
 Upstream attribution and per-module provenance live in `docs/anycode-delta.md`. Trade-offs and
 rejected designs live in `docs/design-decisions.md`.
@@ -280,12 +287,12 @@ Verification never changes task semantics: it observes the produced files and re
 
 ---
 
-## 9. Retained V1 subsystem: logical context + rendering
+## 9. Core: logical context + deterministic rendering
 
-The V1 Context Plane survives because prompt construction needs it; its research claim does not.
+The Context Plane is what a task logically receives, kept separate from how a prompt is laid out.
 
 ```text
-workflow.py task text
+workflow.py / coding composition task text
   └─ context/store.py       InMemoryContextStore (ContextBlock / ContextRef)
       └─ context/selectors.py  TaskScopedSelector  (WHAT the task logically needs)
           └─ context/renderer.py StablePromptRenderer
@@ -293,13 +300,24 @@ workflow.py task text
                 └─ context/transform.py  IdentityContextTransform | ContextPilotDedupTransform
 ```
 
-Separation of concerns is preserved: selectors decide *what*, renderers decide *how*. The application
-service configures `policy="task_scoped"`, `renderer="stable_deterministic"`,
-`transform="identity"` for its workflow runs. The application coding path and the evaluation runner
-do **not** use this plane — they render prompts upstream — so a context-plane result does not
-describe them (see `docs/runtime-entrypoints.md` §6). ContextPilot dedup stays behind
-`transform="contextpilot_dedup"` plus the optional extra, because it produced no measurable
-cache-miss win (see `docs/evaluation-summary.md` §7).
+One implementation builds every Atlas prompt: `context/task_prompt.py::AtlasTaskPromptBuilder`
+(project `task-output:<id>` blocks from completed tasks → select → transform → render). It is reached
+through the single AnyCode seam `AtlasContextEngine._build_task_prompt`:
+
+| Entry point | Context Plane switch | State |
+|---|---|---|
+| Workflow (`atlas run --mode workflow`) | `app/service.py` sets `policy="task_scoped"`, `renderer="stable_deterministic"`, `transform="identity"` | on by default |
+| App coding (`--mode coding`) | `app/coding.py::_build_context_plane` | opt-in (`context.policy="task_scoped"`); `upstream_default` returns `None` |
+| Evaluation (`experiments.evaluation`) | `runner.py::_context_prompt_builder` | opt-in, same switch; refuses `task_scoped` together with `handoff_mode="dual"` |
+
+Separation of concerns is preserved: selectors decide *what*, renderers decide *how*. ContextPilot
+dedup stays behind `transform="contextpilot_dedup"` plus the optional extra, because it produced no
+measurable cache-miss win (see `docs/evaluation-summary.md` §7).
+
+Wired is not the same as used: the Final-4 pilot (2026-11-14) declared `task_scoped` in its manifest
+but ran `eval-benchmark.yaml`, which sets no context section and therefore resolved to
+`upstream_default`. Those three runs did not exercise this plane. See
+`docs/final-4-legacy-pilot-reclassification.md`.
 
 ---
 
@@ -315,7 +333,7 @@ construct their tool runtime directly, so `tools.mode` does not apply to them.
 | Config field | Default | Values | Notes |
 |---|---|---|---|
 | `provider.model` | `deepseek-chat` | any provider model | DeepSeek adapter is the reference provider |
-| `context.policy` | `upstream_default` | `upstream_default` / `task_scoped` | the app service sets `task_scoped` |
+| `context.policy` | `upstream_default` | `upstream_default` / `task_scoped` | the app service sets `task_scoped`; coding and evaluation must set it themselves |
 | `context.renderer` | `upstream_default` | `upstream_default` / `naive_execution_order` / `stable_deterministic` | only two policy/renderer pairs are legal |
 | `context.transform.name` | `identity` | `identity` / `contextpilot_dedup` | requires `task_scoped` + `stable_deterministic` and the `contextpilot` extra |
 | `scheduler.policy` | `upstream_default` | any, but only `upstream_default` is accepted today | recorded, not re-implemented |

@@ -8,6 +8,7 @@ Read these before changing code. They describe what exists today in this branch.
 
 | Document | Purpose |
 |---|---|
+| [`architecture-design-contract.md`](architecture-design-contract.md) | **Layer 1** — the owner-confirmed design baseline: positioning, the two cores, the Adaptive Delegation extension, claim boundaries, change control. Read before any architecture, run-path or evaluation task |
 | [`project-status.md`](project-status.md) | Current baseline commit, architecture status per pillar, mechanism status, current work, closed directions |
 | [`architecture.md`](architecture.md) | Layers, normal execution path, persisted state, recovery/verification paths, mechanism switchboard |
 | [`anycode-delta.md`](anycode-delta.md) | What AnyCode 0.9.0 provides vs what AtlasRuntime adds (provenance basis for every claim) |

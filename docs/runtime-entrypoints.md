@@ -4,6 +4,11 @@ Read-only audit of the code on `chore/final-1-5-repository-baseline` (`BASE_SHA`
 `16251d05c34cff41d280396a1647214914e51a31`). Every statement below was traced to a call site; a file
 existing is never treated as proof that a mechanism runs.
 
+Re-verified at `b555043` for the Context Plane rows of §6: both coding compositions compose
+`AtlasTaskPromptBuilder` behind `context.policy="task_scoped"` (Final-3 wiring). That a later pilot did
+not enable the switch is a *configuration* fact, not evidence that the wiring is absent. The design
+baseline for what these mechanisms are is `docs/architecture-design-contract.md`.
+
 The three paths are **not** the same runtime composition. That is the single most important fact in
 this document.
 
@@ -185,10 +190,10 @@ concept. `NOT_VALIDATED` — present, no live evidence.
 
 | Mechanism | Workflow | App Coding | Evaluation | Evidence |
 |---|---|---|---|---|
-| Context selector (`TaskScopedSelector`) | ACTIVE_DEFAULT | NOT_WIRED | NOT_WIRED (V1 plane; E2 evaluated it separately) | E2, S6 |
-| Stable renderer | ACTIVE_DEFAULT | NOT_WIRED | NOT_WIRED | S6 Table A |
-| ContextPilot dedup | ACTIVE_OPTIONAL | NOT_WIRED | NOT_WIRED | S6 Table B (no cache-miss win) |
-| Context-locality placement | ACTIVE_OPTIONAL | NOT_WIRED (`bypass`) | NOT_WIRED (E3 measured it standalone) | S6 Table C |
+| Context selector (`TaskScopedSelector`) | ACTIVE_DEFAULT | ACTIVE_OPTIONAL (`context.policy="task_scoped"`, `app/coding.py::_build_context_plane`) | ACTIVE_OPTIONAL (same switch, `runner.py::_context_prompt_builder`; not enabled in the Final-4 pilot) | E2, S6 |
+| Stable renderer | ACTIVE_DEFAULT | ACTIVE_OPTIONAL (same switch) | ACTIVE_OPTIONAL (same switch) | S6 Table A |
+| ContextPilot dedup | ACTIVE_OPTIONAL | ACTIVE_OPTIONAL (requires `task_scoped` + `stable_deterministic`) | ACTIVE_OPTIONAL (same) | S6 Table B (no cache-miss win) |
+| Context-locality placement | ACTIVE_OPTIONAL (`placement.policy`) | NOT_WIRED (`bypass`; one task, nothing to place) | NOT_WIRED (`runner.py` constructs one worker per frozen step) | S6 Table C |
 | Tool search (`tool_search`) | NOT_APPLICABLE (agents have no tools) | ACTIVE_DEFAULT | ACTIVE_DEFAULT | M1: 2 599 → 1 399 tokens |
 | Progressive disclosure (`dispatch_action`) | NOT_APPLICABLE | ACTIVE_DEFAULT | ACTIVE_DEFAULT | M1 acceptance table |
 | Scoped worker + trusted identity | NOT_WIRED | ACTIVE_DEFAULT | ACTIVE_DEFAULT | R1-1 ownership |

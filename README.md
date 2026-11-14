@@ -17,7 +17,8 @@ durable suspension and approval, and an audit trail that survives a crash.
   decide what happened. See [limitations §4](docs/limitations.md) and
   [`docs/runtime-entrypoints.md`](docs/runtime-entrypoints.md) §4.
 
-Start here: [`docs/README.md`](docs/README.md) (document index) ·
+Start here: [`docs/architecture-design-contract.md`](docs/architecture-design-contract.md) (the
+owner-confirmed design baseline) · [`docs/README.md`](docs/README.md) (document index) ·
 [`docs/project-status.md`](docs/project-status.md) (current baseline) ·
 [`AGENTS.md`](AGENTS.md) (development contract) ·
 [`docs/final-roadmap.md`](docs/final-roadmap.md) (what comes next).
@@ -26,7 +27,14 @@ Start here: [`docs/README.md`](docs/README.md) (document index) ·
 
 ## 1. What is AtlasRuntime?
 
-Five technical pillars, all of them load-bearing, each with its own evidence and its own limits:
+Two of the groups below are the project's **cores** — *Context Engineering* and *Reliable
+Execution*. *Adaptive Delegation* (inside Multi-Agent Coordination) is an **extension**: it decides
+whether a candidate decomposition is accepted, never what a task's context is. *Observability and
+Evaluation* verifies the rest; it is not a substitute for it. The binding statement of that hierarchy
+is [`docs/architecture-design-contract.md`](docs/architecture-design-contract.md); this README
+summarises it and the code, and where the two disagree the contract is right.
+
+Five module groups, each with its own evidence and its own limits:
 
 | Pillar | Question it answers | Code |
 |---|---|---|
@@ -286,6 +294,8 @@ or that cache-aware context reduces cost. Each was tested and not supported.
 
 ## 7. Development
 
+- [`docs/architecture-design-contract.md`](docs/architecture-design-contract.md) — the design
+  baseline: positioning, two cores, one extension, claim boundaries, owner-approval rule.
 - [`AGENTS.md`](AGENTS.md) — development contract, invariants, verification commands, Git rules.
 - [`docs/README.md`](docs/README.md) — ACTIVE / EVIDENCE / ARCHIVED document index.
 - [`docs/project-status.md`](docs/project-status.md) — baseline commit, per-pillar status, mechanism
